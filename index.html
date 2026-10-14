@@ -1,6 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
-<head></heady>
+<head>
+<meta charset="UTF-8">
+<title>BMFG Help</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="Style.css">
+</head>
+
 <body>
-<p>Test</p>
+<header>
+<h1>BMFG HELP</h1>
+</header>
+
+
+<h2>Quick Tools</h2>
+
+<!-- NC to SBP -->
+<div class="NC2SBP">
+	<p>NC to SBP Converter</p>
+    <div class="dropBox" id="dropArea">
+        <p>Drag & drop your .nc file here, or click to select</p>
+        <input type="file" id="fileInput" accept=".nc,.gcode" style="display:none">
+    </div>
+	
+	<p class = "rpm">RPM: </p>
+	<input type="number" class="rpm" id="speedInput" value="12000" min="1000" step="500">
+    <button class="DownloadButton" id="processBtn">Convert & Download</button>
+
+    <script src="js/NC2SBP.js"></script>
+</div>
+
+
+<h3>Other Tools</h3>
+
+<a href="https://drive.google.com/drive/folders/1Zc2p8VL5jiXXqpWR3vXrtU4rzjOYCbYv"> BMFG Drive</a> 
+</br>
+<a href="CutContour.html">CutContour</a>
+
 </body>

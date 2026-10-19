@@ -127,6 +127,9 @@ body.resizing, body.resizing * { cursor: col-resize !important; user-select: non
 .btn:hover { background: var(--panel-2); }
 .btn svg { width: 15px; height: 15px; }
 .btn.danger { color: var(--zero); }
+.btn.center0 { width: 100%; justify-content: center; padding: 8px 10px; font-weight: 600; color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.btn.center0:hover { background: var(--accent-soft); filter: brightness(1.04); }
+.btn.center0 svg { width: 17px; height: 17px; }
 .cuttypes { display: grid; gap: 4px; }
 .cuttype { display: grid; grid-template-columns: 34px 1fr; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: var(--panel); text-align: left; }
 .cuttype:hover { border-color: var(--grid-major); background: var(--panel-2); }
@@ -1692,6 +1695,9 @@ const ALIGN = [
   ['vcenter', 'Center vertically', '<path d="M3 12h18"/><rect x="6" y="5" width="4" height="14"/><rect x="14" y="8" width="4" height="8"/>'],
   ['top', 'Align top', '<path d="M3 4h18"/><rect x="6" y="7" width="4" height="12"/><rect x="14" y="7" width="4" height="7"/>']
 ];
+const CENTER_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>';
+const centerLabel = () => P.zero === 'center' ? 'Center on 0,0' : 'Center on material';
+const centerBtn = (act, text) => `<button class="btn center0" data-act="${act}" title="Move together to the middle of the material, keeping their spacing (C)">${CENTER_IC}${text}</button>`;
 const ic = (p, sw) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw || 1.8}">${p}</svg>`;
 function renderInspector() {
   const el = $('#insp');
@@ -1699,10 +1705,13 @@ function renderInspector() {
   if (document.activeElement && el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT' && drag) return;
   if (!ss.length) {
     el.innerHTML = `<div class="insp-sec"><span class="eyebrow">Design</span>
-      <p class="note" style="margin:0">Draw a shape with the tools on the left, or drop an SVG or DXF onto the sheet. Click a shape to set how it gets cut.</p></div>
+      <p class="note" style="margin:0">Draw a shape with the tools on the left, or drop an SVG or DXF onto the sheet. Click a shape to set how it gets cut.</p>
+      ${P.objects.length ? centerBtn('centerAll', P.zero === 'center' ? 'Center all artwork on 0,0' : 'Center all artwork on material') : ''}</div>
       <div class="insp-sec"><span class="eyebrow">Shortcuts</span><div class="keys">
       <kbd>Drag</kbd><span>Move a shape, or box-select</span>
       <kbd>Shift</kbd><span>Add to selection</span>
+      <kbd>Ctrl A</kbd><span>Select everything</span>
+      <kbd>C</kbd><span>Center selection on ${P.zero === 'center' ? '0,0' : 'the material'}</span>
       <kbd>Arrows</kbd><span>Nudge 1/16 in (Shift: 1/4 in)</span>
       <kbd>Ctrl D</kbd><span>Duplicate</span>
       <kbd>Del</kbd><span>Delete</span>
@@ -1721,7 +1730,7 @@ function renderInspector() {
       if (o.kind === 'rect') params = unitField('pR', 'Corner radius', o.params.r || 0);
       else if (o.kind === 'polygon') params = unitField('pSides', 'Sides', o.params.sides, '#');
       else if (o.kind === 'star') params = unitField('pPoints', 'Points', o.params.points, '#') + unitField('pInner', 'Inner size', o.params.inner, '%');
-      body = `<div class="insp-sec">${alignRow}</div>
+      body = `<div class="insp-sec">${alignRow}${centerBtn('center', centerLabel())}</div>
       <div class="insp-sec">
         <label class="fld"><span>Name</span><input class="txt" id="iName" value="${esc(o.name)}" spellcheck="false"></label>
         <div class="grid2">${unitField('iX', 'X (left edge)', b.x0 - zx)}${unitField('iY', 'Y (bottom edge)', b.y0 - zy)}
@@ -1734,7 +1743,7 @@ function renderInspector() {
         ${params}</div>
       </div>`;
     } else {
-      body = `<div class="insp-sec"><span class="eyebrow">${ss.length} shapes selected</span>${alignRow}<p class="note" style="margin:0">Alignment lines the shapes up with each other.</p></div>`;
+      body = `<div class="insp-sec"><span class="eyebrow">${ss.length} shapes selected</span>${centerBtn('center', centerLabel() + ' as a group')}${alignRow}<p class="note" style="margin:0">The center button moves all of them together and keeps their spacing. The alignment buttons line them up with each other.</p></div>`;
     }
     body += `<div class="insp-sec"><div class="row"><button class="btn" data-act="dup">${ic('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>', 2)}Duplicate</button><button class="btn danger" data-act="del">${ic('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>', 2)}Delete</button></div></div>`;
   } else {
@@ -1774,6 +1783,8 @@ $('#insp').addEventListener('click', e => {
   switch (act.dataset.act) {
     case 'del': deleteSel(); break;
     case 'dup': duplicateSel(); break;
+    case 'center': centerSel(ss); break;
+    case 'centerAll': centerSel(P.objects); break;
     case 'through': pushUndo(); for (const o of ss) o.cut.depth = P.material.t; changed(); break;
     case 'rot90': pushUndo(); for (const o of ss) o.rot = ((o.rot || 0) + 90) % 360; changed(); break;
     case 'flipH': pushUndo(); for (const o of ss) o.sx = -o.sx; changed(); break;
@@ -1834,6 +1845,18 @@ function align(k) {
     if (k === 'vcenter') o.y += (ref.y0 + ref.y1) / 2 - (b.y0 + b.y1) / 2;
   }
   changed();
+}
+function centerSel(list) {
+  if (!list.length) return;
+  const b = selBox(list);
+  const dx = P.material.w / 2 - (b.x0 + b.x1) / 2, dy = P.material.h / 2 - (b.y0 + b.y1) / 2;
+  if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) { toast('Already centered.'); return; }
+  pushUndo();
+  for (const o of list) { o.x += dx; o.y += dy; }
+  changed();
+  const what = list.length === 1 ? 'Shape' : list.length + ' shapes';
+  toast(`${what} centered on ${P.zero === 'center' ? '0,0' : 'the material'}.`);
+  if (b.w > P.material.w + 1e-6 || b.h > P.material.h + 1e-6) setTimeout(() => toast('The artwork is bigger than the material, so it hangs off the edges.'), 2400);
 }
 function deleteSel() { if (!sel.size) return; pushUndo(); P.objects = P.objects.filter(o => !sel.has(o.id)); sel.clear(); changed(); }
 function duplicateSel() {
@@ -2007,6 +2030,7 @@ window.addEventListener('keydown', e => {
   if (tools[k]) { setTool(tools[k]); return; }
   if (k === 'i') { $('#fileImport').click(); return; }
   if (k === 'f') { fitView(); return; }
+  if (k === 'c') { if (sel.size) centerSel(selected()); return; }
   const arrows = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, 1], arrowdown: [0, -1] };
   if (arrows[k] && sel.size) {
     e.preventDefault();

@@ -1,4 +1,3 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>LaserReady</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -493,7 +492,7 @@ function importSVG(text,ppiSetting){
   const classRules={};
   for(const st of Array.from(doc.getElementsByTagName('style'))){ const css=st.textContent.replace(/\/\*[\s\S]*?\*\//g,''); const re=/([^{}]+)\{([^}]*)\}/g; let r;
     while((r=re.exec(css))){ const decl=parseDecls(r[2]); for(const sel of r[1].split(',')){ const t=sel.trim(); if(/^\.[\w-]+$/.test(t)) classRules[t.slice(1)]=Object.assign(classRules[t.slice(1)]||{},decl); } } }
-  const groups={cut:[],scratch:[],engrave:[]}; const images=[]; const warn={text:0,image:0};
+  const elems=[]; const images=[]; const warn={text:0,image:0};
   const SKIP=new Set(['defs','clippath','mask','metadata','title','desc','style','script','pattern','lineargradient','radialgradient','filter','marker','symbol','foreignobject']);
   const n=(el,a)=>{ const v=parseFloat(el.getAttribute(a)); return Number.isFinite(v)?v:0; };
   function styleOf(el,inh){
@@ -506,7 +505,8 @@ function importSVG(text,ppiSetting){
   }
   function classify(st){ const s=rgbOf(st.stroke), f=rgbOf(st.fill);
     if(isRed(s)) return 'cut'; if(isBlue(s)) return 'scratch'; if(f) return 'engrave'; if(s) return 'cut'; return null; }
-  const addD=(d,m,st)=>{ const op=classify(st); if(!op) return; for(const c of pathToContours(d,m)){ if(op==='engrave') c.closed=true; groups[op].push(c); } };
+  // one entry per SVG element, so an outline and the letters inside it come in as separate pieces
+  const addD=(d,m,st)=>{ const op=classify(st); if(!op) return; const cs=pathToContours(d,m); if(op==='engrave') for(const c of cs) c.closed=true; if(cs.length) elems.push({op,contours:cs}); };
   function ellipsePath(cx,cy,rx,ry){ return `M${cx-rx} ${cy}A${rx} ${ry} 0 1 0 ${cx+rx} ${cy}A${rx} ${ry} 0 1 0 ${cx-rx} ${cy}Z`; }
   function walk(el,M,st,depth){ for(const ch of Array.from(el.children)) processEl(ch,M,st,depth); }
   function processEl(el,M,inh,depth){
@@ -527,7 +527,7 @@ function importSVG(text,ppiSetting){
         else addD(`M${x} ${y}H${x+w}V${y+h}H${x}Z`,m,st); break; }
       case 'circle': { const r=n(el,'r'); if(r<=0) break; const cx=n(el,'cx'),cy=n(el,'cy'); const op=classify(st); if(!op) break;
         if(isSimilarity(m)){ const c=mapp(m,cx,cy), rr=r*Math.sqrt(m[0]*m[0]+m[1]*m[1]);
-          groups[op].push({closed:true,circle:{cx:c[0],cy:c[1],r:rr},pts:circlePts(c[0],c[1],rr)}); }
+          elems.push({op,contours:[{closed:true,circle:{cx:c[0],cy:c[1],r:rr},pts:circlePts(c[0],c[1],rr)}]}); }
         else addD(ellipsePath(cx,cy,r,r),m,st); break; }
       case 'ellipse': { const rx=n(el,'rx'),ry=n(el,'ry'); if(rx<=0||ry<=0) break; addD(ellipsePath(n(el,'cx'),n(el,'cy'),rx,ry),m,st); break; }
       case 'use': { if(depth>8) break; const href=el.getAttribute('href')||el.getAttributeNS('http://www.w3.org/1999/xlink','href')||el.getAttribute('xlink:href');
@@ -543,8 +543,12 @@ function importSVG(text,ppiSetting){
     }
   }
   walk(svg,root,{fill:'#000000',stroke:'none'},0);
-  for(const k of Object.keys(groups)) groups[k]=tidyContours(groups[k]);
-  return {groups, images, warn, ppi, source:isAI?'Illustrator':isInk?'Inkscape':'SVG', unitsFromFile:!!(W||H)&&!/^\s*[\d.]+\s*(px)?\s*$/i.test(svg.getAttribute('width')||'')};
+  // loose open segments (outlines exported as separate lines) are chained together across elements
+  const out=[], loose={cut:[],scratch:[],engrave:[]};
+  for(const e of elems){ const cs=tidyContours(e.contours); if(!cs.length) continue; if(cs.every(c=>!c.closed)) loose[e.op].push(...cs); else out.push({op:e.op,contours:cs}); }
+  for(const op of Object.keys(loose)) for(const c of tidyContours(loose[op])) out.push({op,contours:[c]});
+  const groups={cut:[],scratch:[],engrave:[]}; for(const e of out) groups[e.op].push(...e.contours);
+  return {elems:out, groups, images, warn, ppi, source:isAI?'Illustrator':isInk?'Inkscape':'SVG', unitsFromFile:!!(W||H)&&!/^\s*[\d.]+\s*(px)?\s*$/i.test(svg.getAttribute('width')||'')};
 }
 function samePt(a,b,t){ return Math.abs(a[0]-b[0])<=t && Math.abs(a[1]-b[1])<=t; }
 function tidyContours(list){
@@ -1080,11 +1084,40 @@ function alignSel(mode){ const ss=getSels(); if(!ss.length) return;
     if(mode==='t') dy=ref.y0-b.y0; if(mode==='b') dy=ref.y1-b.y1; if(mode==='vc') dy=(ref.y0+ref.y1)/2-(b.y0+b.y1)/2;
     translate(s,dx,dy); }
   afterChange(); toast(ALIGN_MSG[mode]+(ss.length===1&&mode!=='bed'?' to the bed.':'.')); }
+/* Break apart: a frame around everything comes off on its own; the rest splits into pieces that keep their holes (an O stays an O). */
+function islandsOf(cs){
+  const closed=cs.filter(c=>c.closed&&c.pts&&c.pts.length>=3), info=new Map();
+  for(const c of closed) info.set(c,{area:Math.abs(polyArea(c.pts)),bb:contourBB(c)});
+  const parentOf=new Map(), depth=new Map();
+  for(const a of closed){ const A=info.get(a); let par=null, d=0;
+    for(const b of closed){ if(b===a) continue; const B=info.get(b); if(B.area<=A.area||!bbInside(A.bb,B.bb)||!pip(a.pts[0],b.pts)) continue; d++; if(!par||B.area<info.get(par).area) par=b; }
+    parentOf.set(a,par); depth.set(a,d); }
+  const island=new Map(), groups=[];
+  for(const c of cs.slice().sort((a,b)=>(depth.get(a)||0)-(depth.get(b)||0))){ const par=parentOf.get(c);
+    if(par&&(depth.get(c)%2===1)&&island.has(par)){ const g=island.get(par); g.push(c); island.set(c,g); }
+    else { const g=[c]; groups.push(g); island.set(c,g); } }
+  return groups;
+}
+function breakApart(s){
+  const cs=rawContours(s).map(c=>JSON.parse(JSON.stringify(c)));
+  let pieces=null;
+  const closed=cs.filter(c=>c.closed&&c.pts&&c.pts.length>=3);
+  if(closed.length&&cs.length>2){ const big=closed.reduce((m,c)=>Math.abs(polyArea(c.pts))>Math.abs(polyArea(m.pts))?c:m), bb=contourBB(big);
+    const rest=cs.filter(c=>c!==big);
+    if(rest.every(c=>bbInside(contourBB(c),bb)&&pip(c.pts[0],big.pts))){ const g=islandsOf(rest); if(g.length>=2) pieces=[[big],...g]; } }
+  if(!pieces){ const g=islandsOf(cs); pieces=g.length>1?g:cs.map(c=>[c]); }
+  return pieces.map(list=>({type:'import',op:s.op,label:list.length>1?'Imported shape':'Imported path',contours:list}));
+}
+function combineSel(){ const ss=getSels(), vec=ss.filter(s=>!isRaster(s)); if(vec.length<2){ toast('Select two or more shapes to combine. Text and images can\u2019t be combined.'); return; }
+  const contours=[]; for(const s of vec) for(const c of rawContours(s)) contours.push(JSON.parse(JSON.stringify(c)));
+  const ns={type:'import',op:vec[0].op,label:'Combined shape',contours}; checkpoint(); ns.id=newId();
+  const i=shapes.indexOf(vec[0]), gone=new Set(vec); shapes=shapes.filter(x=>!gone.has(x)); shapes.splice(Math.min(i,shapes.length),0,ns);
+  setSel(ns.id); afterChange(); toast(`Combined ${vec.length} shapes into one ${OPS[ns.op].toLowerCase()} shape.`+(ss.length>vec.length?' Text and images were left out.':'')); }
 function multiPanel(ms){
   return `<p class="muted" style="margin-bottom:8px"><strong style="color:var(--ink)">${ms.length} items selected</strong> · <span id="m-size"></span></p>
   <div class="seg" role="group" aria-label="Operation for all selected">${Object.keys(OPS).map(o=>`<button type="button" data-setop="${o}" aria-pressed="${ms.every(q=>(isRaster(q)?'engrave':q.op)===o)}"><span class="dot" style="background:var(--${o==='engrave'?'burn':o})"></span>${OPS[o]}</button>`).join('')}</div>
   ${alignRow(true)}
-  <div class="actions" style="margin-top:10px"><button type="button" data-align="bed">Center group on bed</button><button type="button" data-act="dup">Duplicate</button><button type="button" data-act="del">Delete</button></div>
+  <div class="actions" style="margin-top:10px"><button type="button" data-align="bed">Center group on bed</button><button type="button" data-act="comb" title="Join into one shape, like a compound path">Combine</button><button type="button" data-act="dup">Duplicate</button><button type="button" data-act="del">Delete</button></div>
   <p class="muted" style="margin-top:8px">Drag any selected item to move them together. Shift-click adds or removes one.</p>`; }
 
 /* ===== Inspector ===== */
@@ -1171,7 +1204,7 @@ function renderProps(){
       <p class="muted">Positive grows the outline and shrinks its holes. Use it to cut a border around engraved artwork.</p>
       <div class="actions"><button type="button" class="primary" data-act="off-apply">Apply offset</button><button type="button" data-act="off-cancel">Cancel</button></div>
     </div>`;
-    html+=`<div class="actions" style="margin-top:10px"><button type="button" data-act="dup">Duplicate</button><button type="button" data-act="off">Offset</button>${s.type!=='circle'?'<button type="button" data-act="rot">Rotate 90°</button>':''}${s.type==='import'||s.type==='poly'?'<button type="button" data-act="mir">Mirror</button>':''}<button type="button" data-act="del">Delete</button></div>`;
+    html+=`<div class="actions" style="margin-top:10px"><button type="button" data-act="dup">Duplicate</button><button type="button" data-act="off">Offset</button>${s.type==='import'&&s.contours.length>1?'<button type="button" data-act="brk" title="Split into separate pieces you can set one at a time">Break apart</button>':''}${s.type!=='circle'?'<button type="button" data-act="rot">Rotate 90°</button>':''}${s.type==='import'||s.type==='poly'?'<button type="button" data-act="mir">Mirror</button>':''}<button type="button" data-act="del">Delete</button></div>`;
   }
   html+=alignRow(false)+`<div class="actions" style="margin-top:6px"><button type="button" data-align="bed">Center on bed</button></div>`;
   el.innerHTML=html;
@@ -1230,12 +1263,14 @@ $('props').addEventListener('change',e=>{ const s=getSel(); if(!s||!e.target.id)
 $('props').addEventListener('click',e=>{ const so=e.target.closest('[data-setop]'); if(so){ setOp(so.dataset.setop); propsFor=null; renderProps(); return; }
   const al=e.target.closest('[data-align]'); if(al){ alignSel(al.dataset.align); return; }
   const b=e.target.closest('[data-act]'); if(!b) return;
-  if(getSels().length>1){ if(b.dataset.act==='dup') duplicate(); else if(b.dataset.act==='del') del(); return; }
+  if(getSels().length>1){ if(b.dataset.act==='dup') duplicate(); else if(b.dataset.act==='del') del(); else if(b.dataset.act==='comb') combineSel(); return; }
   const s=getSel(); if(!s) return;
   const a=b.dataset.act; if(a==='dup') return duplicate(); if(a==='del') return del();
   if(a==='off'){ const box=$('offset-box'); box.hidden=!box.hidden; if(!box.hidden){ $('o-dist').focus(); $('o-dist').select(); } previewOffset(); return; }
   if(a==='off-cancel'){ $('offset-box').hidden=true; previewOffset(); return; }
   if(a==='off-apply') return applyOffset();
+  if(a==='brk'){ const ps=breakApart(s); if(ps.length<2){ toast('This shape is already a single piece.'); return; } checkpoint(); for(const q of ps) q.id=newId();
+    shapes.splice(shapes.indexOf(s),1,...ps); selIds=new Set(ps.map(q=>q.id)); afterChange(); toast(`Broke into ${ps.length} pieces. Click one to set it to cut, scratch or engrave.`); return; }
   checkpoint(); if(a==='rot') rotate90(s); if(a==='mir') mirror(s); afterChange(); });
 
 /* ===== Settings ===== */
@@ -1261,7 +1296,9 @@ function newImageShape(src,x,y,w,h){ const key='img'+Date.now().toString(36)+Mat
   return {type:'image',op:'engrave',key,x,y,w,h,mode:'gray',thr:0.5,inv:false}; }
 function doImportSVG(text,name){
   let res; try{ res=importSVG(text,settings.ppi); }catch(err){ toast(err.message||'Could not read that SVG.'); return; }
-  const parts=[]; for(const o of ['engrave','scratch','cut']) if(res.groups[o].length) parts.push({type:'import',op:o,label:`Imported ${OPS[o].toLowerCase()} paths`,contours:res.groups[o]});
+  const parts=[], many=res.elems.length>800;
+  if(many){ for(const o of ['engrave','scratch','cut']) if(res.groups[o].length) parts.push({type:'import',op:o,label:`Imported ${OPS[o].toLowerCase()} paths`,contours:res.groups[o]}); }
+  else for(const e of res.elems) parts.push({type:'import',op:e.op,label:e.contours.length>1?'Imported shape':'Imported path',contours:e.contours});
   for(const im of res.images) parts.push(newImageShape(im.src,im.x,im.y,im.w,im.h));
   if(!parts.length){ toast('No paths or embedded images found in that SVG.'); return; }
   lastImport={warn:res.warn};
@@ -1269,8 +1306,8 @@ function doImportSVG(text,name){
   const [dx,dy]=placeOffset(bb);
   checkpoint(); for(const p of parts){ translate(p,dx,dy); p.id=newId(); shapes.push(p); }
   selIds=new Set(parts.map(p=>p.id)); afterChange(); fit();
-  const cnt=o=>res.groups[o].length; const bits=[]; for(const o of ['cut','scratch','engrave']) if(cnt(o)) bits.push(`${cnt(o)} ${o}`); if(res.images.length) bits.push(`${res.images.length} image${res.images.length>1?'s':''}`);
-  toast(`Imported ${bits.join(', ')} at ${fmtIn(bb.x1-bb.x0)} × ${fmtIn(bb.y1-bb.y0)} in`+(res.unitsFromFile?'. Red strokes cut, blue scratch, fills engrave.':` (read as ${res.ppi===25.4?'millimeters':res.ppi===1?'inches':res.ppi+' units per inch'}). Wrong size? Type the width in Selection.`));
+  const cnt=o=>res.elems.filter(e=>e.op===o).length; const bits=[]; for(const o of ['cut','scratch','engrave']) if(cnt(o)) bits.push(`${cnt(o)} ${o}`); if(res.images.length) bits.push(`${res.images.length} image${res.images.length>1?'s':''}`);
+  toast(`Imported ${bits.join(', ')} at ${fmtIn(bb.x1-bb.x0)} × ${fmtIn(bb.y1-bb.y0)} in`+(many?'. That file has a lot of objects, so they were grouped by cut, scratch and engrave.':res.unitsFromFile?'. Each object is its own piece: click one to change it.':` (read as ${res.ppi===25.4?'millimeters':res.ppi===1?'inches':res.ppi+' units per inch'}). Wrong size? Type the width in Selection.`));
   if(name){ const base=name.replace(/\.svg$/i,''); settings.name=base; $('job-name').value=base; persist(); }
 }
 /* Huge photos are scaled so the long side is at most 4000 px (13" at 300 DPI) to keep the app quick */
@@ -1393,5 +1430,3 @@ if(document.fonts){ document.fonts.addEventListener('loadingdone',()=>{ metricCa
 resize(); afterChange(); fit(); setHint(); syncUndo();
 })();
 </script>
-
-</body></html>

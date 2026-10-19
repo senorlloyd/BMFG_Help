@@ -166,6 +166,12 @@ hr{border:0;border-top:1px solid var(--line);margin:0;width:100%}
         </label>
         <label>File name<input id="fname" type="text" value="print-cut"></label>
       </div>
+      <div class="lab">File type</div>
+      <div class="seg" id="fmtSeg">
+        <button data-fmt="layered" aria-pressed="true">Layered EPS</button>
+        <button data-fmt="simple" aria-pressed="false">Simple EPS</button>
+      </div>
+      <div class="sub" id="fmtNote">Opens in Illustrator with an Artwork layer and a CutContour layer on top. Larger file.</div>
       <div class="lab">Artwork color</div>
       <div class="seg" id="colorSeg">
         <button data-color="cmyk" aria-pressed="true">CMYK</button>
@@ -188,7 +194,7 @@ hr{border:0;border-top:1px solid var(--line);margin:0;width:100%}
 /* ============ state ============ */
 const CUT_COLOR = "#e6007e";
 const BLEED = 0.04;           // inches of artwork kept past the cut line
-const state = { sheet:{w:8.5,h:11,margin:0.25}, items:[], sel:null, color:"cmyk", hideArt:false, userMoved:false };
+const state = { sheet:{w:8.5,h:11,margin:0.25}, items:[], sel:null, color:"cmyk", fmt:"layered", hideArt:false, userMoved:false };
 let uid = 1;
 const DEFAULT_CUT = {mode:"contour", offset:0.0625, smooth:0.03, threshold:10, knockWhite:false, whiteTol:10, holes:false, corner:0.125};
 const $ = s => document.querySelector(s);
@@ -795,7 +801,7 @@ function renderChecks(){
   add(state.color==="cmyk"?"ok":"warn", state.color==="cmyk" ? "Artwork color mode: CMYK" : "Artwork is RGB. VersaWorks converts it, but CMYK matches the standard print-and-cut setup.");
   add("ok", `<span class="swatch"></span>Cut lines use spot color <b>CutContour</b> (C0 M100 Y0 K0)`);
   add("ok", "Cut lines are 0.25 pt strokes, no fill, set to overprint");
-  add("ok", "Cut lines sit on top of all artwork");
+  add("ok", state.fmt==="layered" ? "Cut lines on their own top layer: <b>CutContour</b>, artwork on <b>Artwork</b>" : "Cut lines sit on top of all artwork");
   const bx=exportBox();
   add("ok", bx.trimmed ? `Artboard trimmed to artwork: <b>${fmt(bx.w)} × ${fmt(bx.h)} in</b>` : `Artboard is the full sheet: ${fmt(bx.w)} × ${fmt(bx.h)} in`);
   add(nPaths? "ok":"bad", nPaths ? `${nPaths} closed cut path${nPaths>1?"s":""}` : "No cut lines yet");
@@ -823,7 +829,7 @@ function pathsOverlap(a,b){
 
 /* ============ EPS writer ============ */
 function ascii85(u8){
-  const n=u8.length, out=new Uint8Array(Math.ceil(n/4)*5*77/75+32); let o=0, col=0;
+  const n=u8.length, out=new Uint8Array(Math.ceil(Math.ceil(n/4)*5*1.04)+64); let o=0, col=0;
   const put=c=>{ out[o++]=c; if(++col>=75){ out[o++]=10; out[o++]=32; col=1; } };  // leading space keeps "%" off line starts
   for(let i=0;i<n;i+=4){
     const rem=Math.min(4,n-i);
@@ -835,15 +841,35 @@ function ascii85(u8){
   out[o++]=126; out[o++]=62; out[o++]=10;
   return out.subarray(0,o);
 }
-async function deflate(u8){
-  const cs=new CompressionStream("deflate");
-  return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(cs)).arrayBuffer());
+// PostScript Level 2 LZWDecode encoder (EarlyChange 1, 9-12 bit codes, MSB first).
+// Level 2 keeps the file readable by Illustrator's EPS import; Flate is Level 3 only.
+function lzw(u8){
+  const out=[]; let acc=0, nb=0;
+  const put=(code,w)=>{ acc=(acc<<w)|code; nb+=w; while(nb>=8){ nb-=8; out.push((acc>>>nb)&255); } acc&=(1<<nb)-1; };
+  const widthFor=n=> n<511?9 : n<1023?10 : n<2047?11 : 12;
+  const SIZE=4096*256, val=new Int16Array(SIZE), gen=new Uint16Array(SIZE); let g=1;
+  let next=258;
+  put(256,9);
+  if(!u8.length){ put(257,9); if(nb) out.push((acc<<(8-nb))&255); return new Uint8Array(out); }
+  let w=u8[0];
+  for(let i=1;i<u8.length;i++){
+    const c=u8[i], key=w*256+c;
+    if(gen[key]===g){ w=val[key]; continue; }
+    put(w,widthFor(next-1));
+    if(next<4094){ gen[key]=g; val[key]=next; next++; }
+    else { put(256,widthFor(next-1)); g++; if(g>65535){ gen.fill(0); g=1; } next=258; }
+    w=c;
+  }
+  put(w,widthFor(next-1));
+  put(257,widthFor(next));
+  if(nb) out.push((acc<<(8-nb))&255);
+  return new Uint8Array(out);
 }
 // export origin: left edge and top edge (inches, sheet coords) of the exported artboard
 let EXP={x0:0, top:11};
 function psPath(paths){
   let s="";
-  for(const p of paths){ p.forEach(([x,y],i)=>{ s+=`${fmt((x-EXP.x0)*72)} ${fmt((EXP.top-y)*72)} ${i?"L":"M"}\n`; }); s+="H\n"; }
+  for(const p of paths){ p.forEach(([x,y],i)=>{ s+=`${fmt((x-EXP.x0)*72)} ${fmt((EXP.top-y)*72)} ${i?"lineto":"moveto"}\n`; }); s+="closepath\n"; }
   return s;
 }
 // tight box around everything that prints or cuts (artwork is clipped to its bleed line)
@@ -862,17 +888,18 @@ function exportBox(){
   if($("#trim").checked && b) return {x0:b.x0, top:b.y1, w:b.w, h:b.h, trimmed:true};
   return {x0:0, top:SH, w:SW, h:SH, trimmed:false};
 }
-function renderPixels(it, dpi){
+function renderPixels(it, dpi, noData=false){
   let pw=Math.round(it.w*dpi), ph=Math.round(it.h*dpi);
   if(it.kind==="raster" && it.natW<pw){ pw=it.natW; ph=Math.max(1,Math.round(it.natW*it.h/it.w)); }
   const cap=7000, k=Math.min(1,cap/Math.max(pw,ph)); pw=Math.max(1,Math.round(pw*k)); ph=Math.max(1,Math.round(ph*k));
   const c=document.createElement("canvas"); c.width=pw; c.height=ph;
   const g=c.getContext("2d",{willReadFrequently:true}); g.imageSmoothingQuality="high"; g.drawImage(it.img,0,0,pw,ph);
-  return {pw,ph,data:g.getImageData(0,0,pw,ph).data};
+  renderPixels.lastCanvas=c;
+  return {pw,ph,data: noData ? null : g.getImageData(0,0,pw,ph).data};
 }
 async function buildEPS(){
   const dpi=+$("#dpi").value, cmyk=state.color==="cmyk";
-  const compress=$("#compress").checked && typeof CompressionStream!=="undefined";
+  const compress=$("#compress").checked;
   for(const it of state.items) if(it.dirty) computeContour(it);
   const box=exportBox(); EXP={x0:box.x0, top:box.top};
   const Wpt=box.w*72, Hpt=box.h*72;
@@ -885,24 +912,20 @@ async function buildEPS(){
 %%BoundingBox: 0 0 ${Math.ceil(Wpt)} ${Math.ceil(Hpt)}
 %%HiResBoundingBox: 0 0 ${fmt(Wpt,3)} ${fmt(Hpt,3)}
 %%CropBox: 0 0 ${fmt(Wpt,3)} ${fmt(Hpt,3)}
-%%LanguageLevel: ${compress?3:2}
+%%LanguageLevel: 2
+%%DocumentData: Clean7Bit
 %%DocumentProcessColors: ${cmyk?"Cyan Magenta Yellow Black":""}
 %%DocumentCustomColors: (CutContour)
 %%CMYKCustomColor: 0 1 0 0 (CutContour)
 %%Pages: 1
 %%EndComments
 %%BeginProlog
-/KissCutDict 20 dict def
-KissCutDict begin
-/M {moveto} bind def /L {lineto} bind def /H {closepath} bind def
-end
 %%EndProlog
 %%BeginSetup
 %%EndSetup
 %%Page: 1 1
-KissCutDict begin
 save
-%%BeginLayer: Artwork
+% Artwork
 `);
   for(const it of state.items){
     const {pw,ph,data}=renderPixels(it,dpi);
@@ -914,34 +937,31 @@ save
         else { buf[j]=Math.round((1-r-k)/(1-k)*255); buf[j+1]=Math.round((1-g-k)/(1-k)*255); buf[j+2]=Math.round((1-b-k)/(1-k)*255); buf[j+3]=Math.round(k*255); } }
       else { buf[j]=Math.round(r*255); buf[j+1]=Math.round(g*255); buf[j+2]=Math.round(b*255); }
     }
-    const enc=ascii85(compress? await deflate(buf) : buf);
+    const enc=ascii85(compress? lzw(buf) : buf);
     const a=it.rot*Math.PI/180, co=Math.cos(a), si=Math.sin(a);
     const m=[72*it.w*co, -72*it.w*si, 72*it.h*si, 72*it.h*co, 72*(it.cx-EXP.x0-0.5*it.w*co-0.5*it.h*si), 72*(EXP.top-it.cy+0.5*it.w*si-0.5*it.h*co)];
     const clip = it.cut.mode!=="none" && it.bleedPaths.length ? psPath(pagePaths(it,"bleedPaths"))+"clip newpath\n" : "";
-    parts.push(`%% Design: ${it.name.replace(/[\r\n]/g," ")}
+    parts.push(`% Design: ${it.name.replace(/[\r\n%]/g," ")}
 gsave
 ${clip}[${m.map(v=>v.toFixed(4)).join(" ")}] concat
 /Device${cmyk?"CMYK":"RGB"} setcolorspace
 << /ImageType 1 /Width ${pw} /Height ${ph} /BitsPerComponent 8
 /Decode [${cmyk?"0 1 0 1 0 1 0 1":"0 1 0 1 0 1"}] /ImageMatrix [${pw} 0 0 -${ph} 0 ${ph}]
-/DataSource currentfile /ASCII85Decode filter${compress?" /FlateDecode filter":""} >> image
+/DataSource currentfile /ASCII85Decode filter${compress?" /LZWDecode filter":""} >> image
 `);
     parts.push(enc);
     parts.push("grestore\n");
     await new Promise(r=>setTimeout(r,0));
   }
   let cuts=""; for(const it of state.items) if(it.cutPaths.length) cuts+=psPath(pagePaths(it));
-  parts.push(`%%EndLayer
-%%BeginLayer: CutContour
+  parts.push(`% CutContour cut lines (top)
 gsave
 [/Separation /CutContour /DeviceCMYK {0 exch 0 0}] setcolorspace 1 setcolor
 true setoverprint 0.25 setlinewidth 1 setlinejoin 1 setlinecap
 newpath
 ${cuts}stroke
 grestore
-%%EndLayer
 restore
-end
 showpage
 %%Trailer
 %%EOF
@@ -962,11 +982,174 @@ function zipStore(name,data){
   return new Blob([lh,nm,data,ch,nm,end]);
 }
 
+
+/* ============ Layered EPS (Illustrator 8 format) ============
+   Illustrator reads the layer/path/raster operators natively, so the file opens with real layers.
+   The prolog defines the same operators in PostScript, so RIPs (VersaWorks) print it normally. */
+function hexLines(u8){
+  const H="0123456789ABCDEF", per=60, parts=[]; // 60 bytes = 120 hex chars per line
+  for(let i=0;i<u8.length;i+=per){
+    const end=Math.min(u8.length,i+per); let line="%";
+    for(let k=i;k<end;k++){ const b=u8[k]; line+=H[b>>4]+H[b&15]; }
+    parts.push(line);
+  }
+  return parts.join("\n")+"\n";
+}
+function aiPath(paths, close){ // page-inch paths -> AI path text in export points
+  let s="";
+  for(const p of paths){
+    p.forEach(([x,y],i)=>{ s+=`${fmt((x-EXP.x0)*72,3)} ${fmt((EXP.top-y)*72,3)} ${i?"L":"m"}\n`; });
+    s+=close;
+  }
+  return s;
+}
+function croppedRaster(it, dpi){
+  // render the design, keep only what is inside its bleed line, crop to that area
+  const {pw,ph}=renderPixels(it,dpi,true);
+  const full=renderPixels.lastCanvas;
+  const [sx,sy]=cutScale(it), kx=pw/it.w, ky=ph/it.h;
+  const useBleed = it.cut.mode!=="none" && it.bleedPaths.length;
+  let c0x=0,c0y=0,c1x=pw,c1y=ph;
+  if(useBleed){
+    c0x=1e9;c0y=1e9;c1x=-1e9;c1y=-1e9;
+    for(const p of it.bleedPaths) for(const [x,y] of p){ const X=(x*sx+it.w/2)*kx, Y=(y*sy+it.h/2)*ky; if(X<c0x)c0x=X; if(X>c1x)c1x=X; if(Y<c0y)c0y=Y; if(Y>c1y)c1y=Y; }
+    c0x=Math.max(0,Math.floor(c0x)); c0y=Math.max(0,Math.floor(c0y)); c1x=Math.min(pw,Math.ceil(c1x)); c1y=Math.min(ph,Math.ceil(c1y));
+  }
+  const cw=Math.max(1,c1x-c0x), ch=Math.max(1,c1y-c0y);
+  const c=document.createElement("canvas"); c.width=cw; c.height=ch;
+  const g=c.getContext("2d",{willReadFrequently:true});
+  if(useBleed){
+    g.beginPath();
+    for(const p of it.bleedPaths){ p.forEach(([x,y],i)=>{ const X=(x*sx+it.w/2)*kx-c0x, Y=(y*sy+it.h/2)*ky-c0y; i?g.lineTo(X,Y):g.moveTo(X,Y); }); g.closePath(); }
+    g.clip("evenodd");
+  }
+  g.drawImage(full,-c0x,-c0y);
+  return {cw,ch,data:g.getImageData(0,0,cw,ch).data, c0x,c0y, kx,ky};
+}
+function rasterMatrix(it, r){
+  // Illustrator anchors XI rasters at their top-left corner: image space is (column, -row), y up.
+  const a=it.rot*Math.PI/180, co=Math.cos(a), si=Math.sin(a);
+  const P=(u,row)=>{ const lx=-it.w/2+(r.c0x+u)/r.kx, ly=-it.h/2+(r.c0y+row)/r.ky;
+    const px=it.cx+lx*co-ly*si, py=it.cy+lx*si+ly*co; return [(px-EXP.x0)*72, (EXP.top-py)*72]; };
+  const o=P(0,0), ux=P(1,0), dn=P(0,1);
+  return [ux[0]-o[0], ux[1]-o[1], o[0]-dn[0], o[1]-dn[1], o[0], o[1]];
+}
+async function buildLayeredEPS(){
+  // Same layout as Illustrator's own EPS files:
+  //   1. printing section = the Simple EPS (what VersaWorks and other RIPs run)
+  //   2. a small skip routine so RIPs ignore what follows
+  //   3. private section = Illustrator-format layers (Artwork, CutContour on top), which Illustrator opens
+  const printing = await (await buildEPS()).text();   // also sets EXP to the export box
+  const dpi=+$("#dpi").value, cmyk=state.color==="cmyk";
+  const box=exportBox(), Wpt=box.w*72, Hpt=box.h*72, now=new Date(), title=($("#fname").value||"print-cut").replace(/[()\\]/g,"");
+  const head = printing.replace("%%Creator: KissCut\n","%%Creator: Adobe Illustrator(R) 9.0\n%%AI8_CreatorVersion: 9.0.0\n%AI9_PrintingDataBegin\n%%For: (KissCut) ()\n");
+  const parts=[head, `%AI9_PrintingDataEnd
+userdict /AI9_read_buffer 256 string put
+userdict begin
+/ai9_skip_data
+{
+	mark
+	{
+		currentfile AI9_read_buffer { readline } stopped
+		{
+		}
+		{
+			not
+			{
+				exit
+			} if
+			(%AI9_PrivateDataEnd) eq
+			{
+				exit
+			} if
+		} ifelse
+	} loop
+	cleartomark
+} def
+end
+userdict /ai9_skip_data get exec
+%AI9_PrivateDataBegin
+%!PS-Adobe-3.0 EPSF-3.0
+%%Creator: Adobe Illustrator(R) 8.0
+%%AI8_CreatorVersion: 8.0.1
+%%For: (KissCut) ()
+%%Title: (${title}.eps)
+%%CreationDate: (${now.toLocaleDateString("en-US")}) (${now.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})})
+%%BoundingBox: 0 0 ${Math.ceil(Wpt)} ${Math.ceil(Hpt)}
+%%HiResBoundingBox: 0 0 ${fmt(Wpt,4)} ${fmt(Hpt,4)}
+%%DocumentProcessColors: Cyan Magenta Yellow Black
+%%DocumentCustomColors: (CutContour)
+%%CMYKCustomColor: 0 1 0 0 (CutContour)
+%AI5_FileFormat 4.0
+%AI3_ColorUsage: Color
+%AI3_TemplateBox: ${fmt(Wpt/2,1)} ${fmt(Hpt/2,1)} ${fmt(Wpt/2,1)} ${fmt(Hpt/2,1)}
+%AI3_TileBox: 0 0 ${fmt(Wpt,1)} ${fmt(Hpt,1)}
+%AI3_DocumentPreview: None
+%AI5_ArtSize: ${fmt(Wpt,4)} ${fmt(Hpt,4)}
+%AI5_RulerUnits: 0
+%AI5_ArtFlags: 0 0 0 1 0 0 1 0 0
+%AI5_TargetResolution: 800
+%AI5_NumLayers: 2
+%AI5_OpenViewLayers: 77
+%%EndComments
+%%BeginProlog
+%%EndProlog
+%%BeginSetup
+%%EndSetup
+%AI5_BeginLayer
+1 1 1 1 0 0 0 79 128 255 0 50 Lb
+(Artwork) Ln
+0 A
+0 O
+0 R
+0 XR
+`];
+  for(const it of state.items){
+    const r=croppedRaster(it,dpi);   // pixels outside the bleed line are white
+    const nc=cmyk?4:3, buf=new Uint8Array(r.cw*r.ch*nc), data=r.data;
+    for(let i=0,j=0;i<data.length;i+=4,j+=nc){
+      const a=data[i+3]/255, R=(data[i]*a+255*(1-a))/255, G=(data[i+1]*a+255*(1-a))/255, B=(data[i+2]*a+255*(1-a))/255;
+      if(cmyk){ const k=1-Math.max(R,G,B);
+        if(k>=0.999){ buf[j]=0;buf[j+1]=0;buf[j+2]=0;buf[j+3]=255; }
+        else { buf[j]=Math.round((1-R-k)/(1-k)*255); buf[j+1]=Math.round((1-G-k)/(1-k)*255); buf[j+2]=Math.round((1-B-k)/(1-k)*255); buf[j+3]=Math.round(k*255); } }
+      else { buf[j]=Math.round(R*255); buf[j+1]=Math.round(G*255); buf[j+2]=Math.round(B*255); }
+    }
+    const mtx=rasterMatrix(it,r).map(v=>fmt(v,4)).join(" ");
+    parts.push(`%AI5_BeginRaster
+[ ${mtx} ] 0 0 ${r.cw} ${r.ch} ${r.cw} ${r.ch} 8 ${nc} 0 0 0 0 XI
+`);
+    parts.push(hexLines(buf));
+    parts.push("%AI5_EndRaster\n");
+    await new Promise(res=>setTimeout(res,0));
+  }
+  let cuts=""; for(const it of state.items) if(it.cutPaths.length) cuts+=aiPath(pagePaths(it),"s\n");
+  parts.push(`LB
+%AI5_EndLayer--
+%AI5_BeginLayer
+1 1 1 1 0 0 1 255 79 79 0 50 Lb
+(CutContour) Ln
+0 A
+0 O
+1 R
+0 1 0 0 (CutContour) 0 X
+0.25 w
+1 j
+1 J
+${cuts}LB
+%AI5_EndLayer--
+%%PageTrailer
+%%Trailer
+%%EOF
+%AI9_PrivateDataEnd
+`);
+  return new Blob(parts,{type:"application/postscript"});
+}
+
 async function doExport(){
   if(!state.items.length) return;
   const btn=$("#exportBtn"), label=btn.textContent; btn.disabled=true; btn.textContent="Building…";
   try{
-    const blob=await buildEPS();
+    const blob= state.fmt=="layered" ? await buildLayeredEPS() : await buildEPS();
     const base=($("#fname").value||"print-cut").replace(/[^\w\- ]+/g,"").trim()||"print-cut";
     await dlReady;
     const mb=(blob.size/1048576).toFixed(1), bx=exportBox(), dims=`${fmt(bx.w)} × ${fmt(bx.h)} in artboard`;
@@ -1001,6 +1184,10 @@ $("#hideArt").onchange=e=>{ state.hideArt=e.target.checked; render(); };
 $("#colorSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{ state.color=b.dataset.color; $("#colorSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b)); renderChecks(); });
 $("#exportBtn").onclick=doExport;
 $("#trim").onchange=()=>{ render(); renderChecks(); };
+$("#fmtSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{ state.fmt=b.dataset.fmt; $("#fmtSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  $("#fmtNote").textContent = state.fmt==="layered" ? "Opens in Illustrator with an Artwork layer and a CutContour layer on top. Larger file." : "Plain PostScript, smallest file. Illustrator opens it as one group.";
+  renderChecks(); });
+
 $("#zoomIn").onclick=()=>zoomCenter(1.25); $("#zoomOut").onclick=()=>zoomCenter(0.8); $("#zoomFit").onclick=zoomFit;
 new ResizeObserver(resize).observe($("#stage"));
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",render);

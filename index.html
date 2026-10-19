@@ -2,42 +2,185 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BMFG Help</title>
+<meta name="description" content="Beaverton MFG shop apps: RouteReady, ArcRight, LaserReady, KissCut, NeedlePath and CAD Mini Golf.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&family=Big+Shoulders+Stencil:wght@900&family=Chakra+Petch:wght@700&family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Barlow+Semi+Condensed:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef0f2; --panel:#ffffff; --ink:#16191e; --muted:#5b636e; --line:#d6dbe1; --focus:#2a5fc4;
+  --f-head:"Oswald","Arial Narrow",sans-serif; --f-body:"Work Sans",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#111418; --panel:#191d23; --ink:#e7eaee; --muted:#9aa3ae; --line:#2b3139; --focus:#6d9af0; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#111418; --panel:#191d23; --ink:#e7eaee; --muted:#9aa3ae; --line:#2b3139; --focus:#6d9af0; color-scheme:dark }
 
-<link rel="stylesheet" href="Style.css">
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--f-body);min-height:100vh}
+.wrap{max-width:1080px;margin:0 auto;padding:40px 16px 56px}
+
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding-bottom:18px;margin-bottom:28px;border-bottom:2px solid var(--ink)}
+h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;margin:0;text-transform:uppercase}
+.sub{font:500 .8rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
+
+.grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
+.app{display:flex;flex-direction:column;height:100%;text-decoration:none;color:inherit;background:var(--panel);
+  border:1px solid var(--line);border-radius:12px;overflow:hidden;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
+.app:hover{transform:translateY(-3px);border-color:var(--a-accent);box-shadow:0 10px 24px -14px rgba(0,0,0,.45)}
+.app:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.app:active{transform:translateY(-1px)}
+
+/* Icon well: each app's own mark, on its own background */
+.well{height:150px;display:grid;place-items:center;background:var(--a-bg);color:var(--a-ink);border-bottom:1px solid var(--line);padding:16px}
+.body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:6px;flex:1}
+.name{font:600 1.25rem/1.1 var(--f-head);letter-spacing:.02em;text-transform:uppercase;margin:0}
+.desc{margin:0;color:var(--muted);font-size:.95rem}
+.machine{margin-top:auto;padding-top:10px;font:500 .72rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--a-accent);
+  display:flex;justify-content:space-between;align-items:center}
+.machine::after{content:"Open \2192";color:var(--ink);opacity:.55;transition:opacity .15s,transform .15s}
+.app:hover .machine::after{opacity:1;transform:translateX(3px)}
+
+/* ---------- Per-app palettes (taken from each app) ---------- */
+.routeready{--a-bg:#eef1f5;--a-ink:#1a2230;--a-accent:#2a5fc4;--a-accent-ink:#fff;--a-zero:#dd4425}
+.arcright  {--a-bg:#E6EAED;--a-ink:#17202A;--a-accent:#D9530B;--a-plate:#1B232B}
+.laserready{--a-bg:#E7E8EA;--a-ink:#1D2024;--a-accent:#E0181B;--a-birch:#EBD9B4;--a-burn:#2A1C10}
+.kisscut   {--a-bg:#eceef2;--a-ink:#171a21;--a-accent:#c8007a}
+.needlepath{--a-bg:#ebebf1;--a-ink:#16181d;--a-accent:#65469c}
+.golfsim   {--a-bg:#eaefe6;--a-ink:#15241b;--a-accent:#d94f27;--a-felt:#2f7d4f}
+@media (prefers-color-scheme: dark){
+:root:not([data-theme="light"]) .routeready{--a-bg:#161b23;--a-ink:#e5eaf1;--a-accent:#6d9af0;--a-accent-ink:#0c1320;--a-zero:#f0623f}
+:root:not([data-theme="light"]) .arcright  {--a-bg:#11161B;--a-ink:#E3E8EC;--a-accent:#FF8A3D;--a-plate:#C9D1D8}
+:root:not([data-theme="light"]) .laserready{--a-bg:#121417;--a-ink:#E6E8EB;--a-accent:#FF4D4F;--a-birch:#5A4A33;--a-burn:#120C06}
+:root:not([data-theme="light"]) .kisscut   {--a-bg:#111318;--a-ink:#e6e8ed;--a-accent:#ff3aa5}
+:root:not([data-theme="light"]) .needlepath{--a-bg:#11141b;--a-ink:#e8ebf3;--a-accent:#b49cea}
+:root:not([data-theme="light"]) .golfsim   {--a-bg:#0f1612;--a-ink:#e7efe9;--a-accent:#ff7c50;--a-felt:#46a26b}
+}
+:root[data-theme="dark"] .routeready{--a-bg:#161b23;--a-ink:#e5eaf1;--a-accent:#6d9af0;--a-accent-ink:#0c1320;--a-zero:#f0623f}
+:root[data-theme="dark"] .arcright  {--a-bg:#11161B;--a-ink:#E3E8EC;--a-accent:#FF8A3D;--a-plate:#C9D1D8}
+:root[data-theme="dark"] .laserready{--a-bg:#121417;--a-ink:#E6E8EB;--a-accent:#FF4D4F;--a-birch:#5A4A33;--a-burn:#120C06}
+:root[data-theme="dark"] .kisscut   {--a-bg:#111318;--a-ink:#e6e8ed;--a-accent:#ff3aa5}
+:root[data-theme="dark"] .needlepath{--a-bg:#11141b;--a-ink:#e8ebf3;--a-accent:#b49cea}
+:root[data-theme="dark"] .golfsim   {--a-bg:#0f1612;--a-ink:#e7efe9;--a-accent:#ff7c50;--a-felt:#46a26b}
+
+/* RouteReady mark */
+.mk-rr{display:flex;align-items:center;gap:12px;font:700 30px/1 "Barlow Semi Condensed","Arial Narrow",sans-serif;letter-spacing:.02em;text-transform:uppercase}
+.mk-rr svg{width:52px;height:52px;flex:none}
+
+/* ArcRight plate */
+.plate{position:relative;display:inline-block;background:var(--a-plate);color:var(--a-bg);border-radius:7px;padding:10px 26px 8px;
+  font:900 38px/1 "Big Shoulders Stencil","Arial Narrow",sans-serif;letter-spacing:.02em}
+.plate b{color:var(--a-accent);font-weight:900}
+.plate i{position:absolute;width:6px;height:6px;border-radius:50%;background:var(--a-bg)}
+.plate i:nth-child(1){left:8px;top:8px}.plate i:nth-child(2){right:8px;top:8px}
+.plate i:nth-child(3){left:8px;bottom:8px}.plate i:nth-child(4){right:8px;bottom:8px}
+
+/* LaserReady tag */
+.tag{position:relative;display:inline-block;background:var(--a-birch);color:var(--a-burn);border-radius:10px;padding:10px 18px 9px 36px;
+  font:700 32px/1 "Chakra Petch","Arial Narrow",sans-serif;letter-spacing:.05em;outline:2px solid var(--a-accent);outline-offset:4px}
+.tag b{color:var(--a-accent);font-weight:700}
+.tag::before{content:"";position:absolute;left:13px;top:50%;width:10px;height:10px;margin-top:-5px;border-radius:50%;background:var(--a-bg);box-shadow:0 0 0 2px var(--a-accent)}
+
+/* KissCut mark */
+.mk-kc{display:flex;align-items:center;gap:12px;font:800 36px/1 "Bricolage Grotesque",system-ui,sans-serif;letter-spacing:-.03em}
+.mk-kc svg{width:54px;height:54px;flex:none}
+.mk-kc .cut{color:var(--a-accent)}
+
+/* NeedlePath logo */
+.logo{height:46px;width:auto;max-width:100%;display:block;color:var(--a-ink)}
+.logo .lp{fill:var(--a-accent)}
+.logo .lk{fill:currentColor}
+
+/* CAD Mini Golf mark */
+.mk-gs{display:flex;align-items:center;gap:12px;font:800 30px/1 "Bricolage Grotesque",system-ui,sans-serif;letter-spacing:-.01em}
+.mk-gs svg{width:52px;height:52px;flex:none}
+.mk-gs span{color:var(--a-felt)}
+
+/* More links */
+.more{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.more h2{font:500 .78rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 6px 0 0}
+.more a{color:var(--ink);text-decoration:none;font-weight:500;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 14px}
+.more a:hover{border-color:var(--ink)}
+.more a:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+@media (max-width:420px){
+  .wrap{padding-top:28px}
+  .grid{grid-template-columns:1fr}
+  .well{height:130px}
+  .plate{font-size:32px}.tag{font-size:27px}.mk-kc{font-size:31px}.mk-rr,.mk-gs{font-size:26px}
+}
+@media (prefers-reduced-motion:reduce){ .app,.machine::after{transition:none} .app:hover{transform:none} }
+</style>
 </head>
-
 <body>
-<header>
-<h1>BMFG HELP</h1>
-</header>
+<div class="wrap">
+  <header>
+    <h1>BMFG Help</h1>
+    <p class="sub">Beaverton MFG &middot; shop apps</p>
+  </header>
 
+  <main>
+    <ul class="grid">
+      <li><a class="app routeready" href="routeready/index.html">
+        <div class="well"><div class="mk-rr">
+          <svg viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="1" width="24" height="24" rx="5" fill="var(--a-accent)"/><path d="M6 18.5c2.5-7 5-9 7-5s4.5 2.2 7-6" fill="none" stroke="var(--a-accent-ink)" stroke-width="2.6" stroke-linecap="round"/><circle cx="20" cy="7.5" r="2.4" fill="var(--a-zero)"/></svg>
+          <span>RouteReady</span></div></div>
+        <div class="body"><h2 class="name">RouteReady</h2>
+          <p class="desc">Design 2D router cuts and export ready-to-run files for the ShopBots.</p>
+          <span class="machine">CNC router</span></div>
+      </a></li>
 
-<h2>Quick Tools</h2>
+      <li><a class="app arcright" href="arcright/index.html">
+        <div class="well"><span class="plate" aria-hidden="true"><i></i><i></i><i></i><i></i>ARC<b>RIGHT</b></span></div>
+        <div class="body"><h2 class="name">ArcRight</h2>
+          <p class="desc">Turn an SVG or a quick drawing into a clean DXF for the plasma table.</p>
+          <span class="machine">CNC plasma</span></div>
+      </a></li>
 
-<!-- NC to SBP -->
-<div class="NC2SBP">
-	<p>NC to SBP Converter</p>
-    <div class="dropBox" id="dropArea">
-        <p>Drag & drop your .nc file here, or click to select</p>
-        <input type="file" id="fileInput" accept=".nc,.gcode" style="display:none">
-    </div>
-	
-	<p class = "rpm">RPM: </p>
-	<input type="number" class="rpm" id="speedInput" value="12000" min="1000" step="500">
-    <button class="DownloadButton" id="processBtn">Convert & Download</button>
+      <li><a class="app laserready" href="laserready/index.html">
+        <div class="well"><span class="tag" aria-hidden="true">LASER<b>READY</b></span></div>
+        <div class="body"><h2 class="name">LaserReady</h2>
+          <p class="desc">Build cut, score and engrave SVGs that drop straight into Illustrator.</p>
+          <span class="machine">Laser cutter</span></div>
+      </a></li>
 
-    <script src="js/NC2SBP.js"></script>
+      <li><a class="app kisscut" href="kisscut/index.html">
+        <div class="well"><div class="mk-kc" aria-hidden="true">
+          <svg viewBox="0 0 200 200"><g fill="#ff5a36" stroke="#e6007e" stroke-width="10"><circle cx="100" cy="54" r="30"/><circle cx="140" cy="77" r="30"/><circle cx="140" cy="123" r="30"/><circle cx="100" cy="146" r="30"/><circle cx="60" cy="123" r="30"/><circle cx="60" cy="77" r="30"/></g><circle cx="100" cy="100" r="46" fill="#ff5a36"/><circle cx="100" cy="100" r="26" fill="#ffd23f"/></svg>
+          <span>Kiss<span class="cut">Cut</span></span></div></div>
+        <div class="body"><h2 class="name">KissCut</h2>
+          <p class="desc">Add a contour cut line to artwork and export print-and-cut EPS for VersaWorks.</p>
+          <span class="machine">Roland BN-40</span></div>
+      </a></li>
+
+      <li><a class="app needlepath" href="needlepath/index.html">
+        <div class="well"><svg class="logo" viewBox="0 0 360 75.84" aria-hidden="true"><path class="lp" d="M239.79,56.23v13.38s-.38.41-.41.41h-9.66s-.41-.38-.41-.41V22.71s.38-.41.41-.41h24.01c.49,0,2.73.58,3.39.75,17.59,4.67,15.74,28.59-1.32,32.5-5.21,1.2-10.7.5-16.01.69ZM239.79,47.13h12.28c1.39,0,4.36-1.89,5.25-3.03,2.48-3.17,2.06-8.96-1.43-11.27-.4-.26-3-1.43-3.27-1.43h-12.83v15.73Z"/> <path class="lk" d="M165.43,70.03c-.73-.23-.31-2.63-.42-3.31-4.93,4.9-12.09,5.18-18.02,1.88-8.9-4.96-10.78-17.05-5.22-25.26,5.19-7.67,16.83-9.34,23.24-2.28v-21.11s.38-.41.41-.41h9.11s.41.38.41.41v49.67s-.38.41-.41.41h-9.11ZM165.25,53.68c0-4.65-3.77-8.41-8.41-8.41s-8.41,3.77-8.41,8.41,3.77,8.41,8.41,8.41,8.41-3.77,8.41-8.41Z"/> <path class="lp" d="M336.1,41.06l2.51-2.04c9.25-5.35,20.35-1.58,21.22,9.91.5,6.59-.25,13.93-.14,20.55-.06.13-.5.56-.55.56h-9.38s-.41-.38-.41-.41v-18.49c0-1.41-1.2-3.43-2.35-4.28-3.1-2.27-8.02-1.07-9.97,2.17-.18.3-.93,1.95-.93,2.11v18.49s-.38.41-.41.41h-9.38s-.41-.38-.41-.41V24.09s.43-.49.56-.55c.56-.26,8.54-.26,9.1,0,.13.06.56.5.56.55v16.97Z"/> <path class="lp" d="M290.43,70.31c-.68-.21-.34-2.13-.42-2.76-1.03.4-1.73,1.24-2.75,1.8-7.86,4.26-22.01,1.17-19.19-10.09,1.81-7.23,10.75-7.87,16.85-7.73.62.01,4.74.7,4.82.13.6-6.56-7.15-7-11.61-4.69-1.04.54-1.81,1.54-2.84,2.07-.36-.06-4.86-4.63-5.17-5.08-.4-.6-.11-.9.32-1.36,7.7-8.12,29.5-6.36,29.5,6.88v20.42s-.38.41-.41.41h-9.11ZM289.74,57.89c-3.14.02-9.87-1.39-11.65,2.02-1.04,2,.37,4.12,2.46,4.55,4.28.87,9.99-1.41,9.18-6.56Z"/> <path class="lp" d="M314.85,38.3h8.14s.41.38.41.41v7.17s-.38.41-.41.41h-8.14v13.66c0,.09.78,1.36.95,1.54.93.95,2.9.95,4.16.81.77-.08,2.33-.96,2.77-.29.24.36,1.08,6.79.91,7.28-.35,1-5.85,1.81-6.99,1.83-6.19.16-11.21-2.26-11.74-8.96-.39-4.97.34-10.4-.03-15.42-.33-1.01-3.42-.09-4.06-.49-.4-.25-.51-6.74-.18-7.41.49-1.01,3.26-.38,4.28-.55v-6.48s.43-.49.56-.55c.48-.22,7.6-.29,8.41-.13.3.06.97.48.97.68v6.48Z"/> <path class="lk" d="M66.16,23.74c.3.3.32,1.01.35,1.44-.36,13.58.57,27.33-.28,40.85-.06.97.13,2.13,0,3.04-.05.36.15.49-.41.41-1.47-.22-9.53-5.67-9.79-7.05l-.02-37.26c.09-1.09.07-1.59,1.27-1.76,1.72-.24,5.66-.19,7.45-.04.43.04,1.14.05,1.44.35Z"/> <path class="lk" d="M101.82,55.96c.77-.58.6-2,.56-2.91-.87-23.16-36.35-21.17-34.22,2.49,1.39,15.45,23.13,20.33,31.87,8.98.58-.75,1.04-1.08.12-1.79-.67-.52-5.83-4.02-6.2-4.01-.63.02-1.97,1.85-2.63,2.32-4.46,3.14-12.71.97-13.23-4.81,3.19-.51,22.32.78,23.73-.28ZM92.16,49.89h-13.8c.94-7.23,13.23-7.63,13.8,0Z"/> <path class="lk" d="M137.02,49.87c-3.36-17.81-30.26-17.62-33.47.5-2.69,15.21,12.92,24.77,26.14,18.41,1.18-.57,5.76-3.95,6.04-5.02.13-.48-.1-.62-.38-.92-.3-.32-5.72-4.11-6.09-4.15-.81-.08-2.12,1.7-2.96,2.29-4.54,3.15-12.63,1.07-13.17-4.75h22.78c.65.11.69-.29.95-.55,1.07-1.07.45-4.23.15-5.81ZM127.21,49.89h-13.8c1.04-7.28,12.92-7.54,13.8,0Z"/> <path class="lk" d="M226.28,51.95c-1.67-22.02-36.89-19.96-34.15,4.35,1.6,14.16,21.06,18.9,30.52,9.71.81-.78,2.42-2.23,1.55-3.15-.31-.33-5.72-4.11-6.09-4.15-.81-.08-2.12,1.7-2.96,2.29-4.53,3.15-12.6,1.13-13.17-4.75l23.73-.28c.84-.5.64-3,.56-4.01ZM216.34,49.89h-14.07c1.18-7.4,12.78-7.48,14.07,0Z"/> <polygon class="lk" points="189.31 69.2 189.29 19.81 189.29 19.24 183.78 19.24 180.19 19.25 179.05 19.25 179.07 70.32 189.31 70.32 189.31 69.2"/> <g> <path class="lp" d="M8.82,12.63c1.38,0,2.78.1,4.14.28,15.06,1.9,20.83,18.41,27.27,29.99,10.03,18.01,16.53,25.12,36.38,31.8.43.14.79-.24.65.58-7.63.33-15.2-.4-21.98-4.09-13.57-7.37-19.61-23.64-26.81-36.38-4.07-7.21-7.61-13.22-15.78-16.1-1.88-.66-1.95-.55-3.86-.83-.5-.07-2.52-.36-2.64-.53v-4.45c.31-.44,1.99-.26,2.64-.26Z"/> <path class="lk" d="M12.96,12.91c-1.36-.17-2.76-.28-4.14-.28-.33-1.85.81-6.27-.85-7.29-1.3-.8-2.56-.07-3.16,1.2,0,5.82-.42,11.74-.14,17.55.05,1.1.17,2.78.31,3.84.28,2.03,3.53,2.15,3.84-.53.34-2.94-.27-6.51,0-9.53,1.92.28,1.98.17,3.86.83-.31,6.65-.61,13.35-1.11,20-.61,8.25-1.29,16.88-2.24,25.08-.2,1.72-1.25,11.34-2.16,11.92-1.55.99-2.01-3.84-2.17-4.75-1.59-9.08-1.82-18.39-2.8-27.55C2.32,31.36-.26,18.38.02,6.46.15,1.33,5.67-1.39,10.12.72s3.09,8.27,2.85,12.19Z"/> </g></svg></div>
+        <div class="body"><h2 class="name">NeedlePath</h2>
+          <p class="desc">Auto-digitize clean vector art and text into PES and DST stitch files.</p>
+          <span class="machine">Embroidery</span></div>
+      </a></li>
+
+      <li><a class="app golfsim" href="golfsim/index.html">
+        <div class="well"><div class="mk-gs" aria-hidden="true">
+          <svg viewBox="0 0 26 26"><rect x="1" y="1" width="24" height="24" rx="5" fill="var(--a-felt)"/><ellipse cx="13" cy="19" rx="4.2" ry="1.6" fill="#0d1a12"/><path d="M13 19V5.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M13.8 5.2l6.2 2.6-6.2 2.6z" fill="var(--a-accent)"/><circle cx="7" cy="17.5" r="1.8" fill="#fff"/></svg>
+          <span>Mini Golf</span></div></div>
+        <div class="body"><h2 class="name">CAD Mini Golf</h2>
+          <p class="desc">Drop in an Onshape model of a mini golf hole and play it in 3D.</p>
+          <span class="machine">Onshape game</span></div>
+      </a></li>
+    </ul>
+
+    <nav class="more" aria-label="Other tools">
+      <h2>Also</h2>
+      <a href="https://drive.google.com/drive/folders/1Zc2p8VL5jiXXqpWR3vXrtU4rzjOYCbYv">BMFG Drive</a>
+      <a href="CutContourChecker.html">CutContour Checker</a>
+    </nav>
+  </main>
 </div>
-
-
-<h2>Other Tools</h2>
-
-<a href="https://drive.google.com/drive/folders/1Zc2p8VL5jiXXqpWR3vXrtU4rzjOYCbYv"> BMFG Drive</a> <br>
-<a href="CutContourChecker.html">CutContour</a> <br>
-<a href="needlepath/index.html">NeedlePath</a>
-
 </body>
+</html>

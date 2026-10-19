@@ -1,0 +1,1098 @@
+<title>ArcRight</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Big+Shoulders+Stencil:wght@900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one-screen shop app. Top bar, tool rail, cutting-table canvas, inspector on the right. Stacks on phones. */
+:root{
+  --bg:#E6EAED; --panel:#F6F8F9; --sheet:#FBFCFC; --ink:#17202A; --muted:#566573; --line:#C9D1D8;
+  --grid:#E7EBEE; --grid-major:#CCD4DA; --field:#FFFFFF;
+  --cut-out:#D9530B; --cut-in:#1764BD; --warn:#C42727; --ok:#2A7F3C; --accent:#D9530B; --accent-ink:#FFFFFF;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-stencil:"Big Shoulders Stencil","Arial Narrow",Impact,sans-serif;
+  --plate:#1B232B;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161B; --panel:#182027; --sheet:#0C1115; --ink:#E3E8EC; --muted:#8E9BA6; --line:#2A343D;
+  --grid:#151C22; --grid-major:#232D35; --field:#0F151A;
+  --cut-out:#FF8A3D; --cut-in:#5AACF5; --warn:#FF6B6B; --ok:#5FC777; --accent:#FF8A3D; --accent-ink:#1A0D04; --plate:#C9D1D8; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161B; --panel:#182027; --sheet:#0C1115; --ink:#E3E8EC; --muted:#8E9BA6; --line:#2A343D;
+  --grid:#151C22; --grid-major:#232D35; --field:#0F151A;
+  --cut-out:#FF8A3D; --cut-in:#5AACF5; --warn:#FF6B6B; --ok:#5FC777; --accent:#FF8A3D; --accent-ink:#1A0D04; --plate:#C9D1D8; color-scheme:dark}
+
+[hidden]{display:none!important}
+html{height:100%;box-sizing:border-box}
+*,*::before,*::after{box-sizing:border-box}
+body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr;gap:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px}
+
+button,.btn{font:500 13px/1 var(--f-body);color:var(--ink);background:var(--panel);border:1px solid var(--line);
+  border-radius:6px;padding:8px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+button:hover,.btn:hover{border-color:var(--muted)}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,.btn:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.primary:hover{filter:brightness(1.06);border-color:var(--accent)}
+input,select{font:400 13px var(--f-mono);color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:5px;padding:6px 8px;min-width:0}
+input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
+
+/* top bar */
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.brand{display:flex;align-items:center;gap:8px;margin-right:6px}
+/* logo: the cut-plate sign, stencil letters on a bolted steel plate */
+.plate{position:relative;display:inline-block;background:var(--plate);color:var(--bg);border-radius:6px;padding:7px 20px 6px;
+  font:900 28px/1 var(--f-stencil);letter-spacing:.02em}
+.plate b{color:var(--accent);font-weight:900}
+.plate i{position:absolute;width:5px;height:5px;border-radius:50%;background:var(--bg)}
+.plate i:nth-child(1){left:6px;top:6px}.plate i:nth-child(2){right:6px;top:6px}
+.plate i:nth-child(3){left:6px;bottom:6px}.plate i:nth-child(4){right:6px;bottom:6px}
+.group{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.push{margin-left:auto}
+.name-field{display:flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:6px;background:var(--field);overflow:hidden}
+.name-field span{font:600 11px var(--f-body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:0 8px}
+.name-field input{border:0;border-radius:0;width:9.5em;padding:8px 2px}
+.name-field em{font:400 13px var(--f-mono);color:var(--muted);font-style:normal;padding-right:8px}
+
+/* work area */
+.work{display:grid;grid-template-columns:52px minmax(0,1fr) 300px;gap:10px;min-height:0}
+.rail{display:flex;flex-direction:column;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px}
+.tool{width:40px;height:40px;padding:0;justify-content:center;position:relative;border-color:transparent;background:transparent}
+.tool svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tool kbd{position:absolute;right:3px;bottom:2px;font:500 9px var(--f-mono);color:var(--muted)}
+.tool[aria-pressed=true]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.tool[aria-pressed=true] kbd{color:var(--panel);opacity:.7}
+.rail hr{border:0;border-top:1px solid var(--line);margin:4px 2px;width:auto}
+
+.stage{position:relative;min-height:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--sheet);touch-action:none}
+.stage canvas{display:block;width:100%;height:100%}
+.hud{position:absolute;left:10px;bottom:10px;right:10px;display:flex;justify-content:space-between;align-items:flex-end;gap:8px;pointer-events:none}
+.readout{font:500 12px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--muted);background:color-mix(in srgb,var(--panel) 88%,transparent);
+  border:1px solid var(--line);border-radius:5px;padding:5px 8px}
+.zoom{display:flex;gap:4px;pointer-events:auto}
+.zoom button{padding:6px 9px;font-family:var(--f-mono)}
+.hint{position:absolute;left:10px;top:10px;right:10px;font:500 12px var(--f-body);color:var(--muted);pointer-events:none}
+.hint:empty{display:none}
+.hint span{background:color-mix(in srgb,var(--panel) 90%,transparent);border:1px solid var(--line);border-radius:5px;padding:5px 8px;display:inline-block}
+.drop{position:absolute;inset:0;display:grid;pointer-events:none;place-items:center;background:color-mix(in srgb,var(--accent) 12%,transparent);
+  border:2px dashed var(--accent);border-radius:8px;font:600 22px var(--f-display);letter-spacing:.04em;text-transform:uppercase;color:var(--accent)}
+
+/* inspector */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:auto;min-height:0;display:flex;flex-direction:column}
+.sec{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.sec:last-child{border-bottom:0}
+.sec h2{margin:0;font:600 15px/1 var(--f-display);text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+.size{font:600 30px/1 var(--f-display);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.size small{font:500 13px var(--f-mono);color:var(--muted);margin-left:4px}
+.layers{display:flex;flex-direction:column;gap:6px}
+.layer{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center;font-size:13px}
+.sw{width:14px;height:3px;border-radius:2px}
+.layer b{font:500 13px var(--f-mono)}
+.layer .n{font:500 12px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.kv{display:grid;grid-template-columns:1fr auto;gap:5px 10px;font-size:13px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font:500 13px var(--f-mono);font-variant-numeric:tabular-nums;text-align:right}
+.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.checks li{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:start;font-size:13px;line-height:1.35}
+.checks li button{all:unset;cursor:pointer;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:2px}
+.checks li button:focus-visible{outline:2px solid var(--accent)}
+.pill{font:600 10px/1 var(--f-body);text-transform:uppercase;letter-spacing:.08em;padding:4px 6px;border-radius:4px;margin-top:1px}
+.pill.warn{color:var(--warn);border:1px solid var(--warn)}
+.pill.ok{color:var(--ok);border:1px solid var(--ok)}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label,.lbl{font:600 11px var(--f-body);text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.field.full{grid-column:1/-1}
+.unit{position:relative;display:flex}
+.unit input{width:100%;padding-right:26px}
+.unit i{position:absolute;right:8px;top:50%;transform:translateY(-50%);font:400 12px var(--f-mono);color:var(--muted);font-style:normal;pointer-events:none}
+.actions{display:flex;flex-wrap:wrap;gap:6px}
+.offset-box{display:flex;flex-direction:column;gap:10px;margin-top:12px;padding:12px;border:1px dashed var(--accent);border-radius:6px}
+.actions button{padding:7px 9px;font-size:12px}
+.muted{color:var(--muted);font-size:13px;line-height:1.45;margin:0}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px}
+.row select{max-width:9.5em}
+.keys{font:400 12px/1.7 var(--f-body);color:var(--muted);margin:0}
+.keys kbd{font:500 11px var(--f-mono);border:1px solid var(--line);border-radius:3px;padding:0 4px;background:var(--field);color:var(--ink)}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--panel);
+  font:500 13px var(--f-body);padding:10px 14px;border-radius:6px;max-width:calc(100% - 32px);box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:20}
+
+@media (max-width:860px){
+  html,body,.app{height:auto}
+  .work{grid-template-columns:1fr;grid-template-rows:auto 62vh auto}
+  .rail{flex-direction:row;flex-wrap:wrap;justify-content:center}
+  .rail hr{border-top:0;border-left:1px solid var(--line);margin:2px 4px}
+  .push{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="brand">
+      <span class="plate" role="img" aria-label="ArcRight"><i></i><i></i><i></i><i></i>ARC<b>RIGHT</b></span>
+    </div>
+    <div class="group">
+      <button id="btn-new" type="button">New</button>
+      <label class="btn" for="file-in" tabindex="0" id="lbl-import">Import SVG</label>
+      <input type="file" id="file-in" accept=".svg,image/svg+xml" hidden>
+      <button id="btn-undo" type="button" title="Undo (Ctrl+Z)">Undo</button>
+      <button id="btn-redo" type="button" title="Redo (Ctrl+Shift+Z)">Redo</button>
+    </div>
+    <div class="group push">
+      <label class="name-field"><span>Part</span><input id="part-name" spellcheck="false" autocomplete="off"><em>.dxf</em></label>
+      <button id="btn-copy" type="button" title="Copy the DXF text to the clipboard">Copy DXF</button>
+      <button id="btn-dl" type="button" class="primary">Download DXF</button>
+    </div>
+  </header>
+
+  <div class="work">
+    <nav class="rail" aria-label="Drawing tools">
+      <button class="tool" data-tool="select" title="Select and move (V)" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 1.6L10 19z"/></svg><kbd>V</kbd></button>
+      <button class="tool" data-tool="rect" title="Rectangle (R): drag from a corner" aria-pressed="false"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="1"/></svg><kbd>R</kbd></button>
+      <button class="tool" data-tool="circle" title="Circle (C): drag from the center" aria-pressed="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><path d="M12 12h7.5" stroke-dasharray="2 2"/></svg><kbd>C</kbd></button>
+      <button class="tool" data-tool="poly" title="Polygon (P): click points, click the first point or press Enter to close" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 18L7 5l10 3 3 10z"/></svg><kbd>P</kbd></button>
+      <hr>
+      <button class="tool" data-tool="pan" title="Pan (H) — or hold Space, or drag with the right mouse button" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg><kbd>H</kbd></button>
+    </nav>
+
+    <div class="stage" id="stage">
+      <canvas id="cv" aria-label="Cutting layout canvas"></canvas>
+      <div class="hint" id="hint"></div>
+      <div class="hud">
+        <div class="readout" id="readout">X 0.000 &nbsp;Y 0.000 in</div>
+        <div class="zoom">
+          <button type="button" id="z-out" title="Zoom out" aria-label="Zoom out">−</button>
+          <button type="button" id="z-fit" title="Fit to parts (F)">Fit</button>
+          <button type="button" id="z-in" title="Zoom in" aria-label="Zoom in">+</button>
+        </div>
+      </div>
+      <div class="drop" id="drop" hidden>Drop SVG to import</div>
+    </div>
+
+    <aside class="panel" aria-label="Inspector">
+      <section class="sec">
+        <h2>Cut summary</h2>
+        <div class="size" id="sum-size">—</div>
+        <div class="layers" id="sum-layers"></div>
+        <dl class="kv" id="sum-kv"></dl>
+      </section>
+      <section class="sec">
+        <h2>Checks</h2>
+        <ul class="checks" id="checks"></ul>
+      </section>
+      <section class="sec" id="sel-sec">
+        <h2>Selection</h2>
+        <div id="props"></div>
+      </section>
+      <section class="sec">
+        <h2>Settings</h2>
+        <div class="fields">
+          <div class="field"><label for="s-thick">Plate thickness</label><div class="unit"><input id="s-thick" type="number" step="0.0625" min="0"><i>in</i></div></div>
+          <div class="field"><label for="s-ipm">Cut speed</label><div class="unit"><input id="s-ipm" type="number" step="5" min="1"><i style="right:6px">ipm</i></div></div>
+          <div class="field"><label for="s-out">Outside layer</label><input id="s-out" spellcheck="false"></div>
+          <div class="field"><label for="s-in">Inside layer</label><input id="s-in" spellcheck="false"></div>
+        </div>
+        <div class="row"><label for="s-snap">Snap to grid</label><span class="group"><input type="checkbox" id="s-snap"><select id="s-step" aria-label="Snap spacing">
+          <option value="0.0625">1/16"</option><option value="0.125">1/8"</option><option value="0.25">1/4"</option><option value="0.5">1/2"</option><option value="1">1"</option></select></span></div>
+        <div class="row"><label for="s-ppi">SVGs with no units</label><select id="s-ppi">
+          <option value="auto">Auto-detect</option><option value="72">72 per inch (Illustrator)</option><option value="96">96 per inch (Inkscape, web)</option><option value="25.4">Millimeters</option><option value="1">Inches</option></select></div>
+        <div class="row"><label for="s-origin">Put bottom-left corner at 0,0 on export</label><input type="checkbox" id="s-origin"></div>
+      </section>
+      <section class="sec">
+        <p class="keys"><kbd>Del</kbd> delete · <kbd>Ctrl D</kbd> duplicate · arrows nudge · <kbd>Ctrl Z</kbd> undo · wheel to zoom · <kbd>Space</kbd>-drag to pan · <kbd>Esc</kbd> cancel</p>
+      </section>
+    </aside>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/clipper-lib@6.4.2/clipper.js"></script>
+<script id="core">
+"use strict";
+/* ===== Geometry core: everything in inches, Y up (DXF convention) ===== */
+const TAU = Math.PI * 2;
+const K90 = Math.tan(Math.PI / 8);          // bulge for a 90° CCW arc
+const FLAT_TOL = 0.0015;                     // curve flattening tolerance, inches
+const JOIN_TOL = 0.003;                      // endpoint join tolerance, inches
+
+function bboxOf(pts){ let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const p of pts){ if(p[0]<x0)x0=p[0]; if(p[0]>x1)x1=p[0]; if(p[1]<y0)y0=p[1]; if(p[1]>y1)y1=p[1]; }
+  return {x0,y0,x1,y1}; }
+function bbUnion(a,b){ if(!a) return b; if(!b) return a; return {x0:Math.min(a.x0,b.x0),y0:Math.min(a.y0,b.y0),x1:Math.max(a.x1,b.x1),y1:Math.max(a.y1,b.y1)}; }
+function bbOverlap(a,b,e){ e=e||0; return a.x0<=b.x1+e && b.x0<=a.x1+e && a.y0<=b.y1+e && b.y0<=a.y1+e; }
+function bbInside(inner,outer){ return inner.x0>=outer.x0-1e-9 && inner.x1<=outer.x1+1e-9 && inner.y0>=outer.y0-1e-9 && inner.y1<=outer.y1+1e-9; }
+function polyArea(p){ let a=0; for(let i=0,n=p.length;i<n;i++){ const q=p[i], r=p[(i+1)%n]; a+=q[0]*r[1]-r[0]*q[1]; } return a/2; }
+function pip(pt,poly){ const x=pt[0],y=pt[1]; let ins=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){ const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];
+    if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi)) ins=!ins; }
+  return ins; }
+function perimeter(pts,closed){ let L=0; for(let i=1;i<pts.length;i++) L+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);
+  if(closed&&pts.length>2) L+=Math.hypot(pts[0][0]-pts[pts.length-1][0],pts[0][1]-pts[pts.length-1][1]); return L; }
+function segDist2(px,py,ax,ay,bx,by){ const dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy; let t=L?((px-ax)*dx+(py-ay)*dy)/L:0; t=t<0?0:t>1?1:t;
+  const qx=ax+t*dx-px, qy=ay+t*dy-py; return qx*qx+qy*qy; }
+function circlePts(cx,cy,r,n){ n=n||96; const out=[]; for(let i=0;i<n;i++){ const a=i/n*TAU; out.push([cx+r*Math.cos(a),cy+r*Math.sin(a)]); } return out; }
+
+/* bulge arc from p to q (bulge b = tan(θ/4), θ>0 CCW): push interior points only */
+function bulgeArcPts(p,q,b,out){
+  const dx=q.x-p.x, dy=q.y-p.y, d=Math.hypot(dx,dy); if(d<1e-12) return;
+  const s=b*d/2, r=(d*d/4+s*s)/(2*s);              // signed sagitta and radius
+  const nx=-dy/d, ny=dx/d, mx=(p.x+q.x)/2, my=(p.y+q.y)/2;
+  const cx=mx+nx*(r-s), cy=my+ny*(r-s);
+  const a0=Math.atan2(p.y-cy,p.x-cx), sweep=4*Math.atan(b), R=Math.abs(r);
+  const steps=Math.max(4,Math.ceil(Math.abs(sweep)/(TAU/96)));
+  for(let i=1;i<steps;i++){ const a=a0+sweep*i/steps; out.push([cx+R*Math.cos(a),cy+R*Math.sin(a)]); }
+}
+function flattenVerts(v,closed){ const out=[]; const n=v.length;
+  for(let i=0;i<n;i++){ out.push([v[i].x,v[i].y]); if(!closed&&i===n-1) break; const j=(i+1)%n;
+    if(Math.abs(v[i].b)>1e-12) bulgeArcPts(v[i],v[j],v[i].b,out); }
+  return out; }
+function cleanVerts(v){ // drop a vertex whose outgoing segment has zero length
+  const out=[]; for(let i=0;i<v.length;i++){ const j=(i+1)%v.length; if(Math.hypot(v[i].x-v[j].x,v[i].y-v[j].y)>1e-9) out.push(v[i]); } return out; }
+function dedupeVerts(v,closed){ const out=[];
+  for(const q of v){ const l=out[out.length-1]; if(l&&Math.hypot(l.x-q.x,l.y-q.y)<1e-9){ l.b=q.b; continue; } out.push({...q}); }
+  if(closed&&out.length>1){ const f=out[0], l=out[out.length-1]; if(Math.hypot(l.x-f.x,l.y-f.y)<1e-9) out.pop(); }
+  return out; }
+/* Geometry of the corner at vertex i: unit vectors toward both neighbors, interior angle th, turn direction */
+function cornerGeom(pts,i){ const n=pts.length, P=pts[i], A=pts[(i-1+n)%n], B=pts[(i+1)%n];
+  const l1=Math.hypot(A[0]-P[0],A[1]-P[1]), l2=Math.hypot(B[0]-P[0],B[1]-P[1]); if(l1<1e-9||l2<1e-9) return null;
+  const u1=[(A[0]-P[0])/l1,(A[1]-P[1])/l1], u2=[(B[0]-P[0])/l2,(B[1]-P[1])/l2];
+  const th=Math.acos(Math.max(-1,Math.min(1,u1[0]*u2[0]+u1[1]*u2[1]))); if(th<1e-3||th>Math.PI-1e-3) return null;
+  const cr=(P[0]-A[0])*(B[1]-P[1])-(P[1]-A[1])*(B[0]-P[0]);
+  return {u1,u2,th,l1,l2,turn:cr>=0?1:-1}; }
+/* Fillet any corner (any angle) with a true arc. rad[i] = requested radius at vertex i.
+   Where two fillets would overrun a shared edge, both shrink in proportion. Returns bulge verts + effective radii. */
+function filletPolygon(pts,closed,rad){
+  const n=pts.length, eff=new Array(n).fill(0), tt=new Array(n).fill(0);
+  if(!rad||!rad.some(r=>r>0)||n<3) return {verts:pts.map(p=>({x:p[0],y:p[1],b:0})),eff,t:tt};
+  const info=new Array(n).fill(null);
+  for(let i=0;i<n;i++){ const r=rad[i]||0; if(!(r>0)) continue; if(!closed&&(i===0||i===n-1)) continue;
+    const g=cornerGeom(pts,i); if(!g) continue; info[i]={...g,t:r/Math.tan(g.th/2),tc:Infinity}; }
+  const segs=closed?n:n-1;
+  for(let s=0;s<segs;s++){ const a=info[s], b=info[(s+1)%n]; const ta=a?a.t:0, tb=b?b.t:0; if(!(ta+tb>0)) continue;
+    const L=a?a.l2:b.l1; if(ta+tb>L){ const k=L/(ta+tb); if(a) a.tc=Math.min(a.tc,ta*k); if(b) b.tc=Math.min(b.tc,tb*k); } }
+  const v=[];
+  for(let i=0;i<n;i++){ const P=pts[i], f=info[i]; if(!f){ v.push({x:P[0],y:P[1],b:0}); continue; }
+    const t=Math.min(f.t,f.tc); tt[i]=t; eff[i]=t*Math.tan(f.th/2);
+    v.push({x:P[0]+f.u1[0]*t,y:P[1]+f.u1[1]*t,b:f.turn*Math.tan((Math.PI-f.th)/4)});
+    v.push({x:P[0]+f.u2[0]*t,y:P[1]+f.u2[1]*t,b:0}); }
+  return {verts:dedupeVerts(v,closed),eff,t:tt};
+}
+function rectRadii(s){ return s.rc ? s.rc : [s.r||0,s.r||0,s.r||0,s.r||0]; }
+/* Raw contours: the shape's own corner points, before fillets. Order for rect corners: BL, BR, TR, TL. */
+function rawContours(s){
+  if(s.type==='rect') return [{closed:true,drawn:true,pts:[[s.x,s.y],[s.x+s.w,s.y],[s.x+s.w,s.y+s.h],[s.x,s.y+s.h]],rad:rectRadii(s)}];
+  if(s.type==='circle') return [{closed:true,circle:{cx:s.cx,cy:s.cy,r:s.r},pts:circlePts(s.cx,s.cy,s.r)}];
+  if(s.type==='poly') return [{closed:s.closed!==false,drawn:true,pts:s.pts,rad:s.rad}];
+  if(s.type==='import') return s.contours;
+  return [];
+}
+const deriveCache=new WeakMap();
+function deriveContour(c){
+  if(c.circle) return c;
+  const has=c.rad&&c.rad.some(r=>r>0);
+  if(!has) return c.drawn?{closed:c.closed,pts:c.pts,verts:c.pts.map(p=>({x:p[0],y:p[1],b:0}))}:c;
+  if(!c.drawn&&deriveCache.has(c)) return deriveCache.get(c);
+  const f=filletPolygon(c.pts,c.closed,c.rad);
+  const d={closed:c.closed,verts:f.verts,pts:flattenVerts(f.verts,c.closed),eff:f.eff,t:f.t};
+  if(!c.drawn) deriveCache.set(c,d);
+  return d;
+}
+/* Every shape reduces to contours: {closed, pts (flattened polygon), verts? (with bulges), circle?} */
+function contoursOf(s){ return rawContours(s).map(deriveContour); }
+/* Hard corners eligible for a fillet. Imported curves only offer the points where path segments meet. */
+function hardCorners(c){
+  if(c.circle||!c.pts||c.pts.length<3) return [];
+  const out=[], n=c.pts.length, minTurn=c.drawn?0.5:20;
+  for(let i=0;i<n;i++){ if(!c.closed&&(i===0||i===n-1)) continue; if(c.k&&!c.k[i]) continue;
+    const g=cornerGeom(c.pts,i); if(!g) continue; if((Math.PI-g.th)*180/Math.PI<minTurn) continue; out.push({i,...g}); }
+  return out;
+}
+
+/* ===== SVG import ===== */
+function mmul(A,B){ return [A[0]*B[0]+A[2]*B[1], A[1]*B[0]+A[3]*B[1], A[0]*B[2]+A[2]*B[3], A[1]*B[2]+A[3]*B[3], A[0]*B[4]+A[2]*B[5]+A[4], A[1]*B[4]+A[3]*B[5]+A[5]]; }
+function mapp(m,x,y){ return [m[0]*x+m[2]*y+m[4], m[1]*x+m[3]*y+m[5]]; }
+function parseTransform(str){
+  const re=/(matrix|translate|scale|rotate|skewX|skewY)\s*\(([^)]*)\)/gi; let m=[1,0,0,1,0,0], r;
+  while((r=re.exec(str))){ const a=r[2].trim().split(/[\s,]+/).filter(Boolean).map(Number); let t=[1,0,0,1,0,0];
+    switch(r[1].toLowerCase()){
+      case 'matrix': if(a.length===6) t=a; break;
+      case 'translate': t=[1,0,0,1,a[0]||0,a[1]||0]; break;
+      case 'scale': t=[a[0]??1,0,0,a.length>1?a[1]:(a[0]??1),0,0]; break;
+      case 'rotate': { const g=(a[0]||0)*Math.PI/180, c=Math.cos(g), s=Math.sin(g); t=[c,s,-s,c,0,0];
+        if(a.length>=3) t=mmul(mmul([1,0,0,1,a[1],a[2]],t),[1,0,0,1,-a[1],-a[2]]); break; }
+      case 'skewx': t=[1,0,Math.tan((a[0]||0)*Math.PI/180),1,0,0]; break;
+      case 'skewy': t=[1,Math.tan((a[0]||0)*Math.PI/180),0,1,0,0]; break;
+    }
+    m=mmul(m,t); }
+  return m;
+}
+function isSimilarity(m){ const s1=m[0]*m[0]+m[1]*m[1], s2=m[2]*m[2]+m[3]*m[3];
+  return Math.abs(s1-s2)<=1e-6*Math.max(s1,s2) && Math.abs(m[0]*m[2]+m[1]*m[3])<=1e-6*Math.max(s1,s2); }
+
+function flatCubic(p0,p1,p2,p3,tol,out,depth){
+  const dx=p3[0]-p0[0], dy=p3[1]-p0[1], L2=dx*dx+dy*dy;
+  let flat;
+  if(L2<1e-14) flat=Math.max(Math.hypot(p1[0]-p0[0],p1[1]-p0[1]),Math.hypot(p2[0]-p0[0],p2[1]-p0[1]))<tol;
+  else { const d1=Math.abs((p1[0]-p3[0])*dy-(p1[1]-p3[1])*dx), d2=Math.abs((p2[0]-p3[0])*dy-(p2[1]-p3[1])*dx);
+    flat=(d1+d2)*(d1+d2)<=tol*tol*L2; }
+  if(flat||depth>16){ out.push(p3); return; }
+  const m=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2];
+  const p01=m(p0,p1),p12=m(p1,p2),p23=m(p2,p3),a=m(p01,p12),b=m(p12,p23),c=m(a,b);
+  flatCubic(p0,p01,a,c,tol,out,depth+1); flatCubic(c,b,p23,p3,tol,out,depth+1);
+}
+function arcToCubics(x1,y1,rx,ry,phiDeg,fa,fs,x2,y2){
+  if(x1===x2&&y1===y2) return [];
+  rx=Math.abs(rx); ry=Math.abs(ry); if(!rx||!ry) return null;
+  const phi=phiDeg*Math.PI/180, cp=Math.cos(phi), sp=Math.sin(phi);
+  const dx=(x1-x2)/2, dy=(y1-y2)/2, x1p=cp*dx+sp*dy, y1p=-sp*dx+cp*dy;
+  const lam=x1p*x1p/(rx*rx)+y1p*y1p/(ry*ry); if(lam>1){ const s=Math.sqrt(lam); rx*=s; ry*=s; }
+  const rx2=rx*rx, ry2=ry*ry; let num=rx2*ry2-rx2*y1p*y1p-ry2*x1p*x1p; if(num<0) num=0;
+  let coef=Math.sqrt(num/(rx2*y1p*y1p+ry2*x1p*x1p)); if(fa===fs) coef=-coef;
+  const cxp=coef*rx*y1p/ry, cyp=-coef*ry*x1p/rx;
+  const cx=cp*cxp-sp*cyp+(x1+x2)/2, cy=sp*cxp+cp*cyp+(y1+y2)/2;
+  const ang=(ux,uy,vx,vy)=>Math.atan2(ux*vy-uy*vx,ux*vx+uy*vy);
+  const t1=ang(1,0,(x1p-cxp)/rx,(y1p-cyp)/ry);
+  let dt=ang((x1p-cxp)/rx,(y1p-cyp)/ry,(-x1p-cxp)/rx,(-y1p-cyp)/ry);
+  if(!fs&&dt>0) dt-=TAU; else if(fs&&dt<0) dt+=TAU;
+  const n=Math.max(1,Math.ceil(Math.abs(dt)/(Math.PI/2)-1e-9)), d=dt/n, k=4/3*Math.tan(d/4);
+  const map=(x,y)=>[cx+rx*cp*x-ry*sp*y, cy+rx*sp*x+ry*cp*y];
+  const out=[]; let a=t1;
+  for(let i=0;i<n;i++){ const c1=Math.cos(a),s1=Math.sin(a),c2=Math.cos(a+d),s2=Math.sin(a+d);
+    out.push([map(c1-k*s1,s1+k*c1),map(c2+k*s2,s2-k*c2),map(c2,s2)]); a+=d; }
+  return out;
+}
+/* Parse SVG path data, map through matrix M into inches, flatten curves */
+function pathToContours(d,M){
+  const s=d||'', out=[]; let i=0, cmd='', cur=null;
+  let x=0,y=0,sx=0,sy=0, lcx=null,lcy=null,lqx=null,lqy=null, lastType='';
+  const numRe=/[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?/y;
+  const skip=()=>{ while(i<s.length && ' \t\n\r\f,'.includes(s[i])) i++; };
+  const hasNum=()=>{ skip(); return i<s.length && /[-+.\d]/.test(s[i]); };
+  const num=()=>{ skip(); numRe.lastIndex=i; const m=numRe.exec(s); if(!m) throw new Error('bad path'); i=numRe.lastIndex; return parseFloat(m[0]); };
+  const flag=()=>{ skip(); const c=s[i]; if(c==='0'||c==='1'){ i++; return c==='1'; } throw new Error('bad flag'); };
+  const T=(px,py)=>mapp(M,px,py);
+  const finish=()=>{ if(cur && cur.pts.length>1) out.push(cur); cur=null; };
+  const ensure=()=>{ if(!cur) cur={closed:false,pts:[T(x,y)],k:[1]}; };
+  const lineTo=(nx,ny)=>{ ensure(); cur.pts.push(T(nx,ny)); cur.k.push(1); x=nx; y=ny; };
+  const cubicTo=(x1,y1,x2,y2,nx,ny)=>{ ensure(); const b=cur.pts.length; flatCubic(T(x,y),T(x1,y1),T(x2,y2),T(nx,ny),FLAT_TOL,cur.pts,0);
+    for(let j=b;j<cur.pts.length;j++) cur.k.push(j===cur.pts.length-1?1:0); x=nx; y=ny; };
+  try{
+    while(true){
+      skip(); if(i>=s.length) break;
+      const c=s[i];
+      if(/[A-Za-z]/.test(c)){ cmd=c; i++; }
+      else if(!cmd || cmd==='Z' || cmd==='z') break;
+      const rel=cmd===cmd.toLowerCase(), C=cmd.toUpperCase();
+      const ox=rel?x:0, oy=rel?y:0; let type='';
+      switch(C){
+        case 'M': { const nx=num()+ox, ny=num()+oy; finish(); x=sx=nx; y=sy=ny; cur={closed:false,pts:[T(x,y)],k:[1]}; cmd=rel?'l':'L'; break; }
+        case 'L': { const nx=num()+ox, ny=num()+oy; lineTo(nx,ny); break; }
+        case 'H': { lineTo(num()+ox,y); break; }
+        case 'V': { lineTo(x,num()+oy); break; }
+        case 'C': { const a=num()+ox,b=num()+oy,c2=num()+ox,d2=num()+oy,e=num()+ox,f=num()+oy; cubicTo(a,b,c2,d2,e,f); lcx=c2; lcy=d2; type='C'; break; }
+        case 'S': { const c2=num()+ox,d2=num()+oy,e=num()+ox,f=num()+oy; let a=x,b=y; if(lastType==='C'){ a=2*x-lcx; b=2*y-lcy; }
+          cubicTo(a,b,c2,d2,e,f); lcx=c2; lcy=d2; type='C'; break; }
+        case 'Q': { const qx=num()+ox,qy=num()+oy,e=num()+ox,f=num()+oy;
+          cubicTo(x+2/3*(qx-x),y+2/3*(qy-y),e+2/3*(qx-e),f+2/3*(qy-f),e,f); lqx=qx; lqy=qy; type='Q'; break; }
+        case 'T': { const e=num()+ox,f=num()+oy; let qx=x,qy=y; if(lastType==='Q'){ qx=2*x-lqx; qy=2*y-lqy; }
+          cubicTo(x+2/3*(qx-x),y+2/3*(qy-y),e+2/3*(qx-e),f+2/3*(qy-f),e,f); lqx=qx; lqy=qy; type='Q'; break; }
+        case 'A': { const rx=num(),ry=num(),ph=num(),fa=flag(),fs=flag(),e=num()+ox,f=num()+oy;
+          const cs=arcToCubics(x,y,rx,ry,ph,fa,fs,e,f);
+          if(cs===null) lineTo(e,f); else { for(const q of cs){ cubicTo(q[0][0],q[0][1],q[1][0],q[1][1],q[2][0],q[2][1]); } x=e; y=f; }
+          break; }
+        case 'Z': { if(cur){ cur.closed=true; finish(); } x=sx; y=sy; break; }
+        default: throw new Error('bad command');
+      }
+      lastType=type;
+    }
+  }catch(e){ /* keep whatever parsed cleanly, like browsers do */ }
+  finish();
+  return out;
+}
+function parseLen(v,ppi){
+  if(v==null) return null; const m=/^\s*([-+]?[\d.]+(?:e[-+]?\d+)?)\s*([a-z%]*)\s*$/i.exec(v); if(!m) return null;
+  const n=parseFloat(m[1]); const u=m[2].toLowerCase();
+  const f={in:1,mm:1/25.4,cm:1/2.54,pt:1/72,pc:1/6,px:1/ppi,'':1/ppi}[u];
+  return f==null||!(n>0) ? null : n*f;
+}
+function importSVG(text,ppiSetting){
+  const doc=new DOMParser().parseFromString(text,'image/svg+xml');
+  const svg=doc.documentElement;
+  if(doc.getElementsByTagName('parsererror').length || !svg || svg.localName.toLowerCase()!=='svg') throw new Error("That file isn't a readable SVG.");
+  const isAI=/Adobe Illustrator/i.test(text.slice(0,4000));
+  const isInk=/inkscape/i.test(text.slice(0,4000));
+  const ppi = ppiSetting==='auto' ? (isAI?72:96) : +ppiSetting;
+  const vb=(svg.getAttribute('viewBox')||'').trim().split(/[\s,]+/).map(Number);
+  const hasVB=vb.length===4 && vb.every(Number.isFinite) && vb[2]>0 && vb[3]>0;
+  const W=parseLen(svg.getAttribute('width'),ppi), H=parseLen(svg.getAttribute('height'),ppi);
+  let sxs,sys,vx=0,vy=0;
+  if(hasVB){ vx=vb[0]; vy=vb[1]; sxs=W?W/vb[2]:null; sys=H?H/vb[3]:null;
+    if(sxs==null&&sys==null){ sxs=sys=1/ppi; } else if(sxs==null) sxs=sys; else if(sys==null) sys=sxs; }
+  else { sxs=sys=1/ppi; }
+  const root=[sxs,0,0,-sys,-vx*sxs,vy*sys];
+  const contours=[]; const warn={text:0,image:0};
+  const SKIP=new Set(['defs','clippath','mask','metadata','title','desc','style','script','pattern','lineargradient','radialgradient','filter','marker','symbol','foreignobject']);
+  const n=(el,a)=>{ const v=parseFloat(el.getAttribute(a)); return Number.isFinite(v)?v:0; };
+  const hidden=el=>{ const st=(el.getAttribute('style')||'').replace(/\s/g,'').toLowerCase();
+    return el.getAttribute('display')==='none' || el.getAttribute('visibility')==='hidden' || st.includes('display:none') || st.includes('visibility:hidden'); };
+  const addD=(d,m)=>{ for(const c of pathToContours(d,m)) contours.push(c); };
+  function ellipsePath(cx,cy,rx,ry){ return `M${cx-rx} ${cy}A${rx} ${ry} 0 1 0 ${cx+rx} ${cy}A${rx} ${ry} 0 1 0 ${cx-rx} ${cy}Z`; }
+  function walk(el,M,depth){ for(const ch of Array.from(el.children)) processEl(ch,M,depth); }
+  function processEl(el,M,depth){
+    const tag=el.localName.toLowerCase();
+    if(hidden(el)) return;
+    const t=el.getAttribute('transform'); const m=t?mmul(M,parseTransform(t)):M;
+    switch(tag){
+      case 'g': case 'a': case 'switch': walk(el,m,depth); break;
+      case 'svg': walk(el,mmul(m,[1,0,0,1,n(el,'x'),n(el,'y')]),depth); break;
+      case 'symbol': walk(el,m,depth); break;
+      case 'path': addD(el.getAttribute('d'),m); break;
+      case 'line': addD(`M${n(el,'x1')} ${n(el,'y1')}L${n(el,'x2')} ${n(el,'y2')}`,m); break;
+      case 'polyline': case 'polygon': { const p=(el.getAttribute('points')||'').trim(); if(p) addD('M'+p+(tag==='polygon'?'Z':''),m); break; }
+      case 'rect': { const x=n(el,'x'),y=n(el,'y'),w=n(el,'width'),h=n(el,'height'); if(w<=0||h<=0) break;
+        let rx=el.hasAttribute('rx')?n(el,'rx'):null, ry=el.hasAttribute('ry')?n(el,'ry'):null;
+        if(rx==null) rx=ry||0; if(ry==null) ry=rx; rx=Math.min(rx,w/2); ry=Math.min(ry,h/2);
+        if(rx>0&&ry>0) addD(`M${x+rx} ${y}H${x+w-rx}A${rx} ${ry} 0 0 1 ${x+w} ${y+ry}V${y+h-ry}A${rx} ${ry} 0 0 1 ${x+w-rx} ${y+h}H${x+rx}A${rx} ${ry} 0 0 1 ${x} ${y+h-ry}V${y+ry}A${rx} ${ry} 0 0 1 ${x+rx} ${y}Z`,m);
+        else addD(`M${x} ${y}H${x+w}V${y+h}H${x}Z`,m); break; }
+      case 'circle': { const r=n(el,'r'); if(r<=0) break; const cx=n(el,'cx'),cy=n(el,'cy');
+        if(isSimilarity(m)){ const c=mapp(m,cx,cy), rr=r*Math.sqrt(m[0]*m[0]+m[1]*m[1]);
+          contours.push({closed:true,circle:{cx:c[0],cy:c[1],r:rr},pts:circlePts(c[0],c[1],rr)}); }
+        else addD(ellipsePath(cx,cy,r,r),m); break; }
+      case 'ellipse': { const rx=n(el,'rx'),ry=n(el,'ry'); if(rx<=0||ry<=0) break; addD(ellipsePath(n(el,'cx'),n(el,'cy'),rx,ry),m); break; }
+      case 'use': { if(depth>8) break; const href=el.getAttribute('href')||el.getAttributeNS('http://www.w3.org/1999/xlink','href')||el.getAttribute('xlink:href');
+        const ref=href&&href[0]==='#'?doc.getElementById(href.slice(1)):null; if(!ref) break;
+        processEl(ref,mmul(m,[1,0,0,1,n(el,'x'),n(el,'y')]),depth+1); break; }
+      case 'text': warn.text++; break;
+      case 'image': warn.image++; break;
+      default: if(!SKIP.has(tag)) walk(el,m,depth);
+    }
+  }
+  walk(svg,root,0);
+  const cleaned=tidyContours(contours);
+  return {contours:cleaned, warn, ppi, source:isAI?'Illustrator':isInk?'Inkscape':'SVG', unitsFromFile:!!(W||H)&&!/^\s*[\d.]+\s*(px)?\s*$/i.test(svg.getAttribute('width')||'')};
+}
+function samePt(a,b,t){ return Math.abs(a[0]-b[0])<=t && Math.abs(a[1]-b[1])<=t; }
+function tidyContours(list){
+  // drop duplicate consecutive points; k[i]=1 marks points where path segments meet (fillet candidates)
+  let cs=list.map(c=>{ if(c.circle) return c; const p=[], k=[];
+      c.pts.forEach((q,j)=>{ const kq=c.k?c.k[j]:1; if(p.length&&samePt(p[p.length-1],q,1e-7)) k[k.length-1]=k[k.length-1]||kq; else { p.push(q); k.push(kq); } });
+      return {closed:c.closed,pts:p,k}; })
+    .filter(c=>c.pts.length>=2);
+  for(const c of cs) if(c.closed && !c.circle && c.pts.length>2 && samePt(c.pts[0],c.pts[c.pts.length-1],JOIN_TOL)){ c.pts.pop(); c.k.pop(); c.k[0]=1; }
+  // chain open pieces whose ends meet
+  let opens=cs.filter(c=>!c.closed), closed=cs.filter(c=>c.closed);
+  const rev=c=>({pts:c.pts.slice().reverse(),k:c.k.slice().reverse()});
+  const cat=(A,B)=>({closed:false,pts:A.pts.concat(B.pts.slice(1)),k:A.k.slice(0,-1).concat([1],B.k.slice(1))});
+  let merged=true;
+  while(merged){ merged=false;
+    outer: for(let a=0;a<opens.length;a++) for(let b=0;b<opens.length;b++){ if(a===b) continue;
+      const A=opens[a], B=opens[b], Ap=A.pts, Bp=B.pts; let np=null;
+      if(samePt(Ap[Ap.length-1],Bp[0],JOIN_TOL)) np=cat(A,B);
+      else if(samePt(Ap[Ap.length-1],Bp[Bp.length-1],JOIN_TOL)) np=cat(A,rev(B));
+      else if(samePt(Ap[0],Bp[Bp.length-1],JOIN_TOL)) np=cat(B,A);
+      else if(samePt(Ap[0],Bp[0],JOIN_TOL)) np=cat(rev(B),A);
+      if(np){ opens[a]=np; opens.splice(b,1); merged=true; break outer; } }
+  }
+  for(const o of opens){ if(o.pts.length>3 && samePt(o.pts[0],o.pts[o.pts.length-1],JOIN_TOL)){ o.pts.pop(); o.k.pop(); o.k[0]=1; o.closed=true; } }
+  cs=closed.concat(opens).filter(c=>!(c.closed&&c.pts.length<3));
+  return cs;
+}
+
+/* ===== Offset (Clipper): d>0 grows the part and shrinks its holes, d<0 the reverse ===== */
+function offsetShape(s,d,join){
+  if(s.type==='circle'){ const r=s.r+d; return r>1e-4?{circle:{cx:s.cx,cy:s.cy,r}}:null; }
+  if(typeof ClipperLib==='undefined') throw new Error('The offset tool could not load. Check your internet connection and reload.');
+  const CL=ClipperLib, SC=1e5, toP=c=>c.pts.map(p=>({X:Math.round(p[0]*SC),Y:Math.round(p[1]*SC)}));
+  const cs=contoursOf(s), closed=cs.filter(c=>c.closed&&c.pts.length>=3);
+  const jt=join==='round'?CL.JoinType.jtRound:join==='miter'?CL.JoinType.jtMiter:CL.JoinType.jtSquare;
+  const co=new CL.ClipperOffset(4,0.0008*SC);
+  const areas=closed.map(c=>Math.abs(polyArea(c.pts))), bbs=closed.map(c=>bboxOf(c.pts));
+  closed.forEach((c,a)=>{ let depth=0;
+    closed.forEach((o,b)=>{ if(b!==a&&areas[b]>areas[a]&&bbInside(bbs[a],bbs[b])&&pip(c.pts[0],o.pts)) depth++; });
+    const path=toP(c); if(CL.Clipper.Orientation(path)!==(depth%2===0)) path.reverse();
+    co.AddPath(path,jt,CL.EndType.etClosedPolygon); });
+  if(d>0) for(const c of cs) if(!c.closed) co.AddPath(toP(c),jt,join==='round'?CL.EndType.etOpenRound:CL.EndType.etOpenSquare);
+  const sol=new CL.Paths(); co.Execute(sol,d*SC);
+  const clean=CL.Clipper.CleanPolygons(sol,0.0002*SC).filter(p=>p.length>=3);
+  if(!clean.length) return null;
+  return {contours:tidyContours(clean.map(p=>({closed:true,pts:p.map(q=>[q.X/SC,q.Y/SC])})))};
+}
+
+/* ===== Analysis: nesting depth decides Outside vs Inside ===== */
+function segsCross(a,b,c,d){
+  const o=(p,q,r)=>(q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0]);
+  const d1=o(a,b,c), d2=o(a,b,d), d3=o(c,d,a), d4=o(c,d,b), e=1e-12;
+  return ((d1>e&&d2<-e)||(d1<-e&&d2>e)) && ((d3>e&&d4<-e)||(d3<-e&&d4>e));
+}
+function analyze(shapes,opt){
+  const items=[];
+  for(const s of shapes) for(const c of contoursOf(s)){
+    if(!c.pts||c.pts.length<2) continue;
+    const bb=c.circle?{x0:c.circle.cx-c.circle.r,y0:c.circle.cy-c.circle.r,x1:c.circle.cx+c.circle.r,y1:c.circle.cy+c.circle.r}:bboxOf(c.pts);
+    const area=c.closed?Math.abs(polyArea(c.pts)):0;
+    const len=c.circle?TAU*c.circle.r:c.verts?perimeter(flattenVerts(c.verts,c.closed),c.closed):perimeter(c.pts,c.closed);
+    items.push({s,c,bb,area,len,depth:0,layer:'outside',flags:[]});
+  }
+  const closed=items.filter(i=>i.c.closed&&i.c.pts.length>=3);
+  for(const a of closed){ const probe=a.c.pts[0]; let d=0;
+    for(const b of closed){ if(b===a||b.area<=a.area||!bbInside(a.bb,b.bb)) continue; if(pip(probe,b.c.pts)) d++; }
+    a.depth=d; a.layer=d%2?'inside':'outside'; }
+  for(const i of items) if(!i.c.closed) i.flags.push('open');
+  const th=opt&&opt.thickness||0;
+  if(th>0) for(const i of closed) if(i.layer==='inside' && Math.min(i.bb.x1-i.bb.x0,i.bb.y1-i.bb.y0) < th-1e-9) i.flags.push('small');
+  let crossSkipped=false;
+  if(opt&&opt.full){
+    let budget=4e6;
+    for(let a=0;a<closed.length&&!crossSkipped;a++) for(let b=a+1;b<closed.length;b++){
+      const A=closed[a], B=closed[b]; if(!bbOverlap(A.bb,B.bb)) continue;
+      const P=A.c.pts, Q=B.c.pts; budget-=P.length*Q.length; if(budget<0){ crossSkipped=true; break; }
+      let hit=false;
+      for(let i=0;i<P.length&&!hit;i++){ const p1=P[i],p2=P[(i+1)%P.length];
+        if(Math.max(p1[0],p2[0])<B.bb.x0||Math.min(p1[0],p2[0])>B.bb.x1||Math.max(p1[1],p2[1])<B.bb.y0||Math.min(p1[1],p2[1])>B.bb.y1) continue;
+        for(let j=0;j<Q.length;j++){ if(segsCross(p1,p2,Q[j],Q[(j+1)%Q.length])){ hit=true; break; } } }
+      if(hit){ if(!A.flags.includes('cross')) A.flags.push('cross'); if(!B.flags.includes('cross')) B.flags.push('cross'); }
+    }
+  }
+  let bb=null, len=0; for(const i of items){ bb=bbUnion(bb,i.bb); len+=i.len; }
+  return {items,bb,len,crossSkipped,
+    nOut:items.filter(i=>i.layer==='outside').length, nIn:items.filter(i=>i.layer==='inside').length};
+}
+
+/* ===== DXF writer: AutoCAD R12 ASCII, inch values, true arcs where we have them ===== */
+function fmt(v){ const s=(Math.abs(v)<5e-7?0:v).toFixed(6); return s.replace(/\.?0+$/,'')||'0'; }
+function layerName(s,fallback){ const t=String(s||'').replace(/[<>\/\\":;?*|=',`]/g,'_').trim(); return t||fallback; }
+function buildDXF(an,opt){
+  const LO=layerName(opt.layerOut,'Outside'), LI=layerName(opt.layerIn,'Inside');
+  const bb=an.bb||{x0:0,y0:0,x1:0,y1:0};
+  const ox=opt.origin?-bb.x0:0, oy=opt.origin?-bb.y0:0;
+  const L=[]; const g=(c,v)=>{ L.push(String(c),String(v)); };
+  g(0,'SECTION'); g(2,'HEADER');
+  g(9,'$ACADVER'); g(1,'AC1009');
+  g(9,'$INSBASE'); g(10,0); g(20,0); g(30,0);
+  g(9,'$EXTMIN'); g(10,fmt(bb.x0+ox)); g(20,fmt(bb.y0+oy)); g(30,0);
+  g(9,'$EXTMAX'); g(10,fmt(bb.x1+ox)); g(20,fmt(bb.y1+oy)); g(30,0);
+  g(9,'$INSUNITS'); g(70,1);
+  g(9,'$MEASUREMENT'); g(70,0);
+  g(0,'ENDSEC');
+  g(0,'SECTION'); g(2,'TABLES');
+  g(0,'TABLE'); g(2,'LTYPE'); g(70,1);
+  g(0,'LTYPE'); g(2,'CONTINUOUS'); g(70,0); g(3,'Solid line'); g(72,65); g(73,0); g(40,'0.0');
+  g(0,'ENDTAB');
+  g(0,'TABLE'); g(2,'LAYER'); g(70,3);
+  for(const [nm,col] of [['0',7],[LO,1],[LI,5]]){ g(0,'LAYER'); g(2,nm); g(70,0); g(62,col); g(6,'CONTINUOUS'); }
+  g(0,'ENDTAB');
+  g(0,'ENDSEC');
+  g(0,'SECTION'); g(2,'BLOCKS'); g(0,'ENDSEC');
+  g(0,'SECTION'); g(2,'ENTITIES');
+  // holes first so the part stays attached to the sheet until the final outside cut
+  const order=an.items.slice().sort((a,b)=>(a.layer===b.layer?0:a.layer==='inside'?-1:1) || (a.bb.y0-b.bb.y0) || (a.bb.x0-b.bb.x0));
+  for(const it of order){
+    const layer=it.layer==='inside'?LI:LO, c=it.c;
+    if(c.circle){ g(0,'CIRCLE'); g(8,layer); g(10,fmt(c.circle.cx+ox)); g(20,fmt(c.circle.cy+oy)); g(30,0); g(40,fmt(c.circle.r)); continue; }
+    const verts=c.verts?c.verts:c.pts.map(p=>({x:p[0],y:p[1],b:0}));
+    g(0,'POLYLINE'); g(8,layer); g(66,1); g(10,0); g(20,0); g(30,0); g(70,c.closed?1:0);
+    for(const v of verts){ g(0,'VERTEX'); g(8,layer); g(10,fmt(v.x+ox)); g(20,fmt(v.y+oy)); g(30,0); if(Math.abs(v.b)>1e-12) g(42,fmt(v.b)); }
+    g(0,'SEQEND'); g(8,layer);
+  }
+  g(0,'ENDSEC'); g(0,'EOF');
+  return L.join('\r\n')+'\r\n';
+}
+
+/* ===== Minimal ZIP (stored) so the DXF can travel through the viewer's save prompt ===== */
+const CRC_T=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
+function crc32(b){ let c=0xFFFFFFFF; for(let i=0;i<b.length;i++) c=CRC_T[(c^b[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function zipOne(name,data){
+  const nb=new TextEncoder().encode(name), crc=crc32(data), d=new Date();
+  const time=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1), date=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate();
+  const lh=new DataView(new ArrayBuffer(30));
+  lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,0,true); lh.setUint16(8,0,true);
+  lh.setUint16(10,time,true); lh.setUint16(12,date,true); lh.setUint32(14,crc,true); lh.setUint32(18,data.length,true); lh.setUint32(22,data.length,true);
+  lh.setUint16(26,nb.length,true); lh.setUint16(28,0,true);
+  const cd=new DataView(new ArrayBuffer(46));
+  cd.setUint32(0,0x02014b50,true); cd.setUint16(4,20,true); cd.setUint16(6,20,true); cd.setUint16(8,0,true); cd.setUint16(10,0,true);
+  cd.setUint16(12,time,true); cd.setUint16(14,date,true); cd.setUint32(16,crc,true); cd.setUint32(20,data.length,true); cd.setUint32(24,data.length,true);
+  cd.setUint16(28,nb.length,true); cd.setUint16(30,0,true); cd.setUint16(32,0,true); cd.setUint16(34,0,true); cd.setUint16(36,0,true); cd.setUint32(38,0,true); cd.setUint32(42,0,true);
+  const end=new DataView(new ArrayBuffer(22)), cdSize=46+nb.length, cdOff=30+nb.length+data.length;
+  end.setUint32(0,0x06054b50,true); end.setUint16(8,1,true); end.setUint16(10,1,true); end.setUint32(12,cdSize,true); end.setUint32(16,cdOff,true);
+  const parts=[new Uint8Array(lh.buffer),nb,data,new Uint8Array(cd.buffer),nb,new Uint8Array(end.buffer)];
+  const out=new Uint8Array(parts.reduce((a,p)=>a+p.length,0)); let o=0; for(const p of parts){ out.set(p,o); o+=p.length; } return out;
+}
+</script>
+
+<script>
+"use strict";
+(function(){
+/* ===== State ===== */
+const $=id=>document.getElementById(id);
+const STORE='plasmapath-v1';
+let shapes=[], nextId=1, selId=null, tool='select';
+const settings={thickness:0.25,ipm:100,snap:true,step:0.125,ppi:'auto',layerOut:'Outside',layerIn:'Inside',origin:true,name:'bracket'};
+let view={ox:60,oy:400,z:60}; // screen px of world origin, px per inch
+let an=null, undoStack=[], redoStack=[], isSample=false;
+const cv=$('cv'), stage=$('stage'), ctx=cv.getContext('2d');
+let W=0,H=0,dpr=1;
+
+function newId(){ return 's'+(nextId++); }
+function sampleShapes(){
+  const S=[{type:'rect',x:0,y:0,w:6,h:4,r:0.5}];
+  for(const [x,y] of [[0.75,0.75],[5.25,0.75],[0.75,3.25],[5.25,3.25]]) S.push({type:'circle',cx:x,cy:y,r:0.1875});
+  S.push({type:'rect',x:2,y:1.75,w:2,h:0.5,r:0.25});
+  S.push({type:'poly',closed:true,pts:[[7,0],[10,0],[7,3]]});
+  S.push({type:'circle',cx:7.8,cy:0.8,r:0.25});
+  S.push({type:'circle',cx:7.5,cy:2,r:0.0625});
+  return S.map(s=>({...s,id:newId()}));
+}
+function load(){
+  try{ const raw=localStorage.getItem(STORE); if(raw){ const d=JSON.parse(raw); if(Array.isArray(d.shapes)){ shapes=d.shapes; nextId=d.nextId||shapes.length+1; Object.assign(settings,d.settings||{}); return; } } }catch(e){}
+  shapes=sampleShapes(); isSample=true;
+}
+let saveT=0;
+function persist(){ clearTimeout(saveT); saveT=setTimeout(()=>{ try{ localStorage.setItem(STORE,JSON.stringify({shapes,nextId,settings})); }catch(e){} },300); }
+
+function checkpoint(){ undoStack.push(JSON.stringify(shapes)); if(undoStack.length>120) undoStack.shift(); redoStack=[]; isSample=false; syncUndo(); }
+function undo(){ if(!undoStack.length) return; redoStack.push(JSON.stringify(shapes)); shapes=JSON.parse(undoStack.pop()); afterChange(); }
+function redo(){ if(!redoStack.length) return; undoStack.push(JSON.stringify(shapes)); shapes=JSON.parse(redoStack.pop()); afterChange(); }
+function syncUndo(){ $('btn-undo').disabled=!undoStack.length; $('btn-redo').disabled=!redoStack.length; }
+function getSel(){ return shapes.find(s=>s.id===selId)||null; }
+function afterChange(full=true){ geomVer++; if(!getSel()) selId=null; an=analyze(shapes,{thickness:settings.thickness,full}); syncUndo(); renderPanel(); persist(); draw(); }
+
+/* ===== Shape transforms ===== */
+function shapeBB(s){ let bb=null; for(const c of contoursOf(s)) bb=bbUnion(bb,c.circle?{x0:c.circle.cx-c.circle.r,y0:c.circle.cy-c.circle.r,x1:c.circle.cx+c.circle.r,y1:c.circle.cy+c.circle.r}:bboxOf(c.pts)); return bb; }
+function mapShape(s,f,rscale){ // f maps [x,y] -> [x,y]
+  if(s.type==='poly'){ s.pts=s.pts.map(f); if(s.rad) s.rad=s.rad.map(r=>r*rscale); }
+  else if(s.type==='import') s.contours=s.contours.map(c=>{ const n={closed:c.closed,pts:c.pts.map(f)}; if(c.k) n.k=c.k; if(c.rad) n.rad=c.rad.map(r=>r*rscale); if(c.circle){ const p=f([c.circle.cx,c.circle.cy]); n.circle={cx:p[0],cy:p[1],r:c.circle.r*rscale}; } return n; });
+}
+function translate(s,dx,dy){
+  if(s.type==='rect'){ s.x+=dx; s.y+=dy; } else if(s.type==='circle'){ s.cx+=dx; s.cy+=dy; }
+  else mapShape(s,p=>[p[0]+dx,p[1]+dy],1);
+}
+function rotate90(s){ const b=shapeBB(s), cx=(b.x0+b.x1)/2, cy=(b.y0+b.y1)/2;
+  if(s.type==='rect'){ const w=s.w; s.w=s.h; s.h=w; s.x=cx-s.w/2; s.y=cy-s.h/2; const rc=rectRadii(s); s.rc=[rc[3],rc[0],rc[1],rc[2]]; delete s.r; }
+  else if(s.type!=='circle') mapShape(s,p=>[cx-(p[1]-cy),cy+(p[0]-cx)],1); }
+function mirror(s){ const b=shapeBB(s), cx=(b.x0+b.x1)/2; if(s.type==='poly'||s.type==='import'){ mapShape(s,p=>[2*cx-p[0],p[1]],1);
+  if(s.type==='poly'){ s.pts.reverse(); if(s.rad) s.rad.reverse(); } } }
+
+/* ===== Corner fillets ===== */
+let geomVer=0, cornerCache={s:null,ver:-1,list:[]};
+function cornersOf(s){
+  if(cornerCache.s===s&&cornerCache.ver===geomVer) return cornerCache.list;
+  const list=[];
+  rawContours(s).forEach((raw,ci)=>{ if(raw.circle) return; const d=deriveContour(raw);
+    for(const g of hardCorners(raw)){ const bx=g.u1[0]+g.u2[0], by=g.u1[1]+g.u2[1], bl=Math.hypot(bx,by); if(bl<1e-9) continue;
+      const r=d.eff?(d.eff[g.i]||0):0;
+      list.push({ci,i:g.i,P:raw.pts[g.i],bis:[bx/bl,by/bl],th:g.th,r,kk:Math.max(1/Math.sin(g.th/2)-1,0.25)}); } });
+  cornerCache={s,ver:geomVer,list}; return list;
+}
+function writeRad(s,ci,rad){
+  if(s.type==='rect'){ s.rc=rad.slice(0,4); delete s.r; }
+  else if(s.type==='poly') s.rad=rad;
+  else if(s.type==='import'){ s.contours=s.contours.slice(); s.contours[ci]={...s.contours[ci],rad}; }
+}
+function radArray(raw){ const n=raw.pts.length, r=raw.rad?raw.rad.slice(0,n):[]; while(r.length<n) r.push(0); return r; }
+/* One corner: never eats into a neighbor's existing fillet. Returns the radius actually applied. */
+function setCorner(s,ci,i,r){
+  const raw=rawContours(s)[ci], n=raw.pts.length, d=deriveContour(raw), t=d.t||[];
+  const g=cornerGeom(raw.pts,i); if(!g) return 0;
+  const tmax=Math.max(0,Math.min(g.l1-(t[(i-1+n)%n]||0), g.l2-(t[(i+1)%n]||0)));
+  r=Math.max(0,Math.min(r,tmax*Math.tan(g.th/2)));
+  const rad=radArray(raw); rad[i]=r; writeRad(s,ci,rad); return r;
+}
+/* Every hard corner of the shape: requested radius, shrunk where edges are too short. */
+function setAllCorners(s,r){
+  rawContours(s).forEach((raw,ci)=>{ if(raw.circle) return; const cs=hardCorners(raw); if(!cs.length) return;
+    const rad=radArray(raw); for(const c of cs) rad[c.i]=Math.max(0,r);
+    const eff=filletPolygon(raw.pts,raw.closed,rad).eff; for(const c of cs) rad[c.i]=eff[c.i]; writeRad(s,ci,rad); });
+}
+function visibleHandles(){
+  const s=getSel(); if(!s||tool!=='select') return [];
+  const b=shapeBB(s); if(!b||Math.max(b.x1-b.x0,b.y1-b.y0)*view.z<30) return [];
+  const out=[];
+  for(const c of cornersOf(s)){ const [px,py]=toScreen(c.P[0],c.P[1]); const d=14+c.r*c.kk*view.z;
+    const hx=px+c.bis[0]*d, hy=py-c.bis[1]*d; if(hx<-10||hy<-10||hx>W+10||hy>H+10) continue;
+    out.push({c,hx,hy}); if(out.length>=400) break; }
+  return out;
+}
+function handleAt(sp){ let best=null, bd=81; for(const h of visibleHandles()){ const d=(h.hx-sp[0])**2+(h.hy-sp[1])**2; if(d<bd){ bd=d; best=h.c; } } return best; }
+function scaleTo(s,w,h){ // uniform scale about lower-left of bbox
+  const b=shapeBB(s), bw=b.x1-b.x0, bh=b.y1-b.y0; let k=1;
+  if(w!=null&&bw>0) k=w/bw; else if(h!=null&&bh>0) k=h/bh; if(!(k>0)) return;
+  mapShape(s,p=>[b.x0+(p[0]-b.x0)*k,b.y0+(p[1]-b.y0)*k],k);
+}
+
+/* ===== View ===== */
+const toScreen=(x,y)=>[view.ox+x*view.z, view.oy-y*view.z];
+const toWorld=(sx,sy)=>[(sx-view.ox)/view.z,(view.oy-sy)/view.z];
+function resize(){ const r=stage.getBoundingClientRect(); dpr=window.devicePixelRatio||1; W=Math.max(1,r.width); H=Math.max(1,r.height);
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); draw(); }
+function fit(){ const bb=an&&an.bb||{x0:0,y0:0,x1:12,y1:8}; const bw=Math.max(bb.x1-bb.x0,1), bh=Math.max(bb.y1-bb.y0,1);
+  view.z=Math.max(4,Math.min(1500,Math.min((W-80)/bw,(H-90)/bh)));
+  view.ox=W/2-(bb.x0+bw/2)*view.z; view.oy=H/2+(bb.y0+bh/2)*view.z-10; draw(); }
+function zoomAt(f,sx,sy){ const [wx,wy]=toWorld(sx,sy); view.z=Math.max(2,Math.min(4000,view.z*f)); view.ox=sx-wx*view.z; view.oy=sy+wy*view.z; draw(); }
+
+/* ===== Colors from theme tokens ===== */
+const C={};
+function readColors(){ const cs=getComputedStyle(document.documentElement);
+  for(const k of ['sheet','ink','muted','grid','grid-major','cut-out','cut-in','warn','accent','panel']) C[k]=cs.getPropertyValue('--'+k).trim(); draw(); }
+
+/* ===== Drawing ===== */
+let raf=0; function draw(){ if(!raf) raf=requestAnimationFrame(paint); }
+function niceStep(){ const steps=[1/16,1/8,1/4,1/2,1,2,6,12,24,48]; for(const s of steps) if(s*view.z>=11) return s; return 96; }
+function paint(){
+  raf=0; if(!ctx) return;
+  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.fillStyle=C.sheet; ctx.fillRect(0,0,W,H);
+  // grid
+  const step=niceStep(), major=step<1?1:step<12?12:step*4;
+  const [wx0,wy1]=toWorld(0,0), [wx1,wy0]=toWorld(W,H);
+  for(const pass of [0,1]){ const st=pass?major:step; ctx.strokeStyle=pass?C['grid-major']:C.grid; ctx.lineWidth=1; ctx.beginPath();
+    for(let x=Math.floor(wx0/st)*st;x<=wx1;x+=st){ const sx=Math.round(view.ox+x*view.z)+.5; ctx.moveTo(sx,0); ctx.lineTo(sx,H); }
+    for(let y=Math.floor(wy0/st)*st;y<=wy1;y+=st){ const sy=Math.round(view.oy-y*view.z)+.5; ctx.moveTo(0,sy); ctx.lineTo(W,sy); }
+    ctx.stroke(); }
+  // ruler numbers on major lines
+  ctx.fillStyle=C.muted; ctx.font='500 10px "IBM Plex Mono", monospace'; ctx.textBaseline='top';
+  const lblEvery=major*Math.max(1,Math.ceil(36/(major*view.z)));
+  for(let x=Math.ceil(wx0/lblEvery)*lblEvery;x<=wx1;x+=lblEvery){ const sx=view.ox+x*view.z; ctx.fillText(fmtIn(x,0)+'"',sx+3,4); }
+  ctx.textBaseline='bottom';
+  for(let y=Math.ceil(wy0/lblEvery)*lblEvery;y<=wy1;y+=lblEvery){ if(Math.abs(y)<1e-9) continue; const sy=view.oy-y*view.z; ctx.fillText(fmtIn(y,0)+'"',4,sy-2); }
+  // origin
+  const [osx,osy]=toScreen(0,0); ctx.strokeStyle=C.muted; ctx.lineWidth=1.2; ctx.beginPath();
+  ctx.moveTo(osx,osy); ctx.lineTo(osx+26,osy); ctx.moveTo(osx,osy); ctx.lineTo(osx,osy-26); ctx.stroke();
+
+  // contours
+  const sel=getSel();
+  if(an) for(const it of an.items){
+    const isSel=sel&&it.s===sel, warnIt=it.flags.length>0;
+    ctx.beginPath(); tracePath(it.c);
+    if(warnIt){ ctx.strokeStyle=C.warn; ctx.globalAlpha=.28; ctx.lineWidth=isSel?9:7; ctx.setLineDash([]); ctx.stroke(); ctx.globalAlpha=1; }
+    ctx.strokeStyle=it.layer==='inside'?C['cut-in']:C['cut-out']; ctx.lineWidth=isSel?2.6:1.6;
+    ctx.setLineDash(it.c.closed?[]:[6,4]); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // selection box + dimensions
+  if(sel){ const b=shapeBB(sel); if(b){ const [x0,y0]=toScreen(b.x0,b.y1), [x1,y1]=toScreen(b.x1,b.y0);
+    ctx.strokeStyle=C.ink; ctx.lineWidth=1; ctx.setLineDash([4,3]); ctx.strokeRect(x0-6.5,y0-6.5,x1-x0+13,y1-y0+13); ctx.setLineDash([]);
+    ctx.fillStyle=C.ink; for(const [hx,hy] of [[x0-6,y0-6],[x1+6,y0-6],[x0-6,y1+6],[x1+6,y1+6]]) ctx.fillRect(hx-3,hy-3,6,6);
+    const label=fmtIn(b.x1-b.x0)+' × '+fmtIn(b.y1-b.y0)+' in';
+    ctx.font='500 11px "IBM Plex Mono", monospace'; const tw=ctx.measureText(label).width;
+    let lx=(x0+x1)/2-tw/2-6, ly=y1+14; if(ly+20>H) ly=y0-34;
+    ctx.fillStyle=C.ink; ctx.fillRect(lx,ly,tw+12,19); ctx.fillStyle=C.panel; ctx.textBaseline='middle'; ctx.fillText(label,lx+6,ly+10); } }
+  // offset preview
+  if(offsetPreview){ ctx.strokeStyle=C.accent; ctx.lineWidth=1.8; ctx.setLineDash([6,4]); ctx.beginPath();
+    for(const c of offsetPreview) tracePath(c); ctx.stroke(); ctx.setLineDash([]); }
+  // corner fillet handles
+  const hs=visibleHandles(), active=op&&op.type==='corner'?op.h:null;
+  for(const h of hs){ const on=active&&(op.all||(active.ci===h.c.ci&&active.i===h.c.i));
+    ctx.beginPath(); ctx.arc(h.hx,h.hy,on?6:4.5,0,TAU); ctx.fillStyle=h.c.r>0?C.accent:C.panel; ctx.fill();
+    ctx.lineWidth=1.4; ctx.strokeStyle=C.ink; ctx.stroke(); }
+  if(active&&op.moved){ const t='R '+fmtIn(op.lastR)+'"'+(op.all?' all corners':'');
+    ctx.font='500 11px "IBM Plex Mono", monospace'; const tw=ctx.measureText(t).width; const lx=op.sp[0]+14, ly=op.sp[1]-28;
+    ctx.fillStyle=C.ink; ctx.fillRect(lx,ly,tw+12,19); ctx.fillStyle=C.panel; ctx.textBaseline='middle'; ctx.fillText(t,lx+6,ly+10); }
+  // where 0,0 lands on export
+  if(settings.origin&&an&&an.bb&&(Math.abs(an.bb.x0)>1e-6||Math.abs(an.bb.y0)>1e-6)){ const [ex,ey]=toScreen(an.bb.x0,an.bb.y0);
+    ctx.strokeStyle=C.ink; ctx.lineWidth=1.2; ctx.beginPath(); ctx.arc(ex,ey,5,0,TAU); ctx.moveTo(ex-9,ey); ctx.lineTo(ex+9,ey); ctx.moveTo(ex,ey-9); ctx.lineTo(ex,ey+9); ctx.stroke();
+    ctx.font='500 10px "IBM Plex Mono", monospace'; ctx.fillStyle=C.muted; ctx.textBaseline='top'; ctx.fillText('0,0 on export',ex+8,ey+8); }
+  // in-progress drawing
+  if(temp){ ctx.strokeStyle=C.accent; ctx.lineWidth=1.6; ctx.setLineDash([5,4]); ctx.beginPath();
+    for(const c of contoursOf(temp)) tracePath(c); ctx.stroke(); ctx.setLineDash([]);
+    const b=shapeBB(temp); if(b){ const t=temp.type==='circle'?'⌀ '+fmtIn(temp.r*2):fmtIn(b.x1-b.x0)+' × '+fmtIn(b.y1-b.y0);
+      const [sx,sy]=toScreen(b.x1,b.y0); ctx.font='500 11px "IBM Plex Mono", monospace'; ctx.fillStyle=C.accent; ctx.textBaseline='top'; ctx.fillText(t,sx+8,sy+6); } }
+  if(polyPts.length){ ctx.strokeStyle=C.accent; ctx.lineWidth=1.6; ctx.beginPath();
+    polyPts.forEach((p,i)=>{ const [sx,sy]=toScreen(p[0],p[1]); i?ctx.lineTo(sx,sy):ctx.moveTo(sx,sy); });
+    if(hover){ const [sx,sy]=toScreen(hover[0],hover[1]); ctx.lineTo(sx,sy); } ctx.stroke();
+    const [fx,fy]=toScreen(polyPts[0][0],polyPts[0][1]); ctx.beginPath(); ctx.arc(fx,fy,5,0,TAU); ctx.stroke();
+    if(hover){ const l=polyPts[polyPts.length-1], d=Math.hypot(hover[0]-l[0],hover[1]-l[1]); const [sx,sy]=toScreen(hover[0],hover[1]);
+      ctx.font='500 11px "IBM Plex Mono", monospace'; ctx.fillStyle=C.accent; ctx.textBaseline='top'; ctx.fillText(fmtIn(d)+'"',sx+10,sy+8); } }
+  if(hover && (tool==='rect'||tool==='circle'||tool==='poly') && !temp){ const [sx,sy]=toScreen(hover[0],hover[1]);
+    ctx.strokeStyle=C.accent; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(sx-7,sy); ctx.lineTo(sx+7,sy); ctx.moveTo(sx,sy-7); ctx.lineTo(sx,sy+7); ctx.stroke(); }
+}
+function tracePath(c){
+  if(c.circle){ const [sx,sy]=toScreen(c.circle.cx,c.circle.cy); ctx.moveTo(sx+c.circle.r*view.z,sy); ctx.arc(sx,sy,c.circle.r*view.z,0,TAU); return; }
+  const p=c.pts; if(!p.length) return; let [sx,sy]=toScreen(p[0][0],p[0][1]); ctx.moveTo(sx,sy);
+  for(let i=1;i<p.length;i++){ [sx,sy]=toScreen(p[i][0],p[i][1]); ctx.lineTo(sx,sy); } if(c.closed) ctx.closePath();
+}
+function fmtIn(v,maxd){ const d=maxd==null?3:maxd; let s=(Math.round(v*1e4)/1e4).toFixed(Math.max(d,0)); if(d>0) s=s.replace(/0+$/,'').replace(/\.$/,''); return s==='-0'?'0':s; }
+
+/* ===== Hit testing ===== */
+function hitTest(w){ const tol=7/view.z;
+  if(!an) return null;
+  for(let k=an.items.length-1;k>=0;k--){ const it=an.items[k], c=it.c;
+    if(c.circle){ if(Math.abs(Math.hypot(w[0]-c.circle.cx,w[1]-c.circle.cy)-c.circle.r)<=tol) return it.s; continue; }
+    const p=c.pts, n=p.length; for(let i=0;i<n-(c.closed?0:1);i++){ const a=p[i], b=p[(i+1)%n]; if(segDist2(w[0],w[1],a[0],a[1],b[0],b[1])<=tol*tol) return it.s; } }
+  // interior: smallest closed contour containing the point
+  let best=null, ba=Infinity; for(const it of an.items){ if(!it.c.closed) continue; if(w[0]<it.bb.x0||w[0]>it.bb.x1||w[1]<it.bb.y0||w[1]>it.bb.y1) continue;
+    if(it.area<ba && pip(w,it.c.pts)){ ba=it.area; best=it.s; } }
+  return best;
+}
+
+/* ===== Pointer interaction ===== */
+let op=null, temp=null, polyPts=[], hover=null, spaceDown=false;
+const pointers=new Map(); let pinch=null;
+const snapV=v=>settings.snap?Math.round(v/settings.step)*settings.step:v;
+const snapP=p=>[snapV(p[0]),snapV(p[1])];
+function evPt(e){ const r=cv.getBoundingClientRect(); return [e.clientX-r.left,e.clientY-r.top]; }
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('pointerdown',e=>{
+  cv.setPointerCapture(e.pointerId); const sp=evPt(e); pointers.set(e.pointerId,sp);
+  if(pointers.size===2){ const [a,b]=[...pointers.values()]; pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1]),m:[(a[0]+b[0])/2,(a[1]+b[1])/2]}; op=null; temp=null; draw(); return; }
+  const w=toWorld(sp[0],sp[1]);
+  if(e.button===1||e.button===2||tool==='pan'||spaceDown){ op={type:'pan',sp,ox:view.ox,oy:view.oy}; stage.style.cursor='grabbing'; return; }
+  if(tool==='select'&&getSel()){ const h=handleAt(sp);
+    if(h){ op={type:'corner',h,all:e.shiftKey,s0:(w[0]-h.P[0])*h.bis[0]+(w[1]-h.P[1])*h.bis[1],r0:h.r,moved:false,lastR:h.r,sp}; return; } }
+  if(tool==='select'){ const hit=hitTest(w); selId=hit?hit.id:null; renderPanel(); draw();
+    if(hit) op={type:'move',start:w,applied:[0,0],moved:false}; else op={type:'pan',sp,ox:view.ox,oy:view.oy}; return; }
+  if(tool==='rect'){ const a=snapP(w); op={type:'rect',a}; temp={type:'rect',x:a[0],y:a[1],w:0,h:0,r:0}; return; }
+  if(tool==='circle'){ const c=snapP(w); op={type:'circle',c}; temp={type:'circle',cx:c[0],cy:c[1],r:0}; return; }
+  if(tool==='poly'){ const p=snapP(w);
+    if(polyPts.length>=3){ const [fx,fy]=toScreen(polyPts[0][0],polyPts[0][1]); if(Math.hypot(fx-sp[0],fy-sp[1])<10){ finishPoly(); return; } }
+    const l=polyPts[polyPts.length-1]; if(!l||Math.hypot(l[0]-p[0],l[1]-p[1])>1e-6) polyPts.push(p); setHint(); draw(); }
+});
+cv.addEventListener('pointermove',e=>{
+  const sp=evPt(e);
+  if(pointers.has(e.pointerId)) pointers.set(e.pointerId,sp);
+  if(pinch&&pointers.size===2){ const [a,b]=[...pointers.values()]; const d=Math.hypot(a[0]-b[0],a[1]-b[1]), m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+    view.ox+=m[0]-pinch.m[0]; view.oy+=m[1]-pinch.m[1]; zoomAt(d/pinch.d,m[0],m[1]); pinch={d,m}; return; }
+  const w=toWorld(sp[0],sp[1]);
+  hover=(tool==='rect'||tool==='circle'||tool==='poly')?snapP(w):null;
+  $('readout').textContent=`X ${fmtFixed(w[0])}  Y ${fmtFixed(w[1])} in`;
+  if(!op){ if(hover) draw(); else if(tool==='select'&&!spaceDown){ const h=getSel()&&handleAt(sp); stage.style.cursor=h?'pointer':'default'; } return; }
+  if(op.type==='corner'){ const s=getSel(); if(!s) return; const h=op.h;
+    const sp2=(w[0]-h.P[0])*h.bis[0]+(w[1]-h.P[1])*h.bis[1];
+    if(!op.moved){ if(Math.abs(sp2-op.s0)*view.z<2) return; checkpoint(); op.moved=true; }
+    let r=Math.max(0,op.r0+(sp2-op.s0)/h.kk);
+    if(settings.snap){ const q=settings.step/2; r=Math.round(r/q)*q; }
+    if(op.all){ setAllCorners(s,r); op.lastR=r; } else op.lastR=setCorner(s,h.ci,h.i,r);
+    op.sp=sp; geomVer++; an=analyze(shapes,{thickness:settings.thickness,full:false}); updatePropValues(); draw(); return; }
+  if(op.type==='pan'){ view.ox=op.ox+sp[0]-op.sp[0]; view.oy=op.oy+sp[1]-op.sp[1]; draw(); return; }
+  if(op.type==='move'){ const s=getSel(); if(!s) return;
+    let dx=w[0]-op.start[0], dy=w[1]-op.start[1]; if(settings.snap){ dx=snapV(dx); dy=snapV(dy); }
+    if(!op.moved){ if(Math.hypot(dx,dy)*view.z<3) return; checkpoint(); op.moved=true; }
+    translate(s,dx-op.applied[0],dy-op.applied[1]); op.applied=[dx,dy]; geomVer++; an=analyze(shapes,{thickness:settings.thickness,full:false}); updatePropValues(); draw(); return; }
+  if(op.type==='rect'){ const b=snapP(w); temp.x=Math.min(op.a[0],b[0]); temp.y=Math.min(op.a[1],b[1]); temp.w=Math.abs(b[0]-op.a[0]); temp.h=Math.abs(b[1]-op.a[1]); draw(); return; }
+  if(op.type==='circle'){ let r=Math.hypot(w[0]-op.c[0],w[1]-op.c[1]); if(settings.snap) r=Math.max(settings.step/2,Math.round(r/(settings.step/2))*(settings.step/2)); temp.r=r; draw(); return; }
+});
+function endPointer(e){
+  pointers.delete(e.pointerId); if(pointers.size<2) pinch=null;
+  stage.style.cursor=cursorFor();
+  if(!op) return; const o=op; op=null;
+  if((o.type==='move'||o.type==='corner')&&o.moved) afterChange();
+  if(o.type==='rect'&&temp){ if(temp.w>0.01&&temp.h>0.01) addShape({...temp}); temp=null; draw(); }
+  if(o.type==='circle'&&temp){ if(temp.r>0.01) addShape({...temp}); temp=null; draw(); }
+}
+cv.addEventListener('pointerup',endPointer); cv.addEventListener('pointercancel',endPointer);
+cv.addEventListener('pointerleave',()=>{ if(!op){ hover=null; draw(); } });
+cv.addEventListener('dblclick',e=>{ if(tool==='poly'&&polyPts.length>=3){ finishPoly(); return; }
+  const s=getSel(); if(tool!=='select'||!s) return; const h=handleAt(evPt(e)); if(!h) return;
+  checkpoint(); if(e.shiftKey) setAllCorners(s,0); else setCorner(s,h.ci,h.i,0); afterChange(); });
+cv.addEventListener('wheel',e=>{ e.preventDefault(); const sp=evPt(e); zoomAt(Math.exp(-e.deltaY*(e.ctrlKey?0.01:0.0015)),sp[0],sp[1]); },{passive:false});
+function fmtFixed(v){ return (Math.abs(v)<5e-4?0:v).toFixed(3); }
+
+function addShape(s){ checkpoint(); s.id=newId(); shapes.push(s); selId=s.id; afterChange(); }
+function finishPoly(){ if(polyPts.length>=3){ const pts=polyPts.slice(); polyPts=[]; addShape({type:'poly',closed:true,pts}); } else { polyPts=[]; } setHint(); draw(); }
+function cursorFor(){ return tool==='pan'||spaceDown?'grab':tool==='select'?'default':'crosshair'; }
+function setTool(t){ tool=t; polyPts=[]; temp=null; op=null;
+  for(const b of document.querySelectorAll('.tool')) b.setAttribute('aria-pressed',String(b.dataset.tool===t));
+  stage.style.cursor=cursorFor(); setHint(); draw(); }
+function setHint(){ const m={rect:'Drag from one corner to the opposite corner.',circle:'Drag out from the center.',
+  poly:polyPts.length?`${polyPts.length} point${polyPts.length>1?'s':''} — click the first point or press Enter to close, Esc to cancel.`:'Click to place points.',pan:'Drag to pan.'}[tool];
+  $('hint').innerHTML=m?`<span>${m}</span>`:(isSample?'<span>Sample bracket loaded. Press New for a blank table, or Import SVG.</span>':''); }
+
+/* ===== Keyboard ===== */
+window.addEventListener('keydown',e=>{
+  const t=e.target; if(t&&(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA')) { if(e.key==='Enter'&&t.id==='o-dist'){ e.preventDefault(); applyOffset(); return; } if(e.key==='Enter'&&t.tagName==='INPUT') t.blur(); return; }
+  const k=e.key, mod=e.ctrlKey||e.metaKey;
+  if(mod&&(k==='z'||k==='Z')){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
+  if(mod&&(k==='y'||k==='Y')){ e.preventDefault(); redo(); return; }
+  if(mod&&(k==='d'||k==='D')){ e.preventDefault(); duplicate(); return; }
+  if(mod) return;
+  if(k===' '){ if(!spaceDown){ spaceDown=true; stage.style.cursor='grab'; } e.preventDefault(); return; }
+  const map={v:'select',r:'rect',c:'circle',p:'poly',h:'pan'}; if(map[k.toLowerCase()]){ setTool(map[k.toLowerCase()]); return; }
+  if(k==='f'||k==='F'){ fit(); return; }
+  if(k==='Enter'&&tool==='poly'){ finishPoly(); return; }
+  if(k==='Escape'){ if(polyPts.length){ polyPts=[]; setHint(); draw(); } else { selId=null; renderPanel(); draw(); } return; }
+  if((k==='Delete'||k==='Backspace')&&getSel()){ e.preventDefault(); del(); return; }
+  if(k.startsWith('Arrow')&&getSel()){ e.preventDefault(); const st=e.shiftKey?settings.step*8:settings.step;
+    const dx=k==='ArrowLeft'?-st:k==='ArrowRight'?st:0, dy=k==='ArrowDown'?-st:k==='ArrowUp'?st:0; checkpoint(); translate(getSel(),dx,dy); afterChange(); }
+});
+window.addEventListener('keyup',e=>{ if(e.key===' '){ spaceDown=false; stage.style.cursor=cursorFor(); } });
+
+function del(){ const s=getSel(); if(!s) return; checkpoint(); shapes=shapes.filter(x=>x!==s); selId=null; afterChange(); }
+function duplicate(){ const s=getSel(); if(!s) return; const c=JSON.parse(JSON.stringify(s)); c.id=newId(); const b=shapeBB(s); translate(c,0,0);
+  translate(c,(b.x1-b.x0)+0.5,0); checkpoint(); shapes.push(c); selId=c.id; afterChange(); }
+
+/* ===== Inspector ===== */
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function renderPanel(){
+  // summary
+  const bb=an&&an.bb;
+  $('sum-size').innerHTML=bb?`${fmtIn(bb.x1-bb.x0)} × ${fmtIn(bb.y1-bb.y0)}<small>in</small>`:'Empty table';
+  $('sum-layers').innerHTML=`
+    <div class="layer"><span class="sw" style="background:var(--cut-out)"></span><b>${esc(layerName(settings.layerOut,'Outside'))}</b><span class="n">${an?an.nOut:0} path${an&&an.nOut===1?'':'s'}</span></div>
+    <div class="layer"><span class="sw" style="background:var(--cut-in)"></span><b>${esc(layerName(settings.layerIn,'Inside'))}</b><span class="n">${an?an.nIn:0} path${an&&an.nIn===1?'':'s'}</span></div>`;
+  const pierces=an?an.items.length:0, len=an?an.len:0, secs=len/Math.max(1,settings.ipm)*60;
+  $('sum-kv').innerHTML=`<dt>Cut length</dt><dd>${len.toFixed(1)} in</dd><dt>Pierces</dt><dd>${pierces}</dd>
+    <dt>Torch time at ${fmtIn(settings.ipm,0)} ipm</dt><dd>${secs<60?Math.round(secs)+' s':Math.floor(secs/60)+' m '+String(Math.round(secs%60)).padStart(2,'0')+' s'}</dd>`;
+  // checks
+  const L=[]; if(an){
+    const by=f=>an.items.filter(i=>i.flags.includes(f));
+    const open=by('open'), small=by('small'), cross=by('cross');
+    if(open.length) L.push({items:open,t:`${open.length} open path${open.length>1?'s':''}. The torch will cut a line, not a closed part. Close it in your drawing app.`});
+    if(cross.length) L.push({items:cross,t:`${cross.length} outlines cross each other. Overlapping shapes cut as separate paths, so merge them first.`});
+    if(small.length) L.push({items:small,t:`${small.length} hole${small.length>1?'s are':' is'} smaller than the ${fmtIn(settings.thickness)}" plate. Plasma holes under plate thickness usually come out tapered or closed; drill ${small.length>1?'them':'it'} instead.`});
+    if(an.crossSkipped) L.push({items:[],t:'Too many points to check for crossing outlines. Look the part over before cutting.'});
+  }
+  if(lastImport&&lastImport.warn.text) L.push({items:[],t:`${lastImport.warn.text} text object${lastImport.warn.text>1?'s were':' was'} skipped. Convert text to outlines before exporting the SVG.`});
+  if(lastImport&&lastImport.warn.image) L.push({items:[],t:`${lastImport.warn.image} embedded image${lastImport.warn.image>1?'s were':' was'} skipped. Only vector paths can be cut.`});
+  checkItems=L;
+  $('checks').innerHTML=L.length?L.map((c,i)=>`<li><span class="pill warn">Fix</span>${c.items.length?`<button type="button" data-check="${i}">${esc(c.t)}</button>`:`<span>${esc(c.t)}</span>`}</li>`).join('')
+    : (an&&an.items.length?'<li><span class="pill ok">OK</span><span>Every path is closed and on a layer. Ready to export.</span></li>':'<li><span class="muted">Draw a shape or import an SVG to start.</span></li>');
+  renderProps();
+}
+let checkItems=[];
+$('checks').addEventListener('click',e=>{ const b=e.target.closest('[data-check]'); if(!b) return; const c=checkItems[+b.dataset.check]; if(c&&c.items[0]){ selId=c.items[0].s.id; renderPanel(); draw(); } });
+
+let propsFor=null;
+function renderProps(){
+  const s=getSel(), el=$('props');
+  if(!s){ propsFor=null; el.innerHTML='<p class="muted">Click a shape to set its exact size and position. Shapes drawn inside another shape become holes on the inside layer automatically.</p>'; return; }
+  if(propsFor===s.id+s.type){ updatePropValues(); return; }
+  propsFor=s.id+s.type;
+  const f=(id,label,full)=>`<div class="field${full?' full':''}"><label for="${id}">${label}</label><div class="unit"><input id="${id}" type="number" step="0.0625"><i>in</i></div></div>`;
+  let html='<div class="fields">';
+  if(s.type==='circle') html+=f('p-cx','Center X')+f('p-cy','Center Y')+f('p-d','Diameter',true);
+  else { html+=f('p-x','Left X')+f('p-y','Bottom Y')+f('p-w','Width')+f('p-h','Height'); if(cornersOf(s).length) html+=f('p-r','Round all corners',true); }
+  html+='</div>';
+  if(s.type!=='circle'&&cornersOf(s).length) html+='<p class="muted" style="margin-top:8px">Drag a dot inside any corner to round it. Shift-drag rounds every corner. Double-click a dot to make it sharp again.</p>';
+  offsetPreview=null;
+  const kind=s.label||{rect:'Rectangle',circle:'Circle',poly:'Polygon',import:'Imported artwork'}[s.type];
+  const extra=s.type==='import'?` · ${s.contours.length} path${s.contours.length===1?'':'s'}`:s.type==='poly'?` · ${s.pts.length} points`:'';
+  html=`<p class="muted" style="margin-bottom:8px"><strong style="color:var(--ink)">${kind}</strong>${extra}${s.type==='import'||s.type==='poly'?' · width and height scale together':''}</p>`+html;
+  html+=`<div class="offset-box" id="offset-box" hidden>
+    <div class="fields">
+      <div class="field"><label for="o-dist">Offset by</label><div class="unit"><input id="o-dist" type="number" step="0.0625" value="${fmtIn(lastOffset.d,4)}"><i>in</i></div></div>
+      <div class="field"><label for="o-join">Corners</label><select id="o-join"><option value="round">Round</option><option value="miter">Sharp</option><option value="square">Beveled</option></select></div>
+    </div>
+    <div class="row"><label for="o-keep">Keep the original</label><input type="checkbox" id="o-keep"${lastOffset.keep?' checked':''}></div>
+    <p class="muted">Positive grows the part and shrinks its holes. Negative does the reverse.</p>
+    <div class="actions"><button type="button" class="primary" data-act="off-apply">Apply offset</button><button type="button" data-act="off-cancel">Cancel</button></div>
+  </div>`;
+  html+=`<div class="actions" style="margin-top:10px"><button type="button" data-act="dup">Duplicate</button><button type="button" data-act="off">Offset</button>${s.type!=='circle'?'<button type="button" data-act="rot">Rotate 90°</button>':''}${s.type==='import'||s.type==='poly'?'<button type="button" data-act="mir">Mirror</button>':''}<button type="button" data-act="del">Delete</button></div>`;
+  el.innerHTML=html; $('o-join').value=lastOffset.join; updatePropValues();
+}
+/* Offset panel */
+let offsetPreview=null, lastOffset={d:0.125,join:'round',keep:true}, offT=0;
+function readOffset(){ return {d:parseFloat($('o-dist').value),join:$('o-join').value,keep:$('o-keep').checked}; }
+function previewOffset(){ const s=getSel(), box=$('offset-box'); if(!s||!box||box.hidden){ offsetPreview=null; draw(); return; }
+  const o=readOffset(); if(!Number.isFinite(o.d)||o.d===0){ offsetPreview=null; draw(); return; }
+  try{ const r=offsetShape(s,o.d,o.join); offsetPreview=r?(r.circle?[{closed:true,circle:r.circle,pts:[]}]:r.contours):[]; }catch(e){ offsetPreview=null; }
+  draw(); }
+function applyOffset(){ const s=getSel(); if(!s) return; const o=readOffset();
+  if(!Number.isFinite(o.d)||o.d===0){ toast('Enter an offset distance, like 0.125 or -0.0625.'); return; }
+  lastOffset=o; let r;
+  try{ r=offsetShape(s,o.d,o.join); }catch(e){ toast(e.message); return; }
+  if(!r){ toast(`An inward offset of ${fmtIn(-o.d)}" is bigger than this shape, so nothing is left.`); return; }
+  const ns=r.circle?{type:'circle',cx:r.circle.cx,cy:r.circle.cy,r:r.circle.r}:{type:'import',label:'Offset outline',contours:r.contours};
+  checkpoint(); ns.id=newId();
+  if(o.keep) shapes.push(ns); else shapes[shapes.indexOf(s)]=ns;
+  selId=ns.id; offsetPreview=null; afterChange();
+  toast(`Offset ${o.d>0?'out':'in'} by ${fmtIn(Math.abs(o.d))}"${o.keep?'. Original kept.':'.'}`); }
+$('props').addEventListener('input',e=>{ if(e.target.closest('#offset-box')){ clearTimeout(offT); offT=setTimeout(previewOffset,120); } });
+function updatePropValues(){ const s=getSel(); if(!s) return; const set=(id,v)=>{ const i=$(id); if(i&&document.activeElement!==i) i.value=fmtIn(v,4); };
+  if(s.type==='rect'){ set('p-x',s.x); set('p-y',s.y); set('p-w',s.w); set('p-h',s.h); }
+  else if(s.type==='circle'){ set('p-cx',s.cx); set('p-cy',s.cy); set('p-d',s.r*2); }
+  else { const b=shapeBB(s); set('p-x',b.x0); set('p-y',b.y0); set('p-w',b.x1-b.x0); set('p-h',b.y1-b.y0); }
+  const ri=$('p-r'); if(ri&&document.activeElement!==ri){ const cs=cornersOf(s); const same=cs.length&&cs.every(c=>Math.abs(c.r-cs[0].r)<1e-6);
+    ri.value=same?fmtIn(cs[0].r,4):''; ri.placeholder=same?'':'mixed'; } }
+$('props').addEventListener('change',e=>{ const s=getSel(); if(!s||!e.target.id) return; const v=parseFloat(e.target.value); if(!Number.isFinite(v)){ updatePropValues(); return; }
+  checkpoint(); const id=e.target.id;
+  if(id==='p-r'){ setAllCorners(s,Math.max(0,v)); afterChange(); updatePropValues(); return; }
+  if(s.type==='rect'){ if(id==='p-x') s.x=v; if(id==='p-y') s.y=v; if(id==='p-w'&&v>0) s.w=v; if(id==='p-h'&&v>0) s.h=v; }
+  else if(s.type==='circle'){ if(id==='p-cx') s.cx=v; if(id==='p-cy') s.cy=v; if(id==='p-d'&&v>0) s.r=v/2; }
+  else { const b=shapeBB(s); if(id==='p-x') translate(s,v-b.x0,0); if(id==='p-y') translate(s,0,v-b.y0); if(id==='p-w'&&v>0) scaleTo(s,v,null); if(id==='p-h'&&v>0) scaleTo(s,null,v); }
+  afterChange(); updatePropValues(); });
+$('props').addEventListener('click',e=>{ const b=e.target.closest('[data-act]'); if(!b) return; const s=getSel(); if(!s) return;
+  const a=b.dataset.act; if(a==='dup') return duplicate(); if(a==='del') return del();
+  if(a==='off'){ const box=$('offset-box'); box.hidden=!box.hidden; if(!box.hidden){ $('o-dist').focus(); $('o-dist').select(); } previewOffset(); return; }
+  if(a==='off-cancel'){ $('offset-box').hidden=true; previewOffset(); return; }
+  if(a==='off-apply') return applyOffset();
+  checkpoint(); if(a==='rot') rotate90(s); if(a==='mir') mirror(s); afterChange(); });
+
+/* ===== Settings ===== */
+function bindSettings(){
+  const pairs=[['s-thick','thickness',parseFloat],['s-ipm','ipm',parseFloat],['s-out','layerOut',String],['s-in','layerIn',String],['s-step','step',parseFloat],['s-ppi','ppi',String]];
+  for(const [id,key,cast] of pairs){ const el=$(id); el.value=String(settings[key]);
+    el.addEventListener('change',()=>{ const v=cast(el.value); if(cast===parseFloat&&!(v>=0)){ el.value=settings[key]; return; } settings[key]=v; afterChange();
+      if(key==='ppi'&&lastImport&&lastImport.text) toast('Re-import the SVG to apply the new unit setting.'); }); }
+  $('s-snap').checked=settings.snap; $('s-snap').addEventListener('change',e=>{ settings.snap=e.target.checked; persist(); });
+  $('s-origin').checked=settings.origin; $('s-origin').addEventListener('change',e=>{ settings.origin=e.target.checked; persist(); });
+  $('part-name').value=settings.name; $('part-name').addEventListener('change',e=>{ settings.name=e.target.value.trim()||'part'; e.target.value=settings.name; persist(); });
+}
+
+/* ===== Import ===== */
+let lastImport=null;
+function doImport(text,name){
+  let res; try{ res=importSVG(text,settings.ppi); }catch(err){ toast(err.message||'Could not read that SVG.'); return; }
+  if(!res.contours.length){ toast('No cuttable paths found in that SVG.'); return; }
+  lastImport={warn:res.warn,text:true};
+  const sh={type:'import',name:name||'artwork',contours:res.contours};
+  const b=shapeBB(sh); let dx=-b.x0, dy=-b.y0;
+  if(!isSample && shapes.length){ const all=an&&an.bb; if(all){ dx=all.x1+1-b.x0; dy=all.y0-b.y0; } }
+  if(isSample){ shapes=[]; isSample=false; }
+  translate(sh,dx,dy);
+  addShape(sh); fit();
+  const w=b.x1-b.x0, h=b.y1-b.y0;
+  toast(`Imported ${res.contours.length} paths at ${fmtIn(w)} × ${fmtIn(h)} in`+(res.unitsFromFile?'.':` (read as ${res.ppi===25.4?'millimeters':res.ppi===1?'inches':res.ppi+' units per inch'}). Wrong size? Type the width in Selection.`));
+  if(name){ const base=name.replace(/\.svg$/i,''); settings.name=base; $('part-name').value=base; persist(); }
+}
+$('file-in').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!f) return; doImport(await f.text(),f.name); e.target.value=''; });
+$('lbl-import').addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('file-in').click(); } });
+let dragDepth=0;
+stage.addEventListener('dragenter',e=>{ e.preventDefault(); dragDepth++; $('drop').hidden=false; });
+stage.addEventListener('dragover',e=>e.preventDefault());
+stage.addEventListener('dragleave',()=>{ if(--dragDepth<=0){ dragDepth=0; $('drop').hidden=true; } });
+stage.addEventListener('drop',async e=>{ e.preventDefault(); dragDepth=0; $('drop').hidden=true; const f=e.dataTransfer.files[0]; if(f) doImport(await f.text(),f.name); });
+window.addEventListener('paste',e=>{ const t=e.target; if(t&&(t.tagName==='INPUT')) return; const s=e.clipboardData&&e.clipboardData.getData('text/plain'); if(s&&/<svg[\s>]/i.test(s)){ e.preventDefault(); doImport(s,null); } });
+
+/* ===== Export ===== */
+function currentDXF(){ const a=analyze(shapes,{thickness:settings.thickness,full:false}); if(!a.items.length) return null;
+  return buildDXF(a,{layerOut:settings.layerOut,layerIn:settings.layerIn,origin:settings.origin}); }
+function fileBase(){ return (settings.name||'part').replace(/[\\/:*?"<>|]+/g,'-').replace(/\.dxf$/i,'')||'part'; }
+$('btn-dl').addEventListener('click',async()=>{
+  const dxf=currentDXF(); if(!dxf){ toast('Nothing to export yet. Draw or import a part first.'); return; }
+  const base=fileBase(), bytes=new TextEncoder().encode(dxf);
+  if(window.claude&&typeof window.claude.use==='function'){
+    let dl=null; try{ dl=await window.claude.use('downloads'); }catch(e){}
+    if(dl){ try{ await dl.save({filename:base+'.zip',data:zipOne(base+'.dxf',bytes)}); toast(`Saved ${base}.zip. Unzip it to get ${base}.dxf.`); }
+      catch(err){ if(err&&err.code==='declined') return; if(err&&err.code==='rate_limited'){ toast('A save prompt is already open.'); return; } toast('Saving is unavailable here. Use Copy DXF and paste into a text file named '+base+'.dxf.'); }
+      return; }
+    toast('Saving is unavailable here. Use Copy DXF and paste into a text file named '+base+'.dxf.'); return;
+  }
+  const url=URL.createObjectURL(new Blob([bytes],{type:'application/dxf'})); const a=document.createElement('a'); a.href=url; a.download=base+'.dxf';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); toast(`Downloaded ${base}.dxf`);
+});
+$('btn-copy').addEventListener('click',()=>{ const dxf=currentDXF(); if(!dxf){ toast('Nothing to copy yet.'); return; }
+  const p=navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(dxf):Promise.reject();
+  p.then(()=>toast(`DXF copied. Paste it into a plain text file and save it as ${fileBase()}.dxf.`),()=>toast('Copy was blocked here. Try Download DXF instead.')); });
+
+/* ===== Top bar ===== */
+let newArmed=0;
+$('btn-new').addEventListener('click',()=>{ if(!shapes.length) return;
+  if(!isSample&&Date.now()-newArmed>3000){ newArmed=Date.now(); toast('Press New again to clear the table. Undo still works after.'); return; }
+  checkpoint(); shapes=[]; selId=null; lastImport=null; isSample=false; afterChange(); setHint(); });
+$('btn-undo').addEventListener('click',undo); $('btn-redo').addEventListener('click',redo);
+for(const b of document.querySelectorAll('.tool')) b.addEventListener('click',()=>setTool(b.dataset.tool));
+$('z-in').addEventListener('click',()=>zoomAt(1.4,W/2,H/2)); $('z-out').addEventListener('click',()=>zoomAt(1/1.4,W/2,H/2)); $('z-fit').addEventListener('click',fit);
+
+let toastT=0; function toast(m){ const t=$('toast'); t.textContent=m; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>{ t.hidden=true; },4200); }
+
+/* ===== Boot ===== */
+load(); bindSettings(); readColors();
+new ResizeObserver(resize).observe(stage);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readColors);
+new MutationObserver(readColors).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(draw);
+resize(); afterChange(); fit(); setHint(); syncUndo();
+})();
+</script>

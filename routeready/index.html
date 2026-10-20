@@ -1768,6 +1768,7 @@ function renderInspector() {
       <kbd>C</kbd><span>Center selection on ${P.zero === 'center' ? '0,0' : 'the material'}</span>
       <kbd>Arrows</kbd><span>Nudge 1/16 in (Shift: 1/4 in)</span>
       <kbd>Ctrl D</kbd><span>Duplicate</span>
+      <kbd>Ctrl G</kbd><span>Combine (Shift: break apart)</span>
       <kbd>Del</kbd><span>Delete</span>
       <kbd>Space</kbd><span>Hold and drag to pan</span>
       <kbd>Wheel</kbd><span>Zoom</span></div></div>`;
@@ -1799,6 +1800,9 @@ function renderInspector() {
     } else {
       body = `<div class="insp-sec"><span class="eyebrow">${ss.length} shapes selected</span>${centerBtn('center', centerLabel() + ' as a group')}${alignRow}<p class="note" style="margin:0">The center button moves all of them together and keeps their spacing. The alignment buttons line them up with each other.</p></div>`;
     }
+    const canBreak = ss.some(x => x.contours.length > 1);
+    if (ss.length > 1 || canBreak) body += `<div class="insp-sec"><span class="eyebrow">Pieces</span><div class="row">${ss.length > 1 ? `<button class="btn" data-act="combine" title="Join into one shape so holes stay holes when pocketing (Ctrl+G)">${ic('<rect x="3" y="3" width="12" height="12" rx="1.5"/><rect x="9" y="9" width="12" height="12" rx="1.5"/>', 2)}Combine</button>` : ''}${canBreak ? `<button class="btn" data-act="break" title="Split into separate pieces so each can get its own cut (Ctrl+Shift+G)">${ic('<rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/><path d="M15 4h5v5M9 20H4v-5"/>', 2)}Break apart</button>` : ''}</div>
+      <p class="note" style="margin:0">${canBreak ? 'This shape has more than one outline. Break it apart to give the holes and the outside their own cuts.' : 'Combine joins them into one shape. Use it to pocket a shape that has holes in it.'}</p></div>`;
     body += `<div class="insp-sec"><div class="row"><button class="btn" data-act="dup">${ic('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>', 2)}Duplicate</button><button class="btn danger" data-act="del">${ic('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>', 2)}Delete</button></div></div>`;
   } else {
     const same = k => ss.every(s => JSON.stringify(k(s)) === JSON.stringify(k(o)));
@@ -1838,6 +1842,8 @@ $('#insp').addEventListener('click', e => {
     case 'del': deleteSel(); break;
     case 'dup': duplicateSel(); break;
     case 'center': centerSel(ss); break;
+    case 'combine': combineSel(); break;
+    case 'break': breakSel(); break;
     case 'centerAll': centerSel(P.objects); break;
     case 'through': pushUndo(); for (const o of ss) o.cut.depth = P.material.t; changed(); break;
     case 'rot90': pushUndo(); for (const o of ss) o.rot = ((o.rot || 0) + 90) % 360; changed(); break;
@@ -2074,6 +2080,7 @@ window.addEventListener('keydown', e => {
   if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); return; }
   if (mod && k === 'y') { e.preventDefault(); doRedo(); return; }
   if (mod && k === 'd') { e.preventDefault(); duplicateSel(); return; }
+  if (mod && k === 'g') { e.preventDefault(); e.shiftKey ? breakSel() : combineSel(); return; }
   if (mod && k === 'a') { e.preventDefault(); sel = new Set(P.objects.map(o => o.id)); renderInspector(); drawDesign(); return; }
   if (mod && k === 's') { e.preventDefault(); saveProject(); return; }
   if (mod) return;
@@ -2182,17 +2189,80 @@ function importSVG(text) {
   if (!contours.length) throw new Error('No shapes were found in this SVG. Text needs to be converted to outlines first.');
   return { contours, unitName: ai ? 'Illustrator points' : null };
 }
+// Turn world-space contours into one selectable piece each. Holes default to "inside",
+// outer outlines to "outside", open lines to "on the line".
+function piecesFromWorld(wcs, baseName, depth) {
+  const closed = wcs.filter(c => c.closed);
+  const info = wcs.map(c => {
+    let lvl = 0;
+    if (c.closed) {
+      const a = Math.abs(RR.area(c.pts));
+      for (const q of closed) if (q !== c && Math.abs(RR.area(q.pts)) > a && RR.pointInPoly(c.pts[0], q.pts)) lvl++;
+    }
+    return { c, lvl };
+  });
+  // outer pieces first so holes sit on top and win clicks
+  info.sort((a, b) => (a.c.closed ? a.lvl : 1e9) - (b.c.closed ? b.lvl : 1e9));
+  const counts = { part: 0, hole: 0, line: 0 };
+  const total = { part: 0, hole: 0, line: 0 };
+  const role = x => !x.c.closed ? 'line' : x.lvl % 2 ? 'hole' : 'part';
+  for (const x of info) total[role(x)]++;
+  return info.map(x => {
+    const r = role(x), c = x.c;
+    const bb = RR.bboxOf([c]), cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2;
+    counts[r]++;
+    const label = total[r] > 1 ? `${r} ${counts[r]}` : r;
+    return {
+      id: uid(), kind: 'path', name: wcs.length === 1 ? baseName : `${baseName} ${label}`, params: {}, rot: 0, sx: 1, sy: 1, geomVer: 1, lock: true,
+      contours: [{ closed: c.closed, pts: c.pts.map(p => [p[0] - cx, p[1] - cy]) }], x: cx, y: cy,
+      cut: { type: r === 'line' ? 'on' : r === 'hole' ? 'inside' : 'outside', depth, tabs: { on: false, count: 4, width: 0.25, height: 0.1 } }
+    };
+  });
+}
 function addImported(name, res) {
   const bb = RR.bboxOf(res.contours);
-  const cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2;
+  const dx = P.material.w / 2 - (bb.x0 + bb.x1) / 2, dy = P.material.h / 2 - (bb.y0 + bb.y1) / 2;
+  const wcs = res.contours.map(c => ({ closed: c.closed, pts: c.pts.map(p => [p[0] + dx, p[1] + dy]) }));
+  const pieces = piecesFromWorld(wcs, name, P.material.t);
+  P.objects.push(...pieces);
+  return pieces;
+}
+function combineSel() {
+  const ss = selected();
+  if (ss.length < 2) { toast('Select two or more shapes to combine.'); return; }
+  pushUndo();
+  const wcs = ss.flatMap(o => world(o).map(c => ({ closed: c.closed, pts: c.pts.map(p => [p[0], p[1]]) })));
+  const bb = RR.bboxOf(wcs), cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2;
+  // keep the cut settings of the biggest shape (usually the outer outline)
+  const big = ss.reduce((m, o) => { const b = wbox(o), mb = wbox(m); return b.w * b.h > mb.w * mb.h ? o : m; }, ss[0]);
   const o = {
-    id: uid(), kind: 'path', name, params: {}, rot: 0, sx: 1, sy: 1, geomVer: 1, lock: true,
-    contours: res.contours.map(c => ({ closed: c.closed, pts: c.pts.map(p => [p[0] - cx, p[1] - cy]) })),
-    x: P.material.w / 2, y: P.material.h / 2,
-    cut: { type: res.contours.some(c => c.closed) ? 'on' : 'on', depth: P.material.t, tabs: { on: false, count: 4, width: 0.25, height: 0.1 } }
+    id: uid(), kind: 'path', name: big.name.replace(/ (part|hole|line)( \d+)?$/, '') || 'Combined shape', params: {}, rot: 0, sx: 1, sy: 1, geomVer: 1, lock: true,
+    contours: wcs.map(c => ({ closed: c.closed, pts: c.pts.map(p => [p[0] - cx, p[1] - cy]) })), x: cx, y: cy,
+    cut: JSON.parse(JSON.stringify(big.cut))
   };
-  P.objects.push(o);
-  return o;
+  if (o.cut.type === 'inside') o.cut.type = 'outside';
+  const idx = Math.min(...ss.map(x => P.objects.indexOf(x)));
+  P.objects = P.objects.filter(x => !sel.has(x.id));
+  P.objects.splice(idx, 0, o);
+  sel = new Set([o.id]); inspTab = 'cut';
+  changed();
+  toast(`Combined ${ss.length} shapes into one. Holes inside it stay holes when you pocket or cut it out.`);
+}
+function breakSel() {
+  const ss = selected().filter(o => o.contours.length > 1);
+  if (!ss.length) { toast('Nothing to break apart. These shapes are already separate pieces.'); return; }
+  pushUndo();
+  const next = new Set(sel);
+  let n = 0;
+  for (const o of ss) {
+    const wcs = world(o).map(c => ({ closed: c.closed, pts: c.pts.map(p => [p[0], p[1]]) }));
+    const pieces = piecesFromWorld(wcs, o.name, o.cut.depth);
+    P.objects.splice(P.objects.indexOf(o), 1, ...pieces);
+    next.delete(o.id); pieces.forEach(p => next.add(p.id)); n += pieces.length;
+  }
+  sel = next; inspTab = 'cut';
+  changed();
+  toast(`Broke apart into ${n} pieces. Holes are set to cut inside and outlines to cut outside.`);
 }
 async function importFiles(files) {
   const added = [];
@@ -2206,10 +2276,11 @@ async function importFiles(files) {
       else if (ext === 'dxf' || /^\s*0\s*[\r\n]+\s*SECTION/i.test(text.slice(0, 200))) res = RR.importDXF(text);
       else throw new Error(`${f.name} is not an SVG or DXF file.`);
       if (first) { pushUndo(); first = false; }
-      const o = addImported(f.name.replace(/\.[^.]+$/, ''), res);
-      added.push(o);
-      const b = wbox(o);
-      toast(`Imported ${f.name}: ${fmtN(b.w)} × ${fmtN(b.h)} in${res.unitName ? ', units read as ' + res.unitName : ''}`);
+      const pieces = addImported(f.name.replace(/\.[^.]+$/, ''), res);
+      added.push(...pieces);
+      const b = selBox(pieces);
+      const holes = pieces.filter(x => x.cut.type === 'inside').length;
+      toast(`Imported ${f.name}: ${fmtN(b.w)} × ${fmtN(b.h)} in, ${pieces.length} piece${pieces.length > 1 ? 's' : ''}${holes ? ` (${holes} hole${holes > 1 ? 's' : ''} set to cut inside)` : ''}${res.unitName ? ', units read as ' + res.unitName : ''}`);
       if (b.w > P.material.w || b.h > P.material.h) setTimeout(() => toast(`${f.name} is larger than the material. Resize it in the Shape panel.`), 2600);
     } catch (err) {
       toast(err.message || `Could not import ${f.name}.`);
@@ -2997,7 +3068,7 @@ renderCards();
 renderInspector();
 runJob();
 openWizard(false);
-window.__rr = { get P() { return P; }, get job() { return job; }, importText: (name, text) => importFiles([new File([text], name)]), sbp: () => sbpText(currentJob()) };
+window.__rr = { screenOf: (x, y) => [X(x), Y(y)], get sel() { return [...sel]; }, get P() { return P; }, get job() { return job; }, importText: (name, text) => importFiles([new File([text], name)]), sbp: () => sbpText(currentJob()) };
 })();
 </script>
 

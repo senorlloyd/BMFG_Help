@@ -138,8 +138,8 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
     </div>
     <div class="group">
       <button id="btn-new" type="button">New</button>
-      <label class="btn" for="file-in" tabindex="0" id="lbl-import">Import SVG</label>
-      <input type="file" id="file-in" accept=".svg,image/svg+xml" hidden>
+      <label class="btn" for="file-in" tabindex="0" id="lbl-import" title="SVG, DXF, PDF, EPS or AI">Import file</label>
+      <input type="file" id="file-in" accept=".svg,.dxf,.pdf,.eps,.ai,.ps,image/svg+xml,application/pdf,application/postscript" hidden>
       <button id="btn-undo" type="button" title="Undo (Ctrl+Z)">Undo</button>
       <button id="btn-redo" type="button" title="Redo (Ctrl+Shift+Z)">Redo</button>
     </div>
@@ -171,7 +171,7 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
           <button type="button" id="z-in" title="Zoom in" aria-label="Zoom in">+</button>
         </div>
       </div>
-      <div class="drop" id="drop" hidden>Drop SVG to import</div>
+      <div class="drop" id="drop" hidden>Drop SVG, DXF, PDF, EPS or AI</div>
     </div>
 
     <aside class="panel" aria-label="Inspector">
@@ -199,7 +199,7 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
         </div>
         <div class="row"><label for="s-snap">Snap to grid</label><span class="group"><input type="checkbox" id="s-snap"><select id="s-step" aria-label="Snap spacing">
           <option value="0.0625">1/16"</option><option value="0.125">1/8"</option><option value="0.25">1/4"</option><option value="0.5">1/2"</option><option value="1">1"</option></select></span></div>
-        <div class="row"><label for="s-ppi">SVGs with no units</label><select id="s-ppi">
+        <div class="row"><label for="s-ppi">Files with no units</label><select id="s-ppi">
           <option value="auto">Auto-detect</option><option value="72">72 per inch (Illustrator)</option><option value="96">96 per inch (Inkscape, web)</option><option value="25.4">Millimeters</option><option value="1">Inches</option></select></div>
         <div class="row"><label for="s-origin">Put bottom-left corner at 0,0 on export</label><input type="checkbox" id="s-origin"></div>
       </section>
@@ -244,7 +244,8 @@ function bulgeArcPts(p,q,b,out){
   const nx=-dy/d, ny=dx/d, mx=(p.x+q.x)/2, my=(p.y+q.y)/2;
   const cx=mx+nx*(r-s), cy=my+ny*(r-s);
   const a0=Math.atan2(p.y-cy,p.x-cx), sweep=4*Math.atan(b), R=Math.abs(r);
-  const steps=Math.max(4,Math.ceil(Math.abs(sweep)/(TAU/96)));
+  const byTol=R>FLAT_TOL?Math.abs(sweep)/(2*Math.acos(1-FLAT_TOL/R)):1;
+  const steps=Math.min(2000,Math.max(4,Math.ceil(Math.abs(sweep)/(TAU/96)),Math.ceil(byTol)));
   for(let i=1;i<steps;i++){ const a=a0+sweep*i/steps; out.push([cx+R*Math.cos(a),cy+R*Math.sin(a)]); }
 }
 function flattenVerts(v,closed){ const out=[]; const n=v.length;
@@ -474,33 +475,299 @@ function importSVG(text,ppiSetting){
   }
   walk(svg,root,0);
   const cleaned=tidyContours(contours);
-  return {contours:cleaned, warn, ppi, source:isAI?'Illustrator':isInk?'Inkscape':'SVG', unitsFromFile:!!(W||H)&&!/^\s*[\d.]+\s*(px)?\s*$/i.test(svg.getAttribute('width')||'')};
+  const fromFile=!!(W||H)&&!/^\s*[\d.]+\s*(px)?\s*$/i.test(svg.getAttribute('width')||'');
+  warn.other={};
+  return {contours:cleaned, warn, kind:'SVG', guessed:!fromFile,
+    note:fromFile?'':'no units in the file, read as '+(ppi===25.4?'millimeters':ppi===1?'inches':ppi+' per inch')};
 }
 function samePt(a,b,t){ return Math.abs(a[0]-b[0])<=t && Math.abs(a[1]-b[1])<=t; }
+/* Cleanup shared by every importer: pieces arrive as {closed, pts, k?} (flattened) or {closed, verts:[{x,y,b}]}
+   (lines and true arcs, from DXF) or {circle}. Drops zero-length segments, chains pieces whose ends touch
+   (endpoint hash, so thousands of DXF lines stay fast), closes loops, and keeps true arcs for export. */
+const nearV=(a,b)=>Math.abs(a.x-b.x)<=JOIN_TOL&&Math.abs(a.y-b.y)<=JOIN_TOL;
+const hasArc=v=>v.some(q=>Math.abs(q.b)>1e-12);
+function revVerts(v){ const n=v.length; return v.map((_,j)=>({x:v[n-1-j].x,y:v[n-1-j].y,b:j<n-1?-v[n-2-j].b:0,k:v[n-1-j].k})); }
+function closeIfLoop(v,closed){
+  if(v.length>2 && nearV(v[0],v[v.length-1]) && (closed || v.length>3 || hasArc(v))){ v.pop(); v[0].k=1; return true; }
+  return closed;
+}
+function chainOpen(opens){
+  const key=(x,y)=>Math.round(x/JOIN_TOL)+','+Math.round(y/JOIN_TOL), grid=new Map(), used=new Uint8Array(opens.length);
+  opens.forEach((v,i)=>{ for(const e of [0,1]){ const q=e?v[v.length-1]:v[0], kk=key(q.x,q.y); if(!grid.has(kk)) grid.set(kk,[]); grid.get(kk).push([i,e]); } });
+  const find=q=>{ const gx=Math.round(q.x/JOIN_TOL), gy=Math.round(q.y/JOIN_TOL); let best=null, bd=Infinity;
+    for(let dx=-1;dx<=1;dx++) for(let dy=-1;dy<=1;dy++){ const L=grid.get((gx+dx)+','+(gy+dy)); if(!L) continue;
+      for(const [i,e] of L){ if(used[i]) continue; const v=opens[i], p=e?v[v.length-1]:v[0]; if(!nearV(p,q)) continue;
+        const d=Math.hypot(p.x-q.x,p.y-q.y); if(d<bd){ bd=d; best=[i,e]; } } }
+    return best; };
+  const grow=chain=>{ for(;;){ const f=find(chain[chain.length-1]); if(!f) return chain; used[f[0]]=1;
+    const v=f[1]?revVerts(opens[f[0]]):opens[f[0]].map(q=>({...q})); chain.pop(); v[0].k=1; for(const q of v) chain.push(q); } };
+  const out=[];
+  for(let s=0;s<opens.length;s++){ if(used[s]) continue; used[s]=1;
+    let chain=grow(opens[s].map(q=>({...q})));
+    if(!nearV(chain[0],chain[chain.length-1])) chain=grow(revVerts(chain));
+    out.push(chain); }
+  return out;
+}
+function pieceToContour(v,closed){
+  const pts=[], k=[], n=v.length, arcs=hasArc(v);
+  for(let i=0;i<n;i++){ pts.push([v[i].x,v[i].y]); k.push(v[i].k?1:0); if(!closed&&i===n-1) break;
+    if(Math.abs(v[i].b)>1e-12){ const b0=pts.length; bulgeArcPts(v[i],v[(i+1)%n],v[i].b,pts); for(let j=b0;j<pts.length;j++) k.push(0); } }
+  const c={closed,pts,k}; if(arcs) c.verts=v.map(q=>({x:q.x,y:q.y,b:closed||q!==v[n-1]?q.b:0})); return c;
+}
 function tidyContours(list){
-  // drop duplicate consecutive points; k[i]=1 marks points where path segments meet (fillet candidates)
-  let cs=list.map(c=>{ if(c.circle) return c; const p=[], k=[];
-      c.pts.forEach((q,j)=>{ const kq=c.k?c.k[j]:1; if(p.length&&samePt(p[p.length-1],q,1e-7)) k[k.length-1]=k[k.length-1]||kq; else { p.push(q); k.push(kq); } });
-      return {closed:c.closed,pts:p,k}; })
-    .filter(c=>c.pts.length>=2);
-  for(const c of cs) if(c.closed && !c.circle && c.pts.length>2 && samePt(c.pts[0],c.pts[c.pts.length-1],JOIN_TOL)){ c.pts.pop(); c.k.pop(); c.k[0]=1; }
-  // chain open pieces whose ends meet
-  let opens=cs.filter(c=>!c.closed), closed=cs.filter(c=>c.closed);
-  const rev=c=>({pts:c.pts.slice().reverse(),k:c.k.slice().reverse()});
-  const cat=(A,B)=>({closed:false,pts:A.pts.concat(B.pts.slice(1)),k:A.k.slice(0,-1).concat([1],B.k.slice(1))});
-  let merged=true;
-  while(merged){ merged=false;
-    outer: for(let a=0;a<opens.length;a++) for(let b=0;b<opens.length;b++){ if(a===b) continue;
-      const A=opens[a], B=opens[b], Ap=A.pts, Bp=B.pts; let np=null;
-      if(samePt(Ap[Ap.length-1],Bp[0],JOIN_TOL)) np=cat(A,B);
-      else if(samePt(Ap[Ap.length-1],Bp[Bp.length-1],JOIN_TOL)) np=cat(A,rev(B));
-      else if(samePt(Ap[0],Bp[Bp.length-1],JOIN_TOL)) np=cat(B,A);
-      else if(samePt(Ap[0],Bp[0],JOIN_TOL)) np=cat(rev(B),A);
-      if(np){ opens[a]=np; opens.splice(b,1); merged=true; break outer; } }
+  const out=[], opens=[], closedV=[];
+  for(const c of list){
+    if(c.circle){ if(c.circle.r>1e-6) out.push({closed:true,circle:c.circle,pts:c.pts||circlePts(c.circle.cx,c.circle.cy,c.circle.r)}); continue; }
+    const src=c.verts?c.verts.map(q=>({x:q.x,y:q.y,b:q.b||0,k:q.k??1})):c.pts.map((p,i)=>({x:p[0],y:p[1],b:0,k:c.k?c.k[i]:1}));
+    const v=[];
+    for(const q of src){ const l=v[v.length-1];
+      if(l&&Math.abs(l.x-q.x)<=1e-7&&Math.abs(l.y-q.y)<=1e-7){ l.b=q.b; l.k=l.k||q.k; continue; } v.push(q); }
+    if(v.length<2) continue;
+    if(closeIfLoop(v,!!c.closed)) closedV.push(v); else opens.push(v);
   }
-  for(const o of opens){ if(o.pts.length>3 && samePt(o.pts[0],o.pts[o.pts.length-1],JOIN_TOL)){ o.pts.pop(); o.k.pop(); o.k[0]=1; o.closed=true; } }
-  cs=closed.concat(opens).filter(c=>!(c.closed&&c.pts.length<3));
-  return cs;
+  for(const v of chainOpen(opens)){ if(closeIfLoop(v,false)) closedV.push(v); else out.push(pieceToContour(v,false)); }
+  for(const v of closedV) if(v.length>=3||(v.length===2&&hasArc(v))) out.push(pieceToContour(v,true));
+  return out;
+}
+
+/* ===== DXF import: lines, arcs, circles, polylines with bulges, splines, ellipses, blocks ===== */
+const DXF_UNITS={1:1,2:12,4:1/25.4,5:1/2.54,6:39.37007874,8:1e-6,9:0.001,10:36,14:3.937007874};
+const DXF_UNIT_NAMES={2:'feet',4:'millimeters',5:'centimeters',6:'meters',8:'microinches',9:'mils',10:'yards',14:'decimeters'};
+function splinePts(deg,U,ctrl,W){
+  const n=ctrl.length; if(n<2) return ctrl.slice();
+  let p=Math.max(1,deg||3); if(p>=n) p=n-1;
+  if(!U||U.length!==n+p+1){ U=[]; for(let i=0;i<=n+p;i++) U.push(i<=p?0:i>=n?n-p:i-p); }
+  if(W&&W.length!==n) W=null;
+  const t0=U[p], t1=U[n], steps=Math.min(6000,Math.max(32,n*20)), out=[];
+  for(let s=0;s<=steps;s++){ const t=t0+(t1-t0)*s/steps;
+    let k=p; while(k<n-1&&t>=U[k+1]) k++;
+    const d=[]; for(let j=0;j<=p;j++){ const P=ctrl[k-p+j], w=W?W[k-p+j]:1; d.push([P[0]*w,P[1]*w,w]); }
+    for(let r=1;r<=p;r++) for(let j=p;j>=r;j--){ const i=k-p+j, den=U[i+p-r+1]-U[i], a=den>0?(t-U[i])/den:0;
+      d[j]=[(1-a)*d[j-1][0]+a*d[j][0],(1-a)*d[j-1][1]+a*d[j][1],(1-a)*d[j-1][2]+a*d[j][2]]; }
+    out.push([d[p][0]/d[p][2],d[p][1]/d[p][2]]); }
+  return out;
+}
+function importDXF(text,unitSetting){
+  if(/^AutoCAD Binary DXF/.test(text)) throw new Error('That DXF is saved in binary. Save it as an ASCII DXF and import it again.');
+  const lines=text.split(/\r\n|\r|\n/), recs=[]; let cur=null;
+  for(let i=0;i+1<lines.length;i+=2){ const code=parseInt(lines[i],10); if(!Number.isFinite(code)){ i--; continue; }
+    const val=lines[i+1].trim(); if(code===0){ cur={type:val,g:[]}; recs.push(cur); } else if(cur) cur.g.push([code,val]); }
+  if(!recs.some(r=>r.type==='SECTION')) throw new Error("That file isn't a readable DXF.");
+  const get=(r,c)=>{ for(const p of r.g) if(p[0]===c) return p[1]; return null; };
+  const num=(r,c,d)=>{ const v=get(r,c); const f=v==null?NaN:parseFloat(v); return Number.isFinite(f)?f:d; };
+  // sections, header, blocks
+  let section='', block=null; const hdr={}, blocks={}, ents=[];
+  for(const r of recs){
+    if(r.type==='SECTION'){ section=get(r,2)||''; if(section==='HEADER'){ for(let i=0;i<r.g.length;i++){ const [c,v]=r.g[i];
+        if(c===9&&(v==='$INSUNITS'||v==='$MEASUREMENT')){ const nx=r.g[i+1]; if(nx) hdr[v]=parseInt(nx[1],10); } } } continue; }
+    if(r.type==='ENDSEC'){ section=''; continue; }
+    if(section==='BLOCKS'){ if(r.type==='BLOCK'){ block={name:get(r,2)||'',bx:num(r,10,0),by:num(r,20,0),ents:[]}; blocks[block.name]=block; }
+      else if(r.type==='ENDBLK') block=null; else if(block) block.ents.push(r); }
+    else if(section==='ENTITIES') ents.push(r);
+  }
+  // units
+  const iu=hdr.$INSUNITS; let unit, note='', guessed=false;
+  if(DXF_UNITS[iu]){ unit=DXF_UNITS[iu]; if(iu!==1) note='converted from '+DXF_UNIT_NAMES[iu]; }
+  else { guessed=true;
+    if(unitSetting==='auto'||!unitSetting){ if(hdr.$MEASUREMENT===1){ unit=1/25.4; note='no units in the file, read as millimeters'; } else { unit=1; note='no units in the file, read as inches'; } }
+    else { const v=+unitSetting; unit=1/v; note='no units in the file, read as '+(v===25.4?'millimeters':v===1?'inches':v+' per inch'); } }
+  const warn={text:0,image:0,other:{}}, pieces=[];
+  const skip=t=>{ warn.other[t]=(warn.other[t]||0)+1; };
+  const SILENT=new Set(['VIEWPORT','SEQEND','VERTEX','ATTRIB','ATTDEF','XLINE','RAY']);
+  const mirrorX=r=>num(r,230,1)<0;
+  // place a piece through matrix m; true arcs survive any similarity transform
+  const emit=(pc,m)=>{
+    const sim=isSimilarity(m), det=m[0]*m[3]-m[1]*m[2], sc=Math.sqrt(Math.abs(det));
+    if(pc.circle){ const c=mapp(m,pc.circle.cx,pc.circle.cy);
+      if(sim){ pieces.push({circle:{cx:c[0],cy:c[1],r:pc.circle.r*sc}}); return; }
+      pieces.push({closed:true,pts:circlePts(pc.circle.cx,pc.circle.cy,pc.circle.r,192).map(p=>mapp(m,p[0],p[1]))}); return; }
+    if(pc.verts){ if(sim){ pieces.push({closed:pc.closed,verts:pc.verts.map(v=>{ const p=mapp(m,v.x,v.y); return {x:p[0],y:p[1],b:det<0?-v.b:v.b}; })}); return; }
+      pieces.push({closed:pc.closed,pts:flattenVerts(pc.verts,pc.closed).map(p=>mapp(m,p[0],p[1]))}); return; }
+    pieces.push({closed:pc.closed,pts:pc.pts.map(p=>mapp(m,p[0],p[1]))});
+  };
+  const ocs=(pc,r)=>{ if(!mirrorX(r)) return pc; // extrusion (0,0,-1): object x runs along world -x
+    if(pc.circle) return {circle:{...pc.circle,cx:-pc.circle.cx}};
+    return {closed:pc.closed,verts:pc.verts.map(v=>({x:-v.x,y:v.y,b:-v.b}))}; };
+  function arcVerts(cx,cy,R,a0,a1){ let sw=a1-a0; while(sw<=0) sw+=360; while(sw>360) sw-=360;
+    if(sw>=359.999) return null; const n=sw>180?2:1, step=sw/n, b=Math.tan(step*Math.PI/720), v=[];
+    for(let i=0;i<=n;i++){ const a=(a0+step*i)*Math.PI/180; v.push({x:cx+R*Math.cos(a),y:cy+R*Math.sin(a),b:i<n?b:0}); }
+    return v; }
+  function walk(list,m,depth){
+    for(let i=0;i<list.length;i++){ const r=list[i], T=r.type;
+      if(num(r,67,0)===1) continue; // paper space
+      switch(T){
+        case 'LINE': emit({closed:false,verts:[{x:num(r,10,0),y:num(r,20,0),b:0},{x:num(r,11,0),y:num(r,21,0),b:0}]},m); break;
+        case 'CIRCLE': { const R=num(r,40,0); if(R>0) emit(ocs({circle:{cx:num(r,10,0),cy:num(r,20,0),r:R}},r),m); break; }
+        case 'ARC': { const R=num(r,40,0); if(!(R>0)) break; const cx=num(r,10,0), cy=num(r,20,0);
+          const v=arcVerts(cx,cy,R,num(r,50,0),num(r,51,360));
+          emit(ocs(v?{closed:false,verts:v}:{circle:{cx,cy,r:R}},r),m); break; }
+        case 'LWPOLYLINE': { const v=[]; for(const [c,val] of r.g){ const f=parseFloat(val);
+            if(c===10) v.push({x:f,y:0,b:0}); else if(c===20&&v.length) v[v.length-1].y=f; else if(c===42&&v.length) v[v.length-1].b=f||0; }
+          if(v.length>=2) emit(ocs({closed:!!(num(r,70,0)&1),verts:v},r),m); break; }
+        case 'POLYLINE': { const fl=num(r,70,0), v=[]; let j=i+1;
+          for(;j<list.length&&list[j].type==='VERTEX';j++){ const q=list[j], vf=num(q,70,0); if(vf&16) continue; v.push({x:num(q,10,0),y:num(q,20,0),b:num(q,42,0)}); }
+          if(j<list.length&&list[j].type==='SEQEND') i=j; else i=j-1;
+          if(fl&(16|64)){ skip('mesh'); break; }
+          if(v.length>=2){ const pc={closed:!!(fl&1),verts:v}; emit(fl&8?pc:ocs(pc,r),m); } break; }
+        case 'SPLINE': { const deg=num(r,71,3), U=[], C=[], Wt=[], F=[];
+          for(const [c,val] of r.g){ const f=parseFloat(val);
+            if(c===40) U.push(f); else if(c===41) Wt.push(f); else if(c===10) C.push([f,0]); else if(c===20&&C.length) C[C.length-1][1]=f;
+            else if(c===11) F.push([f,0]); else if(c===21&&F.length) F[F.length-1][1]=f; }
+          const pts=C.length>=2?splinePts(deg,U,C,Wt.length?Wt:null):F;
+          if(pts.length>=2) emit({closed:!!(num(r,70,0)&1),pts},m); break; }
+        case 'ELLIPSE': { const cx=num(r,10,0), cy=num(r,20,0), mx=num(r,11,1), my=num(r,21,0), ra=num(r,40,1);
+          let t0=num(r,41,0), t1=num(r,42,TAU); while(t1<=t0) t1+=TAU; const full=t1-t0>=TAU-1e-6;
+          const sgn=mirrorX(r)?-1:1, nx=-my*ra*sgn, ny=mx*ra*sgn, R=Math.hypot(mx,my);
+          const steps=Math.max(16,Math.ceil((t1-t0)/(2*Math.acos(Math.max(0,1-FLAT_TOL/Math.max(R*unit,1e-6))))*1.0)), pts=[];
+          const N=Math.min(4000,steps); for(let s=0;s<(full?N:N+1);s++){ const t=t0+(t1-t0)*s/N; pts.push([cx+mx*Math.cos(t)+nx*Math.sin(t),cy+my*Math.cos(t)+ny*Math.sin(t)]); }
+          emit({closed:full,pts},m); break; }
+        case 'INSERT': { const b=blocks[get(r,2)]; if(!b||depth>12) break;
+          const sx=num(r,41,1), sy=num(r,42,1), rot=num(r,50,0)*Math.PI/180, cols=Math.max(1,num(r,70,1)), rows=Math.max(1,num(r,71,1)), dc=num(r,44,0), dr=num(r,45,0);
+          for(let a=0;a<cols;a++) for(let bb=0;bb<rows;bb++){
+            let t=mmul([1,0,0,1,num(r,10,0),num(r,20,0)],[Math.cos(rot),Math.sin(rot),-Math.sin(rot),Math.cos(rot),0,0]);
+            t=mmul(t,[1,0,0,1,a*dc,bb*dr]); t=mmul(t,[sx,0,0,sy,0,0]); t=mmul(t,[1,0,0,1,-b.bx,-b.by]);
+            if(mirrorX(r)) t=mmul([-1,0,0,1,0,0],t);
+            walk(b.ents,mmul(m,t),depth+1); }
+          break; }
+        case 'TEXT': case 'MTEXT': warn.text++; break;
+        default: if(!SILENT.has(T)) skip(T.toLowerCase());
+      }
+    }
+  }
+  walk(ents,[unit,0,0,unit,0,0],0);
+  return {contours:tidyContours(pieces),warn,note,guessed,kind:'DXF'};
+}
+
+/* ===== PostScript / EPS / older AI import: follows the transform stack, keeps painted paths only ===== */
+function latin1(bytes){ let s=''; for(let i=0;i<bytes.length;i+=32768) s+=String.fromCharCode.apply(null,bytes.subarray(i,i+32768)); return s; }
+function importPS(bytes){
+  let b=bytes;
+  if(b[0]===0xC5&&b[1]===0xD0&&b[2]===0xD3&&b[3]===0xC6){ const dv=new DataView(b.buffer,b.byteOffset,b.byteLength); const off=dv.getUint32(4,true), len=dv.getUint32(8,true); b=b.subarray(off,off+len); }
+  let s=latin1(b);
+  const pd=s.indexOf('%AI9_PrivateDataBegin'); if(pd>0) s=s.slice(0,pd);
+  const PT=1/72, out=[], warn={text:0,image:0,other:{}};
+  let ctm=[PT,0,0,PT,0,0], stack=[], gstack=[], path={subs:[],painted:false}, sub=null, cx=0, cy=0;
+  const T=(x,y)=>mapp(ctm,x,y);
+  const nums=n=>{ if(stack.length<n) return null; const a=stack.slice(-n); if(a.some(v=>typeof v!=='number')) return null; stack.length-=n; return a; };
+  const moveTo=(x,y)=>{ sub={closed:false,pts:[T(x,y)],k:[1],sx:x,sy:y}; path.subs.push(sub); cx=x; cy=y; };
+  const lineTo=(x,y)=>{ if(!sub) moveTo(cx,cy); sub.pts.push(T(x,y)); sub.k.push(1); cx=x; cy=y; };
+  const curveTo=(x1,y1,x2,y2,x3,y3)=>{ if(!sub) moveTo(cx,cy); const b0=sub.pts.length;
+    flatCubic(T(cx,cy),T(x1,y1),T(x2,y2),T(x3,y3),FLAT_TOL,sub.pts,0); for(let j=b0;j<sub.pts.length;j++) sub.k.push(j===sub.pts.length-1?1:0); cx=x3; cy=y3; };
+  const closeP=()=>{ if(sub){ sub.closed=true; cx=sub.sx; cy=sub.sy; } sub=null; };
+  const rect=(x,y,w,h)=>{ moveTo(x,y); lineTo(x+w,y); lineTo(x+w,y+h); lineTo(x,y+h); closeP(); };
+  const paint=closeAll=>{ if(!path.painted){ for(const q of path.subs){ if(q.pts.length<2) continue; if(closeAll) q.closed=true; out.push(q); } path.painted=true; }
+    path={subs:[],painted:false}; sub=null; };
+  const discard=()=>{ path={subs:[],painted:false}; sub=null; };
+  const FILL=new Set(['f','F','fill','ef','eofill','f*','b','B','b*','B*','s','fs']), STROKE=new Set(['S','stroke','@']), NOPAINT=new Set(['n','N','np','newpath']);
+  const CLOSE=new Set(['h','cp','closepath']);
+  let i=0; const L=s.length;
+  const isDelim=c=>' \t\r\n\f\0()<>[]{}/%'.includes(c);
+  while(i<L){
+    const c=s[i];
+    if(c===' '||c==='\t'||c==='\r'||c==='\n'||c==='\f'||c==='\0'){ i++; continue; }
+    if(c==='%'){ // comment; skip embedded binary or hex data blocks
+      let e=s.indexOf('\n',i); if(e<0) e=L; const line=s.slice(i,e);
+      if(/^%%BeginData:.*Binary/i.test(line)||/^%%BeginBinary/.test(line)){ const end=s.indexOf(/Binary/.test(line)&&/BeginData/.test(line)?'%%EndData':'%%EndBinary',e); i=end<0?L:end; continue; }
+      i=e+1; continue; }
+    if(c==='('){ let d=1; i++; while(i<L&&d>0){ const ch=s[i]; if(ch==='\\') i++; else if(ch==='(') d++; else if(ch===')') d--; i++; } stack.push('str'); continue; }
+    if(c==='<'){ if(s[i+1]==='<'){ i+=2; stack.push('mark'); continue; } if(s[i+1]==='~'){ const e=s.indexOf('~>',i); i=e<0?L:e+2; stack.push('str'); continue; }
+      const e=s.indexOf('>',i); i=e<0?L:e+1; stack.push('str'); continue; }
+    if(c==='>'&&s[i+1]==='>'){ i+=2; stack.length=0; continue; }
+    if(c==='{'){ let d=1; i++; while(i<L&&d>0){ const ch=s[i]; if(ch==='('){ let dd=1; i++; while(i<L&&dd>0){ if(s[i]==='\\') i++; else if(s[i]==='(') dd++; else if(s[i]===')') dd--; i++; } continue; }
+        if(ch==='%'){ const e=s.indexOf('\n',i); i=e<0?L:e; continue; } if(ch==='{') d++; else if(ch==='}') d--; i++; } stack.push('proc'); continue; }
+    if(c==='['){ stack.push('['); i++; continue; }
+    if(c===']'){ const m=stack.lastIndexOf('['); const arr=m<0?[]:stack.splice(m); arr.shift(); stack.push(arr); i++; continue; }
+    if(c==='}'||c===')'||c==='>'){ i++; continue; }
+    let j=i+1; while(j<L&&!isDelim(s[j])) j++;
+    if(c==='/'){ while(j<L&&!isDelim(s[j])) j++; stack.push('name'); i=j===i+1?i+1:j; continue; }
+    const tok=s.slice(i,j); i=j;
+    const f=+tok; if(tok.length<30&&Number.isFinite(f)&&/^[-+.\d]/.test(tok)){ stack.push(f); continue; }
+    let a;
+    switch(tok){
+      case 'm': case 'mo': case 'moveto': if((a=nums(2))) moveTo(a[0],a[1]); break;
+      case 'l': case 'L': case 'li': case 'lineto': if((a=nums(2))) lineTo(a[0],a[1]); break;
+      case 'c': case 'C': case 'cv': case 'curveto': if((a=nums(6))) curveTo(...a); break;
+      case 'v': case 'V': if((a=nums(4))) curveTo(cx,cy,a[0],a[1],a[2],a[3]); break;
+      case 'y': case 'Y': if((a=nums(4))) curveTo(a[0],a[1],a[2],a[3],a[2],a[3]); break;
+      case 'rmoveto': if((a=nums(2))) moveTo(cx+a[0],cy+a[1]); break;
+      case 'rlineto': if((a=nums(2))) lineTo(cx+a[0],cy+a[1]); break;
+      case 'rcurveto': if((a=nums(6))) curveTo(cx+a[0],cy+a[1],cx+a[2],cy+a[3],cx+a[4],cy+a[5]); break;
+      case 're': if((a=nums(4))) rect(...a); break;
+      case 'rectfill': case 'rectstroke': { const keep=path; path={subs:[],painted:false}; sub=null;
+        if((a=nums(4))) rect(...a); else { const arr=stack.pop(); if(Array.isArray(arr)) for(let q=0;q+3<arr.length;q+=4) rect(arr[q],arr[q+1],arr[q+2],arr[q+3]); }
+        paint(tok==='rectfill'); path=keep; break; }
+      case 'rectclip': nums(4); break;
+      case 'gsave': case 'q': gstack.push({ctm,path,sub,cx,cy}); break;
+      case 'grestore': case 'Q': { const g=gstack.pop(); if(g){ ({ctm,path,sub,cx,cy}=g); } break; }
+      case 'concat': { const arr=stack.pop(); if(Array.isArray(arr)&&arr.length===6) ctm=mmul(ctm,arr); break; }
+      case 'cm': if((a=nums(6))) ctm=mmul(ctm,a); break;
+      case 'translate': if((a=nums(2))) ctm=mmul(ctm,[1,0,0,1,a[0],a[1]]); break;
+      case 'scale': if((a=nums(2))) ctm=mmul(ctm,[a[0],0,0,a[1],0,0]); break;
+      case 'rotate': if((a=nums(1))){ const g=a[0]*Math.PI/180; ctm=mmul(ctm,[Math.cos(g),Math.sin(g),-Math.sin(g),Math.cos(g),0,0]); } break;
+      case 'currentfile': { const look=s.slice(i,i+300);
+        if(/ASCII85Decode/.test(look)){ const e=s.indexOf('~>',i); i=e<0?L:e+2; }
+        else if(/eexec/.test(look)){ const e=s.indexOf('cleartomark',i); i=e<0?L:e+11; }
+        else if(/ASCIIHexDecode/.test(look)){ const e=s.indexOf('>',s.indexOf('ASCIIHexDecode',i)+14); i=e<0?L:e+1; }
+        stack.length=0; break; }
+      case 'image': case 'colorimage': case 'imagemask': case 'XI': warn.image++; stack.length=0; break;
+      case 'show': case 'ashow': case 'widthshow': case 'xshow': case 'xyshow': case 'To': warn.text++; stack.length=0; break;
+      default:
+        if(CLOSE.has(tok)) closeP();
+        else if(FILL.has(tok)) paint(true);
+        else if(STROKE.has(tok)) paint(tok==='s');
+        else if(NOPAINT.has(tok)) discard();
+        else stack.length=0;
+    }
+  }
+  return {contours:tidyContours(out),warn,note:'',guessed:false,kind:'EPS'};
+}
+
+/* ===== PDF import (also Illustrator .ai files, which carry a PDF inside) via pdf.js operator lists ===== */
+async function importPDF(bytes,pdfjsLib){
+  const doc=await pdfjsLib.getDocument({data:bytes,isEvalSupported:false,disableFontFace:true,stopAtErrors:false,verbosity:0}).promise;
+  const page=await doc.getPage(1);
+  const ol=await page.getOperatorList({annotationMode:pdfjsLib.AnnotationMode?pdfjsLib.AnnotationMode.DISABLE:0});
+  const O=pdfjsLib.OPS, uu=page.userUnit||1, PT=uu/72;
+  let ctm=[PT,0,0,PT,0,0]; const saved=[], out=[], warn={text:0,image:0,other:{}};
+  let subs=[], sub=null, cx=0, cy=0;
+  const T=(x,y)=>mapp(ctm,x,y);
+  const moveTo=(x,y)=>{ sub={closed:false,pts:[T(x,y)],k:[1],sx:x,sy:y}; subs.push(sub); cx=x; cy=y; };
+  const lineTo=(x,y)=>{ if(!sub) moveTo(cx,cy); sub.pts.push(T(x,y)); sub.k.push(1); cx=x; cy=y; };
+  const curveTo=(x1,y1,x2,y2,x3,y3)=>{ if(!sub) moveTo(cx,cy); const b0=sub.pts.length;
+    flatCubic(T(cx,cy),T(x1,y1),T(x2,y2),T(x3,y3),FLAT_TOL,sub.pts,0); for(let j=b0;j<sub.pts.length;j++) sub.k.push(j===sub.pts.length-1?1:0); cx=x3; cy=y3; };
+  const FILLS=new Set([O.fill,O.eoFill,O.fillStroke,O.eoFillStroke,O.closeFillStroke,O.closeEOFillStroke,O.closeStroke]);
+  const STROKES=new Set([O.stroke]);
+  const TEXT=new Set([O.beginText]), IMAGES=new Set([O.paintImageXObject,O.paintInlineImageXObject,O.paintImageMaskXObject,O.paintImageXObjectRepeat,O.paintInlineImageXObjectGroup,O.paintImageMaskXObjectGroup,O.paintSolidColorImageMask].filter(v=>v!=null));
+  const {fnArray:fns,argsArray:args}=ol;
+  for(let n=0;n<fns.length;n++){ const fn=fns[n], a=args[n];
+    if(fn===O.save) saved.push(ctm);
+    else if(fn===O.restore) ctm=saved.pop()||ctm;
+    else if(fn===O.transform) ctm=mmul(ctm,a);
+    else if(fn===O.paintFormXObjectBegin){ saved.push(ctm); if(a&&a[0]) ctm=mmul(ctm,a[0]); }
+    else if(fn===O.paintFormXObjectEnd) ctm=saved.pop()||ctm;
+    else if(fn===O.constructPath){ const ops=a[0], co=a[1]; let j=0;
+      for(const op of ops){
+        if(op===O.moveTo){ moveTo(co[j],co[j+1]); j+=2; }
+        else if(op===O.lineTo){ lineTo(co[j],co[j+1]); j+=2; }
+        else if(op===O.curveTo){ curveTo(co[j],co[j+1],co[j+2],co[j+3],co[j+4],co[j+5]); j+=6; }
+        else if(op===O.curveTo2){ curveTo(cx,cy,co[j],co[j+1],co[j+2],co[j+3]); j+=4; }
+        else if(op===O.curveTo3){ curveTo(co[j],co[j+1],co[j+2],co[j+3],co[j+2],co[j+3]); j+=4; }
+        else if(op===O.closePath){ if(sub){ sub.closed=true; cx=sub.sx; cy=sub.sy; sub=null; } }
+        else if(op===O.rectangle){ const x=co[j],y=co[j+1],w=co[j+2],h=co[j+3]; j+=4; moveTo(x,y); lineTo(x+w,y); lineTo(x+w,y+h); lineTo(x,y+h); sub.closed=true; sub=null; }
+      } }
+    else if(FILLS.has(fn)||STROKES.has(fn)){ const fill=FILLS.has(fn)&&fn!==O.closeStroke;
+      for(const q of subs){ if(q.pts.length<2) continue; if(fill||fn===O.closeStroke) q.closed=true; out.push(q); } subs=[]; sub=null; }
+    else if(fn===O.endPath){ subs=[]; sub=null; }
+    else if(TEXT.has(fn)) warn.text++;
+    else if(IMAGES.has(fn)) warn.image++;
+  }
+  // drop a page-sized background rectangle, which would turn every real part into a hole
+  const v=page.view||[0,0,0,0], pw=(v[2]-v[0])*PT, ph=(v[3]-v[1])*PT;
+  const res=tidyContours(out).filter(c=>{ if(c.circle||!c.closed||c.pts.length!==4) return true; const bb=bboxOf(c.pts);
+    return !(Math.abs((bb.x1-bb.x0)-pw)<0.02&&Math.abs((bb.y1-bb.y0)-ph)<0.02); });
+  if(doc.numPages>1) warn.pages=doc.numPages;
+  try{ await doc.destroy(); }catch(e){}
+  return {contours:res,warn,note:'',guessed:false,kind:'PDF'};
 }
 
 /* ===== Offset (Clipper): d>0 grows the part and shrinks its holes, d<0 the reverse ===== */
@@ -663,9 +930,10 @@ function afterChange(full=true){ geomVer++; if(!getSel()) selId=null; an=analyze
 
 /* ===== Shape transforms ===== */
 function shapeBB(s){ let bb=null; for(const c of contoursOf(s)) bb=bbUnion(bb,c.circle?{x0:c.circle.cx-c.circle.r,y0:c.circle.cy-c.circle.r,x1:c.circle.cx+c.circle.r,y1:c.circle.cy+c.circle.r}:bboxOf(c.pts)); return bb; }
-function mapShape(s,f,rscale){ // f maps [x,y] -> [x,y]
+function mapShape(s,f,rscale,flip){ // f maps [x,y] -> [x,y]; flip = mirror, which reverses arc direction
   if(s.type==='poly'){ s.pts=s.pts.map(f); if(s.rad) s.rad=s.rad.map(r=>r*rscale); }
-  else if(s.type==='import') s.contours=s.contours.map(c=>{ const n={closed:c.closed,pts:c.pts.map(f)}; if(c.k) n.k=c.k; if(c.rad) n.rad=c.rad.map(r=>r*rscale); if(c.circle){ const p=f([c.circle.cx,c.circle.cy]); n.circle={cx:p[0],cy:p[1],r:c.circle.r*rscale}; } return n; });
+  else if(s.type==='import') s.contours=s.contours.map(c=>{ const n={closed:c.closed,pts:c.pts.map(f)}; if(c.k) n.k=c.k; if(c.rad) n.rad=c.rad.map(r=>r*rscale);
+    if(c.verts) n.verts=c.verts.map(v=>{ const p=f([v.x,v.y]); return {x:p[0],y:p[1],b:flip?-v.b:v.b}; }); if(c.circle){ const p=f([c.circle.cx,c.circle.cy]); n.circle={cx:p[0],cy:p[1],r:c.circle.r*rscale}; } return n; });
 }
 function translate(s,dx,dy){
   if(s.type==='rect'){ s.x+=dx; s.y+=dy; } else if(s.type==='circle'){ s.cx+=dx; s.cy+=dy; }
@@ -674,7 +942,7 @@ function translate(s,dx,dy){
 function rotate90(s){ const b=shapeBB(s), cx=(b.x0+b.x1)/2, cy=(b.y0+b.y1)/2;
   if(s.type==='rect'){ const w=s.w; s.w=s.h; s.h=w; s.x=cx-s.w/2; s.y=cy-s.h/2; const rc=rectRadii(s); s.rc=[rc[3],rc[0],rc[1],rc[2]]; delete s.r; }
   else if(s.type!=='circle') mapShape(s,p=>[cx-(p[1]-cy),cy+(p[0]-cx)],1); }
-function mirror(s){ const b=shapeBB(s), cx=(b.x0+b.x1)/2; if(s.type==='poly'||s.type==='import'){ mapShape(s,p=>[2*cx-p[0],p[1]],1);
+function mirror(s){ const b=shapeBB(s), cx=(b.x0+b.x1)/2; if(s.type==='poly'||s.type==='import'){ mapShape(s,p=>[2*cx-p[0],p[1]],1,true);
   if(s.type==='poly'){ s.pts.reverse(); if(s.rad) s.rad.reverse(); } } }
 
 /* ===== Corner fillets ===== */
@@ -897,7 +1165,7 @@ function setTool(t){ tool=t; polyPts=[]; temp=null; op=null;
   stage.style.cursor=cursorFor(); setHint(); draw(); }
 function setHint(){ const m={rect:'Drag from one corner to the opposite corner.',circle:'Drag out from the center.',
   poly:polyPts.length?`${polyPts.length} point${polyPts.length>1?'s':''} — click the first point or press Enter to close, Esc to cancel.`:'Click to place points.',pan:'Drag to pan.'}[tool];
-  $('hint').innerHTML=m?`<span>${m}</span>`:(isSample?'<span>Sample bracket loaded. Press New for a blank table, or Import SVG.</span>':''); }
+  $('hint').innerHTML=m?`<span>${m}</span>`:(isSample?'<span>Sample bracket loaded. Press New for a blank table, or Import file.</span>':''); }
 
 /* ===== Keyboard ===== */
 window.addEventListener('keydown',e=>{
@@ -943,8 +1211,11 @@ function renderPanel(){
     if(small.length) L.push({items:small,t:`${small.length} hole${small.length>1?'s are':' is'} smaller than the ${fmtIn(settings.thickness)}" plate. Plasma holes under plate thickness usually come out tapered or closed; drill ${small.length>1?'them':'it'} instead.`});
     if(an.crossSkipped) L.push({items:[],t:'Too many points to check for crossing outlines. Look the part over before cutting.'});
   }
-  if(lastImport&&lastImport.warn.text) L.push({items:[],t:`${lastImport.warn.text} text object${lastImport.warn.text>1?'s were':' was'} skipped. Convert text to outlines before exporting the SVG.`});
-  if(lastImport&&lastImport.warn.image) L.push({items:[],t:`${lastImport.warn.image} embedded image${lastImport.warn.image>1?'s were':' was'} skipped. Only vector paths can be cut.`});
+  if(lastImport){ const w=lastImport.warn;
+    if(w.text) L.push({items:[],t:`${w.text} text item${w.text>1?'s were':' was'} skipped. Convert text to outlines (Create Outlines in Illustrator, Explode in CAD) and import again.`});
+    if(w.image) L.push({items:[],t:`${w.image} embedded image${w.image>1?'s were':' was'} skipped. Only vector paths can be cut.`});
+    const oth=Object.entries(w.other||{}); if(oth.length) L.push({items:[],t:'Skipped items that can\'t be cut: '+oth.map(([k,n])=>`${n} ${k}${n>1?(/s$/.test(k)?'es':'s'):''}`).join(', ')+'.'});
+    if(w.pages) L.push({items:[],t:`This ${lastImport.kind==='AI'?'file has '+w.pages+' artboards':'PDF has '+w.pages+' pages'}. Only the first was imported.`}); }
   checkItems=L;
   $('checks').innerHTML=L.length?L.map((c,i)=>`<li><span class="pill warn">Fix</span>${c.items.length?`<button type="button" data-check="${i}">${esc(c.t)}</button>`:`<span>${esc(c.t)}</span>`}</li>`).join('')
     : (an&&an.items.length?'<li><span class="pill ok">OK</span><span>Every path is closed and on a layer. Ready to export.</span></li>':'<li><span class="muted">Draw a shape or import an SVG to start.</span></li>');
@@ -1024,7 +1295,7 @@ function bindSettings(){
   const pairs=[['s-thick','thickness',parseFloat],['s-ipm','ipm',parseFloat],['s-out','layerOut',String],['s-in','layerIn',String],['s-step','step',parseFloat],['s-ppi','ppi',String]];
   for(const [id,key,cast] of pairs){ const el=$(id); el.value=String(settings[key]);
     el.addEventListener('change',()=>{ const v=cast(el.value); if(cast===parseFloat&&!(v>=0)){ el.value=settings[key]; return; } settings[key]=v; afterChange();
-      if(key==='ppi'&&lastImport&&lastImport.text) toast('Re-import the SVG to apply the new unit setting.'); }); }
+      if(key==='ppi'&&lastImport&&lastImport.text) toast('Import the file again to apply the new unit setting.'); }); }
   $('s-snap').checked=settings.snap; $('s-snap').addEventListener('change',e=>{ settings.snap=e.target.checked; persist(); });
   $('s-origin').checked=settings.origin; $('s-origin').addEventListener('change',e=>{ settings.origin=e.target.checked; persist(); });
   $('part-name').value=settings.name; $('part-name').addEventListener('change',e=>{ settings.name=e.target.value.trim()||'part'; e.target.value=settings.name; persist(); });
@@ -1032,10 +1303,45 @@ function bindSettings(){
 
 /* ===== Import ===== */
 let lastImport=null;
-function doImport(text,name){
-  let res; try{ res=importSVG(text,settings.ppi); }catch(err){ toast(err.message||'Could not read that SVG.'); return; }
-  if(!res.contours.length){ toast('No cuttable paths found in that SVG.'); return; }
-  lastImport={warn:res.warn,text:true};
+/* pdf.js loads only when a PDF or .ai arrives. Its worker script runs on the page itself, since the
+   artifact frame can't start a worker from a CDN. */
+const PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+let pdfReady=null;
+function loadScript(src){ return new Promise((res,rej)=>{ const el=document.createElement('script'); el.src=src; el.onload=res; el.onerror=rej; document.head.appendChild(el); }); }
+function loadPDFJS(){
+  if(window.pdfjsLib&&window.pdfjsWorker) return Promise.resolve(window.pdfjsLib);
+  if(!pdfReady) pdfReady=loadScript(PDFJS+'pdf.min.js').then(()=>loadScript(PDFJS+'pdf.worker.min.js')).then(()=>window.pdfjsLib)
+    .catch(()=>{ pdfReady=null; throw new Error('The PDF reader could not load. Check your internet connection and try again.'); });
+  return pdfReady;
+}
+function sniff(b,name){
+  const head=latin1(b.subarray(0,4096)), ext=((name||'').match(/\.([a-z0-9]+)$/i)||[])[1]?.toLowerCase();
+  if(head.includes('%PDF-')) return 'pdf';
+  if((b[0]===0xC5&&b[1]===0xD0&&b[2]===0xD3&&b[3]===0xC6)||/^%!/.test(head)) return 'ps';
+  if(ext==='svg'||/<svg[\s>]/i.test(head)) return 'svg';
+  if(ext==='dxf'||/^AutoCAD Binary DXF/.test(head)||/(^|\n)\s*0\s*\r?\n\s*SECTION\s*\r?\n/.test(head)) return 'dxf';
+  if(ext==='pdf') return 'pdf'; if(ext==='eps'||ext==='ai'||ext==='ps') return 'ps';
+  return null;
+}
+const KIND_NAME={svg:'SVG',dxf:'DXF',pdf:'PDF',ps:'EPS'};
+async function importFile(f){
+  const bytes=new Uint8Array(await f.arrayBuffer()), kind=sniff(bytes,f.name);
+  if(!kind){ toast('ArcRight reads SVG, DXF, PDF, EPS and AI files. That file is none of those.'); return; }
+  let res;
+  try{
+    if(kind==='svg') res=importSVG(new TextDecoder().decode(bytes),settings.ppi);
+    else if(kind==='dxf') res=importDXF(new TextDecoder().decode(bytes),settings.ppi);
+    else if(kind==='ps') res=importPS(bytes);
+    else { toast('Reading '+f.name+'…'); const lib=await loadPDFJS(); res=await importPDF(bytes,lib);
+      if(/\.ai$/i.test(f.name)) res.kind='AI'; }
+  }catch(err){ const msg=err&&err.message; toast(msg&&err.constructor===Error&&msg.length<160?msg:`Could not read that ${KIND_NAME[kind]} file. Try saving it again as PDF, SVG or DXF.`); return; }
+  if(/\.ai$/i.test(f.name)&&kind==='ps') res.kind='AI';
+  doImport(res,f.name);
+}
+function doImport(res,name){
+  if(!res.contours.length){ toast(`No cuttable paths found in that ${res.kind||''} file.`.replace('  ',' ')
+    +(res.warn.text?' It only has text. Convert text to outlines first.':'')); return; }
+  lastImport={warn:res.warn,kind:res.kind,text:true};
   const sh={type:'import',name:name||'artwork',contours:res.contours};
   const b=shapeBB(sh); let dx=-b.x0, dy=-b.y0;
   if(!isSample && shapes.length){ const all=an&&an.bb; if(all){ dx=all.x1+1-b.x0; dy=all.y0-b.y0; } }
@@ -1043,17 +1349,19 @@ function doImport(text,name){
   translate(sh,dx,dy);
   addShape(sh); fit();
   const w=b.x1-b.x0, h=b.y1-b.y0;
-  toast(`Imported ${res.contours.length} paths at ${fmtIn(w)} × ${fmtIn(h)} in`+(res.unitsFromFile?'.':` (read as ${res.ppi===25.4?'millimeters':res.ppi===1?'inches':res.ppi+' units per inch'}). Wrong size? Type the width in Selection.`));
-  if(name){ const base=name.replace(/\.svg$/i,''); settings.name=base; $('part-name').value=base; persist(); }
+  toast(`Imported ${res.contours.length} path${res.contours.length===1?'':'s'} from ${res.kind} at ${fmtIn(w)} × ${fmtIn(h)} in`
+    +(res.note?` (${res.note})`:'')+(res.guessed?'. Wrong size? Type the width in Selection.':'.'));
+  if(name){ const base=name.replace(/\.(svg|dxf|pdf|eps|ai|ps)$/i,''); settings.name=base; $('part-name').value=base; persist(); }
 }
-$('file-in').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!f) return; doImport(await f.text(),f.name); e.target.value=''; });
+$('file-in').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!f) return; e.target.value=''; await importFile(f); });
 $('lbl-import').addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('file-in').click(); } });
 let dragDepth=0;
 stage.addEventListener('dragenter',e=>{ e.preventDefault(); dragDepth++; $('drop').hidden=false; });
 stage.addEventListener('dragover',e=>e.preventDefault());
 stage.addEventListener('dragleave',()=>{ if(--dragDepth<=0){ dragDepth=0; $('drop').hidden=true; } });
-stage.addEventListener('drop',async e=>{ e.preventDefault(); dragDepth=0; $('drop').hidden=true; const f=e.dataTransfer.files[0]; if(f) doImport(await f.text(),f.name); });
-window.addEventListener('paste',e=>{ const t=e.target; if(t&&(t.tagName==='INPUT')) return; const s=e.clipboardData&&e.clipboardData.getData('text/plain'); if(s&&/<svg[\s>]/i.test(s)){ e.preventDefault(); doImport(s,null); } });
+stage.addEventListener('drop',async e=>{ e.preventDefault(); dragDepth=0; $('drop').hidden=true; const f=e.dataTransfer.files[0]; if(f) await importFile(f); });
+window.addEventListener('paste',e=>{ const t=e.target; if(t&&(t.tagName==='INPUT')) return; const s=e.clipboardData&&e.clipboardData.getData('text/plain'); if(s&&/<svg[\s>]/i.test(s)){ e.preventDefault();
+  let res; try{ res=importSVG(s,settings.ppi); }catch(err){ toast(err.message); return; } doImport(res,null); } });
 
 /* ===== Export ===== */
 function currentDXF(){ const a=analyze(shapes,{thickness:settings.thickness,full:false}); if(!a.items.length) return null;

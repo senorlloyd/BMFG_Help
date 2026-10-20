@@ -200,6 +200,59 @@ details.adv textarea { width: 100%; min-height: 84px; font: 12px/1.45 var(--f-mo
 .modal-card textarea { width: 100%; min-height: 160px; font: 11.5px/1.4 var(--f-mono); border: 1px solid var(--line); border-radius: 5px; background: var(--panel-2); padding: 8px; }
 
 
+
+/* take-it-to-the-shop screen */
+.ship { position: fixed; inset: 0; z-index: 45; background: rgba(10, 14, 22, .5); overflow: auto; display: flex;
+  padding-block: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.ship-card { margin: auto; width: min(640px, 100%); background: var(--panel); border-radius: 12px; box-shadow: 0 24px 60px rgba(0, 0, 0, .3); overflow: hidden; }
+.sh-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; padding: 18px 20px 6px; }
+.sh-head h2 { margin: 4px 0 0; font: 600 28px/1.05 var(--f-display); }
+.sh-x { width: 34px; height: 34px; }
+.sh-trip { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); padding: 18px 20px 14px; margin: 8px 20px 0; background: var(--panel-2); border-radius: 10px; }
+.sh-line { position: absolute; left: calc(20px + (100% - 40px) / 6); right: calc(20px + (100% - 40px) / 6); top: 46px; height: 0; border-top: 2px dashed var(--grid-major); }
+.sh-line i { position: absolute; left: 0; top: -2px; height: 2px; width: 0; background: var(--accent); transition: width .9s ease; }
+.sh-trip[data-stage="saved"] .sh-line i { width: 50%; }
+.sh-node { position: relative; z-index: 1; display: grid; justify-items: center; gap: 6px; color: var(--muted); }
+.sh-node svg { width: 56px; height: 56px; padding: 8px; border-radius: 50%; background: var(--panel); border: 2px solid var(--line); box-sizing: border-box; }
+.sh-node span { font: 600 12px var(--f-display); letter-spacing: .06em; text-transform: uppercase; }
+.sh-node.n1 { color: var(--ink); }
+.sh-ok { position: absolute; top: -4px; left: calc(50% + 14px); width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-size: 13px; opacity: 0; transform: scale(.4); transition: opacity .25s .8s, transform .25s .8s; }
+.sh-trip[data-stage="saved"] .n2 { color: var(--accent); }
+.sh-trip[data-stage="saved"] .n2 svg { border-color: var(--accent); }
+.sh-trip[data-stage="saved"] .sh-ok { opacity: 1; transform: none; }
+.sh-trip[data-stage="saved"] .n3 svg { animation: shPulse 1.6s 1.1s ease-in-out 3; }
+@keyframes shPulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); border-color: var(--line); } 50% { box-shadow: 0 0 0 8px var(--accent-soft); border-color: var(--accent); } }
+.sh-token { position: absolute; z-index: 2; top: 8px; left: calc(20px + (100% - 40px) / 6 - 30px); width: 26px; height: 32px; transition: left .9s ease, transform .9s ease; }
+.sh-token svg { width: 26px; height: 32px; display: block; }
+.sh-token text { font: 700 7px var(--f-mono); fill: var(--accent); }
+.sh-trip[data-stage="start"] .sh-token { animation: shBob 1.4s ease-in-out infinite; }
+@keyframes shBob { 50% { transform: translateY(-4px); } }
+.sh-trip[data-stage="saved"] .sh-token { left: calc(50% - 30px); }
+.sh-trip[data-stage="downloads"] .sh-token svg path { stroke: var(--warn); }
+.sh-trip[data-stage="downloads"] .sh-token text { fill: var(--warn); }
+.sh-body { padding: 16px 20px 6px; display: grid; gap: 16px; }
+.sh-step { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; }
+.sh-num { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--chrome); color: var(--chrome-ink); font: 600 14px var(--f-mono); }
+.sh-main { display: grid; gap: 9px; min-width: 0; }
+.sh-main h3 { margin: 4px 0 0; font: 600 20px var(--f-display); }
+.sh-main .note { margin: 0; font-size: 13.5px; line-height: 1.5; }
+.sh-file { margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font: 500 14px var(--f-mono); }
+.sh-file svg { width: 18px; height: 18px; color: var(--accent); flex: none; }
+.sh-file b { overflow-wrap: anywhere; }
+.sh-file span { font: 12px var(--f-body); color: var(--muted); }
+.btn-primary.done { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); }
+.sh-status { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ink); }
+.sh-status:empty { display: none; }
+.sh-status.warn { color: var(--warn); background: var(--warn-soft); padding: 7px 10px; border-radius: 6px; }
+.sh-list { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; line-height: 1.45; }
+.sh-list li::marker { font: 600 13px var(--f-mono); color: var(--muted); }
+.sh-photo { margin: 2px 0 0; display: flex; gap: 7px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.sh-photo svg { width: 16px; height: 16px; flex: none; }
+.sh-foot { display: flex; justify-content: flex-end; padding: 12px 20px 18px; }
+@media (prefers-reduced-motion: reduce) { .sh-token, .sh-line i, .sh-ok { transition: none; } .sh-trip .sh-token, .sh-trip .n3 svg { animation: none !important; } }
+@media (max-width: 520px) { .sh-node svg { width: 46px; height: 46px; } .sh-line { top: 41px; } .sh-node span { font-size: 10.5px; } .sh-head h2 { font-size: 24px; } }
+
 /* setup wizard */
 .wiz { position: fixed; inset: 0; z-index: 60; overflow: auto; display: flex; flex-direction: column;
   background-color: var(--workspace);
@@ -418,6 +471,7 @@ details.adv textarea { width: 100%; min-height: 84px; font: 12px/1.45 var(--f-mo
   <input type="file" id="fileOpen" accept=".json,.routeready,application/json" hidden>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div class="modal" id="modal" hidden><div class="modal-card" id="modalCard"></div></div>
+  <div class="ship" id="ship" hidden><div class="ship-card" id="shipCard" role="dialog" aria-modal="true" aria-label="Take it to the shop"></div></div>
   <div class="wiz" id="wiz" hidden><div class="wiz-card" id="wizCard" role="dialog" aria-modal="true" aria-label="Project setup"></div></div>
 </div>
 
@@ -2015,7 +2069,7 @@ document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click'
 
 window.addEventListener('keydown', e => {
   const tag = (e.target.tagName || '').toLowerCase();
-  if (tag === 'input' || tag === 'textarea' || tag === 'select' || !$('#modal').hidden || !$('#wiz').hidden) return;
+  if (tag === 'input' || tag === 'textarea' || tag === 'select' || !$('#modal').hidden || !$('#wiz').hidden || !$('#ship').hidden) return;
   const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
   if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); return; }
   if (mod && k === 'y') { e.preventDefault(); doRedo(); return; }
@@ -2183,16 +2237,15 @@ async function saveFile(name, text) {
     let dl = null;
     try { dl = await window.claude.use('downloads'); } catch (e) { dl = null; }
     if (dl) {
-      try { await dl.save({ filename: name, data: text }); toast('Saved ' + name); return; }
+      try { await dl.save({ filename: name, data: text }); toast('Saved ' + name); return 'saved'; }
       catch (err) {
-        if (err && err.code === 'declined') return;
+        if (err && err.code === 'declined') return 'declined';
         if (err && err.code === 'rejected_extension') {
-          try { await dl.save({ filename: name + '.txt', data: text }); toast(`Saved as ${name}.txt. Remove ".txt" from the name before loading it on the ShopBot.`); }
-          catch (e2) { if (!e2 || e2.code !== 'declined') toast('Saving files is blocked in this view. Use "Copy .sbp code" instead.'); }
-          return;
+          try { await dl.save({ filename: name + '.txt', data: text }); toast(`Saved as ${name}.txt. Remove ".txt" from the name before loading it on the ShopBot.`); return 'saved'; }
+          catch (e2) { if (!e2 || e2.code !== 'declined') toast('Saving files is blocked in this view. Use "Copy .sbp code" instead.'); return 'failed'; }
         }
         toast('Saving files is blocked in this view. Use "Copy .sbp code" instead.');
-        return;
+        return 'failed';
       }
     }
   }
@@ -2201,6 +2254,7 @@ async function saveFile(name, text) {
   a.download = name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   toast('Downloaded ' + name);
+  return 'downloaded';
 }
 function currentJob() { if (!job) runJob(); return job; }
 function exportCheck() {
@@ -2209,7 +2263,7 @@ function exportCheck() {
   return j;
 }
 const sbpText = j => RR.toGcode(P, j, { header: P.machine.header, footer: P.machine.footer });
-$('#btnExport').addEventListener('click', () => { const j = exportCheck(); if (j) saveFile(safeName() + '.sbp', sbpText(j)); });
+$('#btnExport').addEventListener('click', () => { const j = exportCheck(); if (j) openShip(j); });
 $('#btnNc').addEventListener('click', () => { const j = exportCheck(); if (j) saveFile(safeName() + '.nc', RR.toGcode(P, j, {})); });
 $('#btnCopy').addEventListener('click', () => {
   const j = exportCheck(); if (!j) return;
@@ -2528,6 +2582,102 @@ function update3D() {
   } else P3.bit.visible = false;
   render3D();
 }
+
+// ---------- "Take it to the shop" export screen ----------
+// Teachers: edit these steps to match your shop. These words are filled in for each job:
+// {file} file name · {bit} bit size · {zero} where 0,0 is · {wood} wood size · {thick} thickness
+const SHOP_STEPS = [
+  'On the ShopBot computer, open your Google Drive and get <b>{file}</b> onto that computer.',
+  'Fasten your {wood} wood to the bed. Keep clamps and screws away from the cut lines.',
+  'Put the <b>{bit}</b> bit in the router.',
+  'Move the bit to the <b>{zero}</b> of the wood and zero X and Y.',
+  'Zero Z on top of the wood ({thick} thick) with the zero plate.',
+  'In the ShopBot software, choose <b>Cut Part</b> and open <b>{file}</b>.',
+  'Safety glasses on and dust collection on, then start the cut.'
+];
+const canPick = () => typeof window.showSaveFilePicker === 'function' && window.self === window.top;
+let shipState = null;
+function fillStep(t, d) { return t.replace(/\{(\w+)\}/g, (m, k) => d[k] != null ? d[k] : m); }
+function openShip(j) {
+  const name = safeName() + '.sbp';
+  shipState = { name, text: sbpText(j), stage: 'start', savedAs: null };
+  const m = P.material;
+  const d = {
+    file: esc(name), bit: fracIn(P.bit.dia) + ' in', zero: P.zero === 'center' ? 'center' : 'front-left corner',
+    wood: `${fmtN(m.w)} × ${fmtN(m.h)} in`, thick: `${fmtN(m.t)} in`
+  };
+  const icon = (p) => `<svg viewBox="0 0 48 48" aria-hidden="true">${p}</svg>`;
+  $('#shipCard').innerHTML = `
+    <header class="sh-head">
+      <div><span class="eyebrow">Your cut file is ready</span><h2>Take it to the shop</h2></div>
+      <button class="iconbtn sh-x" data-ship="close" title="Close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </header>
+    <div class="sh-trip" id="shTrip" data-stage="start" aria-hidden="true">
+      <div class="sh-line"><i></i></div>
+      <div class="sh-node n1">${icon('<rect x="9" y="12" width="30" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M5 36h38" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>')}<span>This computer</span></div>
+      <div class="sh-node n2">${icon('<path d="M15 34h19a8 8 0 0 0 1-15.9A11 11 0 0 0 14 20a7 7 0 0 0 1 14z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>')}<span>Google Drive</span><b class="sh-ok">✓</b></div>
+      <div class="sh-node n3">${icon('<path d="M6 38h36M10 38V14M38 38V14M8 14h32" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><rect x="20" y="14" width="8" height="10" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M24 24v6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M14 34h20" stroke="var(--wood-deep)" stroke-width="3"/>')}<span>ShopBot</span></div>
+      <div class="sh-token"><svg viewBox="0 0 26 32"><path d="M2 2h15l7 7v21H2z" fill="var(--panel)" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/><path d="M17 2v7h7" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/><text x="13" y="24" text-anchor="middle">SBP</text></svg></div>
+    </div>
+    <div class="sh-body">
+      <section class="sh-step">
+        <span class="sh-num">1</span>
+        <div class="sh-main">
+          <h3>Save it to your Google Drive</h3>
+          <p class="sh-file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg><b>${esc(name)}</b><span>${fmtTime(j.minutes + 2 / 60)} cut</span></p>
+          <p class="note">${canPick()
+            ? 'In the save window, pick your <b>Google Drive</b> folder. Files left in Downloads stay on this computer and won’t be in the shop.'
+            : 'Your browser puts the file in <b>Downloads</b>. After it saves, drag it into your <b>Google Drive</b> so you can get it in the shop.'}</p>
+          <div class="row"><button class="btn-primary" data-ship="save" id="shSave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>${canPick() ? 'Save file…' : 'Download file'}</button>
+            <button class="btn" data-ship="project" title="Save the design too, so you can change it later">Also save the project</button></div>
+          <p class="sh-status" id="shStatus" role="status"></p>
+        </div>
+      </section>
+      <section class="sh-step">
+        <span class="sh-num">2</span>
+        <div class="sh-main">
+          <h3>At the ShopBot</h3>
+          <ol class="sh-list">${SHOP_STEPS.map(s => `<li>${fillStep(s, d)}</li>`).join('')}</ol>
+          <p class="sh-photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take a photo of this list to bring to the shop.</p>
+        </div>
+      </section>
+    </div>
+    <footer class="sh-foot"><button class="btn" data-ship="close">Done</button></footer>`;
+  $('#ship').hidden = false;
+  $('#shSave').focus({ preventScroll: true });
+}
+function setShipStage(stage, msg, warn) {
+  shipState.stage = stage;
+  $('#shTrip').dataset.stage = stage;
+  const s = $('#shStatus'); s.innerHTML = msg || ''; s.classList.toggle('warn', !!warn);
+}
+async function shipSave() {
+  const st = shipState; if (!st) return;
+  if (canPick()) {
+    try {
+      const h = await window.showSaveFilePicker({ id: 'routeready-sbp', suggestedName: st.name, types: [{ description: 'ShopBot part file', accept: { 'text/plain': ['.sbp'] } }] });
+      const w = await h.createWritable(); await w.write(st.text); await w.close();
+      setShipStage('saved', `Saved as <b>${esc(h.name)}</b>. If you picked your Google Drive folder, it will be waiting in the shop. Next time the save window opens in the same folder.`);
+      $('#shSave').classList.add('done');
+      return;
+    } catch (e) {
+      if (e && e.name === 'AbortError') { setShipStage('start', 'Not saved yet. Click <b>Save file…</b> and pick your Google Drive folder.', true); return; }
+    }
+  }
+  const r = await saveFile(st.name, st.text);
+  if (r === 'saved') setShipStage('saved', `Saved <b>${esc(st.name)}</b>. Make sure it ends up in your Google Drive before you head to the shop.`);
+  else if (r === 'downloaded') setShipStage('downloads', `<b>${esc(st.name)}</b> is in this computer's <b>Downloads</b> folder. Open Google Drive and drag it in now, or it won't be in the shop.`, true);
+}
+function closeShip() { $('#ship').hidden = true; $('#shipCard').innerHTML = ''; shipState = null; }
+$('#ship').addEventListener('click', e => {
+  if (e.target.id === 'ship') { closeShip(); return; }
+  const b = e.target.closest('[data-ship]'); if (!b) return;
+  const a = b.dataset.ship;
+  if (a === 'close') closeShip();
+  else if (a === 'save') shipSave();
+  else if (a === 'project') saveProject();
+});
+$('#ship').addEventListener('keydown', e => { if (e.key === 'Escape') closeShip(); });
 
 // ---------- setup wizard ----------
 const WZ_STEPS = [

@@ -110,6 +110,14 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
 .unit input{width:100%;padding-right:26px}
 .unit i{position:absolute;right:8px;top:50%;transform:translateY(-50%);font:400 12px var(--f-mono);color:var(--muted);font-style:normal;pointer-events:none}
 .actions{display:flex;flex-wrap:wrap;gap:6px}
+.arrange{display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.arr-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.arr-row button{padding:7px 9px;font-size:12px}
+.icon-btn{width:34px;height:32px;padding:0!important;justify-content:center}
+.icon-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.arr-row .sep{width:1px;height:22px;background:var(--line);margin:0 2px}
+.unit.ang{width:6.5em}
+.muted.tiny{font-size:12px;line-height:1.4}
 .offset-box{display:flex;flex-direction:column;gap:10px;margin-top:12px;padding:12px;border:1px dashed var(--accent);border-radius:6px}
 .actions button{padding:7px 9px;font-size:12px}
 .muted{color:var(--muted);font-size:13px;line-height:1.45;margin:0}
@@ -204,7 +212,7 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
         <div class="row"><label for="s-origin">Put bottom-left corner at 0,0 on export</label><input type="checkbox" id="s-origin"></div>
       </section>
       <section class="sec">
-        <p class="keys"><kbd>Del</kbd> delete · <kbd>Ctrl D</kbd> duplicate · arrows nudge · <kbd>Ctrl Z</kbd> undo · wheel to zoom · <kbd>Space</kbd>-drag to pan · <kbd>Esc</kbd> cancel</p>
+        <p class="keys">Shift-click or drag a box to select several · <kbd>Ctrl A</kbd> all · <kbd>[</kbd> <kbd>]</kbd> rotate 90° (with <kbd>Shift</kbd> 15°) · <kbd>Shift H</kbd> <kbd>Shift V</kbd> flip · <kbd>Del</kbd> delete · <kbd>Ctrl D</kbd> duplicate · arrows nudge · <kbd>Ctrl Z</kbd> undo · wheel to zoom · <kbd>Space</kbd>-drag to pan · <kbd>Esc</kbd> cancel</p>
       </section>
     </aside>
   </div>
@@ -897,7 +905,7 @@ function zipOne(name,data){
 /* ===== State ===== */
 const $=id=>document.getElementById(id);
 const STORE='plasmapath-v1';
-let shapes=[], nextId=1, selId=null, tool='select';
+let shapes=[], nextId=1, selIds=[], tool='select';
 const settings={thickness:0.25,ipm:100,snap:true,step:0.125,ppi:'auto',layerOut:'Outside',layerIn:'Inside',origin:true,name:'bracket'};
 let view={ox:60,oy:400,z:60}; // screen px of world origin, px per inch
 let an=null, undoStack=[], redoStack=[], isSample=false;
@@ -925,8 +933,12 @@ function checkpoint(){ undoStack.push(JSON.stringify(shapes)); if(undoStack.leng
 function undo(){ if(!undoStack.length) return; redoStack.push(JSON.stringify(shapes)); shapes=JSON.parse(undoStack.pop()); afterChange(); }
 function redo(){ if(!redoStack.length) return; undoStack.push(JSON.stringify(shapes)); shapes=JSON.parse(redoStack.pop()); afterChange(); }
 function syncUndo(){ $('btn-undo').disabled=!undoStack.length; $('btn-redo').disabled=!redoStack.length; }
-function getSel(){ return shapes.find(s=>s.id===selId)||null; }
-function afterChange(full=true){ geomVer++; if(!getSel()) selId=null; an=analyze(shapes,{thickness:settings.thickness,full}); syncUndo(); renderPanel(); persist(); draw(); }
+/* selection: one or many shapes. getSel() is the single selected shape (corner dots, offset, exact size). */
+function getSels(){ const set=new Set(selIds); return shapes.filter(s=>set.has(s.id)); }
+function getSel(){ return selIds.length===1?shapes.find(s=>s.id===selIds[0])||null:null; }
+function setSel(ids){ selIds=[...new Set(ids)]; }
+function selBB(){ let bb=null; for(const s of getSels()) bb=bbUnion(bb,shapeBB(s)); return bb; }
+function afterChange(full=true){ geomVer++; { const have=new Set(shapes.map(s=>s.id)); selIds=selIds.filter(id=>have.has(id)); } an=analyze(shapes,{thickness:settings.thickness,full}); syncUndo(); renderPanel(); persist(); draw(); }
 
 /* ===== Shape transforms ===== */
 function shapeBB(s){ let bb=null; for(const c of contoursOf(s)) bb=bbUnion(bb,c.circle?{x0:c.circle.cx-c.circle.r,y0:c.circle.cy-c.circle.r,x1:c.circle.cx+c.circle.r,y1:c.circle.cy+c.circle.r}:bboxOf(c.pts)); return bb; }
@@ -939,11 +951,27 @@ function translate(s,dx,dy){
   if(s.type==='rect'){ s.x+=dx; s.y+=dy; } else if(s.type==='circle'){ s.cx+=dx; s.cy+=dy; }
   else mapShape(s,p=>[p[0]+dx,p[1]+dy],1);
 }
-function rotate90(s){ const b=shapeBB(s), cx=(b.x0+b.x1)/2, cy=(b.y0+b.y1)/2;
-  if(s.type==='rect'){ const w=s.w; s.w=s.h; s.h=w; s.x=cx-s.w/2; s.y=cy-s.h/2; const rc=rectRadii(s); s.rc=[rc[3],rc[0],rc[1],rc[2]]; delete s.r; }
-  else if(s.type!=='circle') mapShape(s,p=>[cx-(p[1]-cy),cy+(p[0]-cx)],1); }
-function mirror(s){ const b=shapeBB(s), cx=(b.x0+b.x1)/2; if(s.type==='poly'||s.type==='import'){ mapShape(s,p=>[2*cx-p[0],p[1]],1,true);
-  if(s.type==='poly'){ s.pts.reverse(); if(s.rad) s.rad.reverse(); } } }
+/* Rigid transforms (rotation or reflection) through matrix M. A rectangle stays a rectangle when it lands
+   square to the grid, with each corner's fillet following its corner; at any other angle it becomes a
+   polygon that keeps its fillets. Imported true arcs keep their arcs (reflection reverses their direction). */
+function transformShape(s,M){
+  const det=M[0]*M[3]-M[1]*M[2], flip=det<0, T=p=>mapp(M,p[0],p[1]);
+  if(s.type==='circle'){ const c=T([s.cx,s.cy]); s.cx=c[0]; s.cy=c[1]; return s; }
+  if(s.type==='rect'){
+    const corners=[[s.x,s.y],[s.x+s.w,s.y],[s.x+s.w,s.y+s.h],[s.x,s.y+s.h]].map(T), rc=rectRadii(s);
+    const square=(Math.abs(M[1])<1e-9&&Math.abs(M[2])<1e-9)||(Math.abs(M[0])<1e-9&&Math.abs(M[3])<1e-9);
+    if(square){ const b=bboxOf(corners), nrc=[0,0,0,0];
+      corners.forEach((p,i)=>{ const right=p[0]>(b.x0+b.x1)/2, top=p[1]>(b.y0+b.y1)/2; nrc[top?(right?2:3):(right?1:0)]=rc[i]; });
+      s.x=b.x0; s.y=b.y0; s.w=b.x1-b.x0; s.h=b.y1-b.y0; s.rc=nrc; delete s.r; return s; }
+    const p={type:'poly',closed:true,pts:corners,id:s.id}; if(rc.some(r=>r>0)) p.rad=rc.slice(); if(s.label) p.label=s.label;
+    for(const k of Object.keys(s)) delete s[k]; return Object.assign(s,p);
+  }
+  mapShape(s,T,1,flip); return s;
+}
+function rotM(deg,cx,cy){ const r=deg*Math.PI/180; let c=Math.cos(r), sn=Math.sin(r);
+  for(const v of [0,1,-1]){ if(Math.abs(c-v)<1e-12) c=v; if(Math.abs(sn-v)<1e-12) sn=v; }
+  return [c,sn,-sn,c,cx-c*cx+sn*cy,cy-sn*cx-c*cy]; }
+function flipM(axis,cx,cy){ return axis==='h'?[-1,0,0,1,2*cx,0]:[1,0,0,-1,0,2*cy]; }
 
 /* ===== Corner fillets ===== */
 let geomVer=0, cornerCache={s:null,ver:-1,list:[]};
@@ -985,6 +1013,10 @@ function visibleHandles(){
     out.push({c,hx,hy}); if(out.length>=400) break; }
   return out;
 }
+/* rotate handle: a knob above the selection's box, drag to rotate (Shift snaps to 15°) */
+function rotHandle(){ if(tool!=='select'||!selIds.length) return null; const b=selBB(); if(!b) return null;
+  const [x0,y0]=toScreen(b.x0,b.y1), [x1]=toScreen(b.x1,b.y0); const hx=(x0+x1)/2, top=y0-6, hy=top-26;
+  return {hx,hy,top}; }
 function handleAt(sp){ let best=null, bd=81; for(const h of visibleHandles()){ const d=(h.hx-sp[0])**2+(h.hy-sp[1])**2; if(d<bd){ bd=d; best=h.c; } } return best; }
 function scaleTo(s,w,h){ // uniform scale about lower-left of bbox
   const b=shapeBB(s), bw=b.x1-b.x0, bh=b.y1-b.y0; let k=1;
@@ -1031,22 +1063,33 @@ function paint(){
   ctx.moveTo(osx,osy); ctx.lineTo(osx+26,osy); ctx.moveTo(osx,osy); ctx.lineTo(osx,osy-26); ctx.stroke();
 
   // contours
-  const sel=getSel();
+  const selSet=new Set(selIds);
   if(an) for(const it of an.items){
-    const isSel=sel&&it.s===sel, warnIt=it.flags.length>0;
+    const isSel=selSet.has(it.s.id), warnIt=it.flags.length>0;
     ctx.beginPath(); tracePath(it.c);
     if(warnIt){ ctx.strokeStyle=C.warn; ctx.globalAlpha=.28; ctx.lineWidth=isSel?9:7; ctx.setLineDash([]); ctx.stroke(); ctx.globalAlpha=1; }
     ctx.strokeStyle=it.layer==='inside'?C['cut-in']:C['cut-out']; ctx.lineWidth=isSel?2.6:1.6;
     ctx.setLineDash(it.c.closed?[]:[6,4]); ctx.stroke(); ctx.setLineDash([]);
   }
   // selection box + dimensions
-  if(sel){ const b=shapeBB(sel); if(b){ const [x0,y0]=toScreen(b.x0,b.y1), [x1,y1]=toScreen(b.x1,b.y0);
+  if(selIds.length){ const b=selBB(); if(b){ const [x0,y0]=toScreen(b.x0,b.y1), [x1,y1]=toScreen(b.x1,b.y0);
     ctx.strokeStyle=C.ink; ctx.lineWidth=1; ctx.setLineDash([4,3]); ctx.strokeRect(x0-6.5,y0-6.5,x1-x0+13,y1-y0+13); ctx.setLineDash([]);
     ctx.fillStyle=C.ink; for(const [hx,hy] of [[x0-6,y0-6],[x1+6,y0-6],[x0-6,y1+6],[x1+6,y1+6]]) ctx.fillRect(hx-3,hy-3,6,6);
-    const label=fmtIn(b.x1-b.x0)+' × '+fmtIn(b.y1-b.y0)+' in';
+    const rh=rotHandle(); if(rh&&tool==='select'){ ctx.strokeStyle=C.ink; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(rh.hx,rh.top); ctx.lineTo(rh.hx,rh.hy+7); ctx.stroke();
+      ctx.beginPath(); ctx.arc(rh.hx,rh.hy,7,0,TAU); ctx.fillStyle=op&&op.type==='rotate'?C.accent:C.panel; ctx.fill(); ctx.lineWidth=1.4; ctx.stroke();
+      ctx.beginPath(); ctx.arc(rh.hx,rh.hy,3.4,-Math.PI*0.9,Math.PI*0.45); ctx.lineWidth=1.3; ctx.stroke(); }
+    if(op&&op.type==='rotate'&&op.moved){ const [cx,cy]=toScreen(op.c[0],op.c[1]); ctx.strokeStyle=C.accent; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(cx-6,cy); ctx.lineTo(cx+6,cy); ctx.moveTo(cx,cy-6); ctx.lineTo(cx,cy+6); ctx.stroke();
+      const t=(op.ang>0?'+':'')+op.ang+'°'; ctx.font='500 11px "IBM Plex Mono", monospace'; const tw=ctx.measureText(t).width, lx=op.cur[0]+14, ly=op.cur[1]-28;
+      ctx.fillStyle=C.ink; ctx.fillRect(lx,ly,tw+12,19); ctx.fillStyle=C.panel; ctx.textBaseline='middle'; ctx.fillText(t,lx+6,ly+10); }
+    const label=(selIds.length>1?selIds.length+' parts · ':'')+fmtIn(b.x1-b.x0)+' × '+fmtIn(b.y1-b.y0)+' in';
     ctx.font='500 11px "IBM Plex Mono", monospace'; const tw=ctx.measureText(label).width;
     let lx=(x0+x1)/2-tw/2-6, ly=y1+14; if(ly+20>H) ly=y0-34;
     ctx.fillStyle=C.ink; ctx.fillRect(lx,ly,tw+12,19); ctx.fillStyle=C.panel; ctx.textBaseline='middle'; ctx.fillText(label,lx+6,ly+10); } }
+  // box select: drag right for parts fully inside, drag left for anything the box touches
+  if(op&&op.type==='box'){ const x=Math.min(op.a[0],op.b[0]), y=Math.min(op.a[1],op.b[1]), w=Math.abs(op.b[0]-op.a[0]), h=Math.abs(op.b[1]-op.a[1]);
+    ctx.fillStyle=C.accent; ctx.globalAlpha=.07; ctx.fillRect(x,y,w,h); ctx.globalAlpha=1;
+    ctx.strokeStyle=C.accent; ctx.lineWidth=1; ctx.setLineDash(op.b[0]<op.a[0]?[5,4]:[]); ctx.strokeRect(x+.5,y+.5,w,h); ctx.setLineDash([]); }
   // offset preview
   if(offsetPreview){ ctx.strokeStyle=C.accent; ctx.lineWidth=1.8; ctx.setLineDash([6,4]); ctx.beginPath();
     for(const c of offsetPreview) tracePath(c); ctx.stroke(); ctx.setLineDash([]); }
@@ -1107,10 +1150,17 @@ cv.addEventListener('pointerdown',e=>{
   if(pointers.size===2){ const [a,b]=[...pointers.values()]; pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1]),m:[(a[0]+b[0])/2,(a[1]+b[1])/2]}; op=null; temp=null; draw(); return; }
   const w=toWorld(sp[0],sp[1]);
   if(e.button===1||e.button===2||tool==='pan'||spaceDown){ op={type:'pan',sp,ox:view.ox,oy:view.oy}; stage.style.cursor='grabbing'; return; }
+  if(tool==='select'&&selIds.length){ const rh=rotHandle();
+    if(rh&&Math.hypot(rh.hx-sp[0],rh.hy-sp[1])<=10){ const b=selBB(), c=[(b.x0+b.x1)/2,(b.y0+b.y1)/2];
+      op={type:'rotate',c,a0:Math.atan2(w[1]-c[1],w[0]-c[0]),idx:getSels().map(s=>shapes.indexOf(s)),snap:getSels().map(s=>JSON.stringify(s)),ang:0,moved:false,sp}; return; } }
   if(tool==='select'&&getSel()){ const h=handleAt(sp);
     if(h){ op={type:'corner',h,all:e.shiftKey,s0:(w[0]-h.P[0])*h.bis[0]+(w[1]-h.P[1])*h.bis[1],r0:h.r,moved:false,lastR:h.r,sp}; return; } }
-  if(tool==='select'){ const hit=hitTest(w); selId=hit?hit.id:null; renderPanel(); draw();
-    if(hit) op={type:'move',start:w,applied:[0,0],moved:false}; else op={type:'pan',sp,ox:view.ox,oy:view.oy}; return; }
+  if(tool==='select'){ const hit=hitTest(w);
+    if(hit){ const had=selIds.includes(hit.id);
+      if(e.shiftKey){ setSel(had?selIds.filter(id=>id!==hit.id):selIds.concat(hit.id)); renderPanel(); draw(); if(had) return; }
+      else if(!had) setSel([hit.id]);
+      renderPanel(); draw(); op={type:'move',start:w,applied:[0,0],moved:false,collapse:had&&!e.shiftKey&&selIds.length>1?hit.id:null}; return; }
+    op={type:'box',a:sp,b:sp,add:e.shiftKey,base:selIds.slice()}; return; }
   if(tool==='rect'){ const a=snapP(w); op={type:'rect',a}; temp={type:'rect',x:a[0],y:a[1],w:0,h:0,r:0}; return; }
   if(tool==='circle'){ const c=snapP(w); op={type:'circle',c}; temp={type:'circle',cx:c[0],cy:c[1],r:0}; return; }
   if(tool==='poly'){ const p=snapP(w);
@@ -1125,7 +1175,17 @@ cv.addEventListener('pointermove',e=>{
   const w=toWorld(sp[0],sp[1]);
   hover=(tool==='rect'||tool==='circle'||tool==='poly')?snapP(w):null;
   $('readout').textContent=`X ${fmtFixed(w[0])}  Y ${fmtFixed(w[1])} in`;
-  if(!op){ if(hover) draw(); else if(tool==='select'&&!spaceDown){ const h=getSel()&&handleAt(sp); stage.style.cursor=h?'pointer':'default'; } return; }
+  if(!op){ if(hover) draw(); else if(tool==='select'&&!spaceDown){ const rh=rotHandle();
+      const onRot=rh&&Math.hypot(rh.hx-sp[0],rh.hy-sp[1])<=10, h=!onRot&&getSel()&&handleAt(sp);
+      stage.style.cursor=onRot?'grab':h?'pointer':'default'; } return; }
+  if(op.type==='box'){ op.b=sp; draw(); return; }
+  if(op.type==='rotate'){ let ang=(Math.atan2(w[1]-op.c[1],w[0]-op.c[0])-op.a0)*180/Math.PI;
+    while(ang>180) ang-=360; while(ang<=-180) ang+=360;
+    ang=e.shiftKey?Math.round(ang/15)*15:Math.round(ang);
+    if(!op.moved){ if(Math.hypot(sp[0]-op.sp[0],sp[1]-op.sp[1])<3) return; checkpoint(); op.moved=true; }
+    op.ang=ang; op.cur=sp; const M=rotM(ang,op.c[0],op.c[1]);
+    op.idx.forEach((ix,j)=>{ shapes[ix]=transformShape(JSON.parse(op.snap[j]),M); });
+    geomVer++; an=analyze(shapes,{thickness:settings.thickness,full:false}); draw(); return; }
   if(op.type==='corner'){ const s=getSel(); if(!s) return; const h=op.h;
     const sp2=(w[0]-h.P[0])*h.bis[0]+(w[1]-h.P[1])*h.bis[1];
     if(!op.moved){ if(Math.abs(sp2-op.s0)*view.z<2) return; checkpoint(); op.moved=true; }
@@ -1134,10 +1194,10 @@ cv.addEventListener('pointermove',e=>{
     if(op.all){ setAllCorners(s,r); op.lastR=r; } else op.lastR=setCorner(s,h.ci,h.i,r);
     op.sp=sp; geomVer++; an=analyze(shapes,{thickness:settings.thickness,full:false}); updatePropValues(); draw(); return; }
   if(op.type==='pan'){ view.ox=op.ox+sp[0]-op.sp[0]; view.oy=op.oy+sp[1]-op.sp[1]; draw(); return; }
-  if(op.type==='move'){ const s=getSel(); if(!s) return;
+  if(op.type==='move'){ const ss=getSels(); if(!ss.length) return;
     let dx=w[0]-op.start[0], dy=w[1]-op.start[1]; if(settings.snap){ dx=snapV(dx); dy=snapV(dy); }
     if(!op.moved){ if(Math.hypot(dx,dy)*view.z<3) return; checkpoint(); op.moved=true; }
-    translate(s,dx-op.applied[0],dy-op.applied[1]); op.applied=[dx,dy]; geomVer++; an=analyze(shapes,{thickness:settings.thickness,full:false}); updatePropValues(); draw(); return; }
+    for(const s of ss) translate(s,dx-op.applied[0],dy-op.applied[1]); op.applied=[dx,dy]; geomVer++; an=analyze(shapes,{thickness:settings.thickness,full:false}); updatePropValues(); draw(); return; }
   if(op.type==='rect'){ const b=snapP(w); temp.x=Math.min(op.a[0],b[0]); temp.y=Math.min(op.a[1],b[1]); temp.w=Math.abs(b[0]-op.a[0]); temp.h=Math.abs(b[1]-op.a[1]); draw(); return; }
   if(op.type==='circle'){ let r=Math.hypot(w[0]-op.c[0],w[1]-op.c[1]); if(settings.snap) r=Math.max(settings.step/2,Math.round(r/(settings.step/2))*(settings.step/2)); temp.r=r; draw(); return; }
 });
@@ -1145,7 +1205,15 @@ function endPointer(e){
   pointers.delete(e.pointerId); if(pointers.size<2) pinch=null;
   stage.style.cursor=cursorFor();
   if(!op) return; const o=op; op=null;
-  if((o.type==='move'||o.type==='corner')&&o.moved) afterChange();
+  if((o.type==='move'||o.type==='corner'||o.type==='rotate')&&o.moved){ if(o.type==='rotate') propsFor=null; afterChange(); }
+  if(o.type==='move'&&!o.moved&&o.collapse){ setSel([o.collapse]); renderPanel(); draw(); }
+  if(o.type==='box'){ const dxs=Math.abs(o.b[0]-o.a[0]), dys=Math.abs(o.b[1]-o.a[1]);
+    if(dxs<4&&dys<4){ if(!o.add) setSel([]); }
+    else { const p=toWorld(o.a[0],o.a[1]), q=toWorld(o.b[0],o.b[1]), crossing=o.b[0]<o.a[0];
+      const box={x0:Math.min(p[0],q[0]),y0:Math.min(p[1],q[1]),x1:Math.max(p[0],q[0]),y1:Math.max(p[1],q[1])};
+      const hits=shapes.filter(s=>{ const b=shapeBB(s); return b&&(crossing?bbOverlap(b,box):bbInside(b,box)); }).map(s=>s.id);
+      setSel(o.add?o.base.concat(hits):hits); }
+    renderPanel(); draw(); }
   if(o.type==='rect'&&temp){ if(temp.w>0.01&&temp.h>0.01) addShape({...temp}); temp=null; draw(); }
   if(o.type==='circle'&&temp){ if(temp.r>0.01) addShape({...temp}); temp=null; draw(); }
 }
@@ -1157,7 +1225,7 @@ cv.addEventListener('dblclick',e=>{ if(tool==='poly'&&polyPts.length>=3){ finish
 cv.addEventListener('wheel',e=>{ e.preventDefault(); const sp=evPt(e); zoomAt(Math.exp(-e.deltaY*(e.ctrlKey?0.01:0.0015)),sp[0],sp[1]); },{passive:false});
 function fmtFixed(v){ return (Math.abs(v)<5e-4?0:v).toFixed(3); }
 
-function addShape(s){ checkpoint(); s.id=newId(); shapes.push(s); selId=s.id; afterChange(); }
+function addShape(s){ checkpoint(); s.id=newId(); shapes.push(s); setSel([s.id]); afterChange(); }
 function finishPoly(){ if(polyPts.length>=3){ const pts=polyPts.slice(); polyPts=[]; addShape({type:'poly',closed:true,pts}); } else { polyPts=[]; } setHint(); draw(); }
 function cursorFor(){ return tool==='pan'||spaceDown?'grab':tool==='select'?'default':'crosshair'; }
 function setTool(t){ tool=t; polyPts=[]; temp=null; op=null;
@@ -1169,26 +1237,34 @@ function setHint(){ const m={rect:'Drag from one corner to the opposite corner.'
 
 /* ===== Keyboard ===== */
 window.addEventListener('keydown',e=>{
-  const t=e.target; if(t&&(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA')) { if(e.key==='Enter'&&t.id==='o-dist'){ e.preventDefault(); applyOffset(); return; } if(e.key==='Enter'&&t.tagName==='INPUT') t.blur(); return; }
+  const t=e.target; if(t&&(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA')) { if(e.key==='Enter'&&t.id==='o-dist'){ e.preventDefault(); applyOffset(); return; } if(e.key==='Enter'&&t.id==='p-ang'){ e.preventDefault(); rotateTyped(); return; } if(e.key==='Enter'&&t.tagName==='INPUT') t.blur(); return; }
   const k=e.key, mod=e.ctrlKey||e.metaKey;
   if(mod&&(k==='z'||k==='Z')){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
   if(mod&&(k==='y'||k==='Y')){ e.preventDefault(); redo(); return; }
   if(mod&&(k==='d'||k==='D')){ e.preventDefault(); duplicate(); return; }
+  if(mod&&(k==='a'||k==='A')){ e.preventDefault(); setSel(shapes.map(s=>s.id)); if(tool!=='select') setTool('select'); renderPanel(); draw(); return; }
   if(mod) return;
+  if(selIds.length){ if(e.shiftKey&&(k==='H'||k==='h')){ e.preventDefault(); arrange('flip','h'); return; }
+    if(e.shiftKey&&(k==='V'||k==='v')){ e.preventDefault(); arrange('flip','v'); return; }
+    if(k==='['||k===']'||k==='{'||k==='}'){ e.preventDefault(); const st=(k==='{'||k==='}')?15:90; arrange('rot',(k==='['||k==='{')?st:-st); return; } }
   if(k===' '){ if(!spaceDown){ spaceDown=true; stage.style.cursor='grab'; } e.preventDefault(); return; }
   const map={v:'select',r:'rect',c:'circle',p:'poly',h:'pan'}; if(map[k.toLowerCase()]){ setTool(map[k.toLowerCase()]); return; }
   if(k==='f'||k==='F'){ fit(); return; }
   if(k==='Enter'&&tool==='poly'){ finishPoly(); return; }
-  if(k==='Escape'){ if(polyPts.length){ polyPts=[]; setHint(); draw(); } else { selId=null; renderPanel(); draw(); } return; }
-  if((k==='Delete'||k==='Backspace')&&getSel()){ e.preventDefault(); del(); return; }
-  if(k.startsWith('Arrow')&&getSel()){ e.preventDefault(); const st=e.shiftKey?settings.step*8:settings.step;
-    const dx=k==='ArrowLeft'?-st:k==='ArrowRight'?st:0, dy=k==='ArrowDown'?-st:k==='ArrowUp'?st:0; checkpoint(); translate(getSel(),dx,dy); afterChange(); }
+  if(k==='Escape'){ if(polyPts.length){ polyPts=[]; setHint(); draw(); } else { setSel([]); renderPanel(); draw(); } return; }
+  if((k==='Delete'||k==='Backspace')&&selIds.length){ e.preventDefault(); del(); return; }
+  if(k.startsWith('Arrow')&&selIds.length){ e.preventDefault(); const st=e.shiftKey?settings.step*8:settings.step;
+    const dx=k==='ArrowLeft'?-st:k==='ArrowRight'?st:0, dy=k==='ArrowDown'?-st:k==='ArrowUp'?st:0; checkpoint(); for(const s of getSels()) translate(s,dx,dy); afterChange(); }
 });
 window.addEventListener('keyup',e=>{ if(e.key===' '){ spaceDown=false; stage.style.cursor=cursorFor(); } });
 
-function del(){ const s=getSel(); if(!s) return; checkpoint(); shapes=shapes.filter(x=>x!==s); selId=null; afterChange(); }
-function duplicate(){ const s=getSel(); if(!s) return; const c=JSON.parse(JSON.stringify(s)); c.id=newId(); const b=shapeBB(s); translate(c,0,0);
-  translate(c,(b.x1-b.x0)+0.5,0); checkpoint(); shapes.push(c); selId=c.id; afterChange(); }
+function del(){ if(!selIds.length) return; const set=new Set(selIds); checkpoint(); shapes=shapes.filter(x=>!set.has(x.id)); setSel([]); afterChange(); }
+function duplicate(){ const ss=getSels(); if(!ss.length) return; const b=selBB(), copies=ss.map(s=>{ const c=JSON.parse(JSON.stringify(s)); c.id=newId(); translate(c,(b.x1-b.x0)+0.5,0); return c; });
+  checkpoint(); shapes.push(...copies); setSel(copies.map(c=>c.id)); afterChange(); }
+/* Rotate or reflect the selection around the center of its bounding box */
+function arrange(kind,val){ const ss=getSels(); if(!ss.length) return; const b=selBB(), cx=(b.x0+b.x1)/2, cy=(b.y0+b.y1)/2;
+  const M=kind==='rot'?rotM(val,cx,cy):flipM(val,cx,cy); checkpoint(); for(const s of ss) transformShape(s,M); propsFor=null; afterChange();
+  if(kind==='rot') toast(`Rotated ${fmtIn(Math.abs(val),2)}° ${val>0?'counterclockwise':'clockwise'}${ss.length>1?', '+ss.length+' parts together':''}.`); }
 
 /* ===== Inspector ===== */
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1222,12 +1298,43 @@ function renderPanel(){
   renderProps();
 }
 let checkItems=[];
-$('checks').addEventListener('click',e=>{ const b=e.target.closest('[data-check]'); if(!b) return; const c=checkItems[+b.dataset.check]; if(c&&c.items[0]){ selId=c.items[0].s.id; renderPanel(); draw(); } });
+$('checks').addEventListener('click',e=>{ const b=e.target.closest('[data-check]'); if(!b) return; const c=checkItems[+b.dataset.check]; if(c&&c.items[0]){ setSel([c.items[0].s.id]); renderPanel(); draw(); } });
 
 let propsFor=null;
+const ICON={
+  ccw:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8a6 6 0 1 1 1.2 6.6"/><path d="M4.5 3.5V8.2H9.2"/></svg>',
+  cw:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M15 8a6 6 0 1 0-1.2 6.6"/><path d="M15.5 3.5V8.2H10.8"/></svg>',
+  fh:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.5v15" stroke-dasharray="2 2"/><path d="M7.5 5.5 3 14.5h4.5z"/><path d="M12.5 5.5 17 14.5h-4.5z"/></svg>',
+  fv:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 10h15" stroke-dasharray="2 2"/><path d="M5.5 7.5 14.5 3v4.5z"/><path d="M5.5 12.5 14.5 17v-4.5z"/></svg>'};
+function arrangeHTML(n){ return `<div class="arrange">
+    <div class="lbl">Arrange${n>1?` · ${n} parts around their shared center`:''}</div>
+    <div class="arr-row">
+      <button type="button" class="icon-btn" data-act="r-ccw" title="Rotate 90° counterclockwise  [" aria-label="Rotate 90 degrees counterclockwise">${ICON.ccw}</button>
+      <button type="button" class="icon-btn" data-act="r-cw" title="Rotate 90° clockwise  ]" aria-label="Rotate 90 degrees clockwise">${ICON.cw}</button>
+      <button type="button" data-act="r-180" title="Rotate 180°">180°</button>
+      <span class="sep"></span>
+      <button type="button" class="icon-btn" data-act="f-h" title="Flip horizontal  Shift+H" aria-label="Flip horizontal">${ICON.fh}</button>
+      <button type="button" class="icon-btn" data-act="f-v" title="Flip vertical  Shift+V" aria-label="Flip vertical">${ICON.fv}</button>
+    </div>
+    <div class="arr-row">
+      <label for="p-ang" class="lbl" style="margin-right:2px">Rotate by</label>
+      <div class="unit ang"><input id="p-ang" type="number" step="1" value="${fmtIn(lastAngle,3)}"><i>°</i></div>
+      <button type="button" data-act="r-any">Rotate</button>
+    </div>
+    <p class="muted tiny">Positive turns counterclockwise. Or drag the knob above the selection; hold Shift for 15° steps.</p>
+  </div>`; }
+let lastAngle=45;
 function renderProps(){
   const s=getSel(), el=$('props');
-  if(!s){ propsFor=null; el.innerHTML='<p class="muted">Click a shape to set its exact size and position. Shapes drawn inside another shape become holes on the inside layer automatically.</p>'; return; }
+  if(selIds.length>1){ const key='multi:'+selIds.join(','); if(propsFor===key){ updatePropValues(); return; } propsFor=key; offsetPreview=null;
+    const f=(id,label)=>`<div class="field"><label for="${id}">${label}</label><div class="unit"><input id="${id}" type="number" step="0.0625"><i>in</i></div></div>`;
+    el.innerHTML=`<p class="muted" style="margin-bottom:8px"><strong style="color:var(--ink)">${selIds.length} parts selected</strong> · <span id="g-size"></span></p>
+      <div class="fields">${f('p-gx','Left X')}${f('p-gy','Bottom Y')}</div>
+      ${arrangeHTML(selIds.length)}
+      <div class="actions" style="margin-top:10px"><button type="button" data-act="dup">Duplicate all</button><button type="button" data-act="del">Delete all</button></div>
+      <p class="muted tiny" style="margin-top:8px">Shift-click a part to add or remove it. Ctrl A selects everything.</p>`;
+    updatePropValues(); return; }
+  if(!s){ propsFor=null; el.innerHTML='<p class="muted">Click a shape to set its exact size and position. Shift-click or drag a box to select several parts and arrange them together. Shapes drawn inside another shape become holes on the inside layer automatically.</p>'; return; }
   if(propsFor===s.id+s.type){ updatePropValues(); return; }
   propsFor=s.id+s.type;
   const f=(id,label,full)=>`<div class="field${full?' full':''}"><label for="${id}">${label}</label><div class="unit"><input id="${id}" type="number" step="0.0625"><i>in</i></div></div>`;
@@ -1249,7 +1356,8 @@ function renderProps(){
     <p class="muted">Positive grows the part and shrinks its holes. Negative does the reverse.</p>
     <div class="actions"><button type="button" class="primary" data-act="off-apply">Apply offset</button><button type="button" data-act="off-cancel">Cancel</button></div>
   </div>`;
-  html+=`<div class="actions" style="margin-top:10px"><button type="button" data-act="dup">Duplicate</button><button type="button" data-act="off">Offset</button>${s.type!=='circle'?'<button type="button" data-act="rot">Rotate 90°</button>':''}${s.type==='import'||s.type==='poly'?'<button type="button" data-act="mir">Mirror</button>':''}<button type="button" data-act="del">Delete</button></div>`;
+  html+=arrangeHTML(1);
+  html+=`<div class="actions" style="margin-top:10px"><button type="button" data-act="dup">Duplicate</button><button type="button" data-act="off">Offset</button><button type="button" data-act="del">Delete</button></div>`;
   el.innerHTML=html; $('o-join').value=lastOffset.join; updatePropValues();
 }
 /* Offset panel */
@@ -1267,28 +1375,36 @@ function applyOffset(){ const s=getSel(); if(!s) return; const o=readOffset();
   const ns=r.circle?{type:'circle',cx:r.circle.cx,cy:r.circle.cy,r:r.circle.r}:{type:'import',label:'Offset outline',contours:r.contours};
   checkpoint(); ns.id=newId();
   if(o.keep) shapes.push(ns); else shapes[shapes.indexOf(s)]=ns;
-  selId=ns.id; offsetPreview=null; afterChange();
+  setSel([ns.id]); offsetPreview=null; afterChange();
   toast(`Offset ${o.d>0?'out':'in'} by ${fmtIn(Math.abs(o.d))}"${o.keep?'. Original kept.':'.'}`); }
 $('props').addEventListener('input',e=>{ if(e.target.closest('#offset-box')){ clearTimeout(offT); offT=setTimeout(previewOffset,120); } });
-function updatePropValues(){ const s=getSel(); if(!s) return; const set=(id,v)=>{ const i=$(id); if(i&&document.activeElement!==i) i.value=fmtIn(v,4); };
+function updatePropValues(){ const set=(id,v)=>{ const i=$(id); if(i&&document.activeElement!==i) i.value=fmtIn(v,4); };
+  if(selIds.length>1){ const b=selBB(); if(!b) return; set('p-gx',b.x0); set('p-gy',b.y0); const g=$('g-size'); if(g) g.textContent=fmtIn(b.x1-b.x0)+' × '+fmtIn(b.y1-b.y0)+' in'; return; }
+  const s=getSel(); if(!s) return;
   if(s.type==='rect'){ set('p-x',s.x); set('p-y',s.y); set('p-w',s.w); set('p-h',s.h); }
   else if(s.type==='circle'){ set('p-cx',s.cx); set('p-cy',s.cy); set('p-d',s.r*2); }
   else { const b=shapeBB(s); set('p-x',b.x0); set('p-y',b.y0); set('p-w',b.x1-b.x0); set('p-h',b.y1-b.y0); }
   const ri=$('p-r'); if(ri&&document.activeElement!==ri){ const cs=cornersOf(s); const same=cs.length&&cs.every(c=>Math.abs(c.r-cs[0].r)<1e-6);
     ri.value=same?fmtIn(cs[0].r,4):''; ri.placeholder=same?'':'mixed'; } }
-$('props').addEventListener('change',e=>{ const s=getSel(); if(!s||!e.target.id) return; const v=parseFloat(e.target.value); if(!Number.isFinite(v)){ updatePropValues(); return; }
-  checkpoint(); const id=e.target.id;
+$('props').addEventListener('change',e=>{ const id=e.target.id; if(!id||id==='p-ang'||e.target.closest('#offset-box')) return;
+  const v=parseFloat(e.target.value); if(!Number.isFinite(v)){ updatePropValues(); return; }
+  if(id==='p-gx'||id==='p-gy'){ const b=selBB(); if(!b) return; checkpoint(); for(const q of getSels()) translate(q,id==='p-gx'?v-b.x0:0,id==='p-gy'?v-b.y0:0); afterChange(); updatePropValues(); return; }
+  const s=getSel(); if(!s) return;
+  checkpoint();
   if(id==='p-r'){ setAllCorners(s,Math.max(0,v)); afterChange(); updatePropValues(); return; }
   if(s.type==='rect'){ if(id==='p-x') s.x=v; if(id==='p-y') s.y=v; if(id==='p-w'&&v>0) s.w=v; if(id==='p-h'&&v>0) s.h=v; }
   else if(s.type==='circle'){ if(id==='p-cx') s.cx=v; if(id==='p-cy') s.cy=v; if(id==='p-d'&&v>0) s.r=v/2; }
   else { const b=shapeBB(s); if(id==='p-x') translate(s,v-b.x0,0); if(id==='p-y') translate(s,0,v-b.y0); if(id==='p-w'&&v>0) scaleTo(s,v,null); if(id==='p-h'&&v>0) scaleTo(s,null,v); }
   afterChange(); updatePropValues(); });
-$('props').addEventListener('click',e=>{ const b=e.target.closest('[data-act]'); if(!b) return; const s=getSel(); if(!s) return;
+function rotateTyped(){ const v=parseFloat($('p-ang').value); if(!Number.isFinite(v)||v===0){ toast('Type an angle in degrees, like 45 or -30.'); return; } lastAngle=v; arrange('rot',v); }
+$('props').addEventListener('click',e=>{ const b=e.target.closest('[data-act]'); if(!b) return;
   const a=b.dataset.act; if(a==='dup') return duplicate(); if(a==='del') return del();
+  if(a==='r-ccw') return arrange('rot',90); if(a==='r-cw') return arrange('rot',-90); if(a==='r-180') return arrange('rot',180);
+  if(a==='f-h') return arrange('flip','h'); if(a==='f-v') return arrange('flip','v'); if(a==='r-any') return rotateTyped();
+  const s=getSel(); if(!s) return;
   if(a==='off'){ const box=$('offset-box'); box.hidden=!box.hidden; if(!box.hidden){ $('o-dist').focus(); $('o-dist').select(); } previewOffset(); return; }
   if(a==='off-cancel'){ $('offset-box').hidden=true; previewOffset(); return; }
-  if(a==='off-apply') return applyOffset();
-  checkpoint(); if(a==='rot') rotate90(s); if(a==='mir') mirror(s); afterChange(); });
+  if(a==='off-apply') return applyOffset(); });
 
 /* ===== Settings ===== */
 function bindSettings(){
@@ -1388,7 +1504,7 @@ $('btn-copy').addEventListener('click',()=>{ const dxf=currentDXF(); if(!dxf){ t
 let newArmed=0;
 $('btn-new').addEventListener('click',()=>{ if(!shapes.length) return;
   if(!isSample&&Date.now()-newArmed>3000){ newArmed=Date.now(); toast('Press New again to clear the table. Undo still works after.'); return; }
-  checkpoint(); shapes=[]; selId=null; lastImport=null; isSample=false; afterChange(); setHint(); });
+  checkpoint(); shapes=[]; setSel([]); lastImport=null; isSample=false; afterChange(); setHint(); });
 $('btn-undo').addEventListener('click',undo); $('btn-redo').addEventListener('click',redo);
 for(const b of document.querySelectorAll('.tool')) b.addEventListener('click',()=>setTool(b.dataset.tool));
 $('z-in').addEventListener('click',()=>zoomAt(1.4,W/2,H/2)); $('z-out').addEventListener('click',()=>zoomAt(1/1.4,W/2,H/2)); $('z-fit').addEventListener('click',fit);

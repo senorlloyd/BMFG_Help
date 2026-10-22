@@ -33,6 +33,11 @@ button,input,select{font:inherit;color:inherit}
 .brand .tag{color:var(--muted);font-size:13px}
 .sheetctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:13px}
 .sheetctl input{width:62px}
+.namebox{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;min-width:0}
+.namefield{display:flex;align-items:center;background:var(--field);border:1px solid var(--line);border-radius:6px;padding-right:8px;min-width:0}
+.namefield:focus-within{outline:2px solid var(--select);outline-offset:1px}
+.namefield input[type=text]{border:0;border-radius:6px;background:transparent;padding:6px 2px 6px 9px;width:190px;min-width:0;font-weight:600;color:var(--ink);outline:none}
+.namefield .ext{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
 input[type=number],input[type=text],select{background:var(--field);border:1px solid var(--line);border-radius:6px;padding:5px 7px;min-width:0}
 input[type=number]{font-family:var(--font-mono);font-size:13px;font-variant-numeric:tabular-nums}
 input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--select);outline-offset:1px}
@@ -124,6 +129,10 @@ hr{border:0;border-top:1px solid var(--line);margin:0;width:100%}
       <input id="sheetH" type="number" step="0.25" min="1" aria-label="Sheet height in inches"> in
       <label for="sheetM">Margin</label><input id="sheetM" type="number" step="0.125" min="0" aria-label="Margin in inches">
     </div>
+    <div class="namebox">
+      <label for="fname">File name</label>
+      <span class="namefield"><input id="fname" type="text" value="print-cut" spellcheck="false" autocomplete="off"><span class="ext">.eps</span></span>
+    </div>
     <button class="primary" id="exportBtn">Export EPS</button>
   </header>
 
@@ -160,12 +169,9 @@ hr{border:0;border-top:1px solid var(--line);margin:0;width:100%}
     <hr>
     <section class="field">
       <h2>Export</h2>
-      <div class="grid2">
-        <label>Image resolution
-          <select id="dpi"><option value="150">150 dpi</option><option value="200">200 dpi</option><option value="300" selected>300 dpi</option><option value="400">400 dpi</option></select>
-        </label>
-        <label>File name<input id="fname" type="text" value="print-cut"></label>
-      </div>
+      <label class="lab">Image resolution
+        <select id="dpi"><option value="150">150 dpi</option><option value="200">200 dpi</option><option value="300" selected>300 dpi</option><option value="400">400 dpi</option></select>
+      </label>
       <div class="lab">File type</div>
       <div class="seg" id="fmtSeg">
         <button data-fmt="layered" aria-pressed="true">Layered EPS</button>
@@ -242,6 +248,16 @@ function addItem({src, name, natW, natH, kind, sizeIn, sample=false}){
   return it;
 }
 
+/* ============ export file name ============ */
+// Follows the first imported graphic until the person types their own name.
+let fnameEdited=false;
+function cleanName(n){ return String(n).replace(/\.[a-z0-9]{2,4}$/i,"").replace(/[^\w\- ]+/g," ").replace(/\s+/g," ").trim().slice(0,80); }
+function autoName(){
+  if(fnameEdited) return;
+  const first=state.items.find(i=>!i.sample);
+  $("#fname").value = (first && cleanName(first.name)) || "print-cut";
+}
+
 /* ============ file loading ============ */
 async function loadFiles(files){
   const before=state.items.length; let lastAdded=null;
@@ -256,6 +272,7 @@ async function loadFiles(files){
     }
     if(!state.userMoved) arrange(state.items);
     state.sel = lastAdded ? lastAdded.id : state.sel;
+    autoName();
     refreshAll();
   }
 }
@@ -686,7 +703,7 @@ window.addEventListener("keydown",e=>{
 });
 
 /* ============ side panels ============ */
-function removeItem(id){ state.items=state.items.filter(i=>i.id!==id); if(state.sel===id) state.sel=null; refreshAll(); }
+function removeItem(id){ state.items=state.items.filter(i=>i.id!==id); if(state.sel===id) state.sel=null; autoName(); refreshAll(); }
 const MODE_LABEL={contour:"Contour",round:"Rounded",rect:"Rectangle",ellipse:"Oval",none:"No cut"};
 function renderList(){
   const ul=$("#list"); ul.innerHTML="";
@@ -1150,7 +1167,7 @@ async function doExport(){
   const btn=$("#exportBtn"), label=btn.textContent; btn.disabled=true; btn.textContent="Building…";
   try{
     const blob= state.fmt=="layered" ? await buildLayeredEPS() : await buildEPS();
-    const base=($("#fname").value||"print-cut").replace(/[^\w\- ]+/g,"").trim()||"print-cut";
+    const base=cleanName($("#fname").value)||"print-cut";
     await dlReady;
     const mb=(blob.size/1048576).toFixed(1), bx=exportBox(), dims=`${fmt(bx.w)} × ${fmt(bx.h)} in artboard`;
     if(dlCap){
@@ -1178,11 +1195,14 @@ window.addEventListener("dragleave",e=>{ if(!e.relatedTarget) drop.classList.rem
 window.addEventListener("drop",e=>{ e.preventDefault(); drop.classList.remove("over"); if(e.dataTransfer.files.length) loadFiles([...e.dataTransfer.files]); });
 $("#arrangeBtn").onclick=()=>{ arrange(state.items); state.userMoved=false; refreshAll(); };
 $("#clearBtn").onclick=e=>{ const b=e.currentTarget; if(!state.items.length) return;
-  if(b.dataset.armed){ state.items=[]; state.sel=null; state.userMoved=false; delete b.dataset.armed; b.textContent="Clear all"; refreshAll(); }
+  if(b.dataset.armed){ state.items=[]; state.sel=null; state.userMoved=false; delete b.dataset.armed; b.textContent="Clear all"; autoName(); refreshAll(); }
   else { b.dataset.armed="1"; b.textContent="Click again to clear"; setTimeout(()=>{ delete b.dataset.armed; b.textContent="Clear all"; },3000); } };
 $("#hideArt").onchange=e=>{ state.hideArt=e.target.checked; render(); };
 $("#colorSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{ state.color=b.dataset.color; $("#colorSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b)); renderChecks(); });
 $("#exportBtn").onclick=doExport;
+$("#fname").addEventListener("input",e=>{ fnameEdited = e.target.value.trim()!==""; if(!fnameEdited) autoName(); });
+$("#fname").addEventListener("blur",e=>{ if(!e.target.value.trim()){ fnameEdited=false; autoName(); } });
+$("#fname").addEventListener("keydown",e=>{ if(e.key==="Enter") doExport(); });
 $("#trim").onchange=()=>{ render(); renderChecks(); };
 $("#fmtSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{ state.fmt=b.dataset.fmt; $("#fmtSeg").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));
   $("#fmtNote").textContent = state.fmt==="layered" ? "Opens in Illustrator with an Artwork layer and a CutContour layer on top. Larger file." : "Plain PostScript, smallest file. Illustrator opens it as one group.";

@@ -1,0 +1,1513 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WreSTL</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 3C48 3 58 15 58 31c0 17-11 30-26 30S6 48 6 31C6 15 16 3 32 3z' fill='%23cf2a27' stroke='%231e1636' stroke-width='2.5'/%3E%3Cpath d='M8.5 27Q19 14 31 25.5Q25 37 13 34Q8 32 8.5 27zM55.5 27Q45 14 33 25.5Q39 37 51 34Q56 32 55.5 27z' fill='%23f0a500'/%3E%3Cellipse cx='21' cy='27.5' rx='6' ry='3.8' fill='%231e1636'/%3E%3Cellipse cx='43' cy='27.5' rx='6' ry='3.8' fill='%231e1636'/%3E%3Cellipse cx='32' cy='47' rx='10' ry='6.5' fill='%23f0a500'/%3E%3Cellipse cx='32' cy='47' rx='6.5' ry='3.6' fill='%231e1636'/%3E%3C/svg%3E">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Barlow+Semi+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one-screen tool. Header ribbon, 3D print-bed viewport on the left, control panel on the right (stacks under the viewport on phones). */
+:root {
+  --bg: #eef0f2;
+  --panel: #ffffff;
+  --panel-2: #f4f5f7;
+  --ink: #1d2228;
+  --muted: #5f6873;
+  --line: #d9dde2;
+  --accent: #cf2a27;        /* mask red */
+  --accent-ink: #ffffff;
+  --turq: #0e9d97;          /* mask trim */
+  --gold: #e8a100;          /* new cut faces */
+  --ok: #17824f;
+  --warn: #b26a00;
+  --bad: #b3261e;
+  --vp-top: #f3f4f6;        /* soft studio backdrop */
+  --vp-bottom: #d3d8de;
+  --bed: #3a3f47;           /* textured PEI plate */
+  --bed-line: #575d67;
+  --model: #9db0c4;
+  --ghost: #1d2228;
+  --vol: #1d2228;
+  --f-display: "Bowlby One", "Arial Black", Impact, sans-serif;
+  --f-ui: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15181c; --panel: #1d2126; --panel-2: #252a30; --ink: #e8ebee; --muted: #9ba4ae; --line: #323840;
+  --accent: #f04e43; --accent-ink: #ffffff; --turq: #2fc4bc; --gold: #ffbe2e; --ok: #4cc283; --warn: #e3a33b; --bad: #f2776c;
+  --vp-top: #2c3137; --vp-bottom: #121417; --bed: #2a2e34; --bed-line: #444a53; --model: #c3cfdb; --ghost: #ffffff; --vol: #ffffff; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #15181c; --panel: #1d2126; --panel-2: #252a30; --ink: #e8ebee; --muted: #9ba4ae; --line: #323840;
+  --accent: #f04e43; --accent-ink: #ffffff; --turq: #2fc4bc; --gold: #ffbe2e; --ok: #4cc283; --warn: #e3a33b; --bad: #f2776c;
+  --vp-top: #2c3137; --vp-bottom: #121417; --bed: #2a2e34; --bed-line: #444a53; --model: #c3cfdb; --ghost: #ffffff; --vol: #ffffff; color-scheme: dark; }
+
+[hidden] { display: none !important; }
+body { margin: 0; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 15px; overflow: hidden; }
+* { box-sizing: border-box; }
+button, input, select { font: inherit; color: inherit; }
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+
+/* header */
+header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); background: var(--panel); border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; user-select: none; }
+.mask { width: 40px; height: 40px; flex: none; filter: drop-shadow(2px 2px 0 var(--turq)); }
+.mask .m-base { fill: var(--accent); } .mask .m-trim { fill: var(--gold); } .mask .m-turq { fill: var(--turq); }
+.mask .m-hole { fill: var(--ink); } .mask .m-line { fill: none; stroke: var(--ink); stroke-width: 2.2; stroke-linejoin: round; }
+.mark { font-family: var(--f-display); font-size: 28px; line-height: 1; letter-spacing: .01em; display: flex; align-items: center; color: var(--ink); text-shadow: 2px 2px 0 var(--turq); }
+.mark b { font-weight: 400; background: var(--accent); color: var(--accent-ink); padding: 4px 7px 2px; margin-left: 3px; border-radius: 3px; transform: skew(-8deg) rotate(-2deg); display: inline-block; text-shadow: 2px 2px 0 rgba(0,0,0,.25); box-shadow: 3px 3px 0 var(--gold); }
+.fname { font-family: var(--f-mono); font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1 1 120px; }
+.hbtns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 12px; border-radius: var(--r); border: 1px solid var(--line); background: var(--panel-2); cursor: pointer; font-weight: 600; letter-spacing: .02em; white-space: nowrap; }
+.btn:hover { border-color: var(--muted); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); box-shadow: 3px 3px 0 var(--gold); }
+.btn.primary:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--gold); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.small { padding: 4px 9px; font-size: 13px; }
+.btn:focus-visible, input:focus-visible, .seg button:focus-visible, .tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn svg { width: 16px; height: 16px; }
+
+/* main split */
+main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 0; }
+.vp { position: relative; min-width: 0; min-height: 0; background: linear-gradient(var(--vp-top), var(--vp-bottom)); }
+.vp canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.panel { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; display: flex; flex-direction: column; min-height: 0; }
+
+.vp-hud { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; pointer-events: none; }
+.chip { pointer-events: auto; font-family: var(--f-mono); font-size: 12px; background: rgba(15,18,22,.72); color: #e8edf2; padding: 5px 9px; border-radius: 4px; display: inline-flex; gap: 6px; align-items: center; }
+.chip .sw { width: 10px; height: 10px; border-radius: 2px; background: var(--gold); }
+.vp-tip { position: absolute; left: 12px; top: 12px; font-family: var(--f-ui); font-size: 13px; background: rgba(20,23,27,.75); color: #f2eefb; padding: 6px 10px; border-radius: 4px; pointer-events: none; max-width: calc(100% - 24px); }
+.vp-views { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 4px; }
+.vp-views button { background: rgba(15,18,22,.72); color: #e8edf2; border: 0; border-radius: 4px; padding: 5px 8px; font-family: var(--f-mono); font-size: 12px; cursor: pointer; }
+.vp-views button:hover { background: rgba(15,18,22,.9); }
+
+.banner { position: absolute; top: 12px; left: 12px; right: 12px; margin: 0 auto; max-width: 560px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-left: 5px solid var(--warn); border-radius: var(--r); padding: 12px 14px; box-shadow: 0 8px 28px rgba(0,0,0,.28); display: flex; flex-direction: column; gap: 10px; }
+.banner p { margin: 0; line-height: 1.35; }
+.banner .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.banner.bad { border-left-color: var(--bad); }
+
+.drop { position: absolute; inset: 0; place-items: center; background: rgba(207,42,39,.18); border: 3px dashed var(--accent); color: #fff; font-family: var(--f-display); font-size: 28px; text-shadow: 0 2px 10px rgba(0,0,0,.6); pointer-events: none; }
+.busy { position: absolute; inset: 0; place-items: center; background: rgba(10,12,15,.45); color: #fff; font-weight: 600; font-size: 18px; }
+
+/* panel sections */
+.sec { padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.sec h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+.dims { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.dim { background: var(--panel-2); border-radius: var(--r); padding: 6px 8px; }
+.dim .k { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--muted); }
+.dim .v { font-family: var(--f-mono); font-size: 16px; font-variant-numeric: tabular-nums; }
+.dim .v small { font-size: 11px; color: var(--muted); }
+.dim.over .v { color: var(--bad); }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 14px; font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.stats b { color: var(--ink); font-weight: 600; }
+.pill { font-family: var(--f-ui); font-size: 12px; font-weight: 700; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; }
+.pill.ok { color: var(--ok); } .pill.bad { color: var(--bad); } .pill.wait { color: var(--muted); }
+
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); z-index: 2; }
+.tabs button { border: 0; background: none; padding: 11px 4px 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 13px; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; }
+.tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); background: linear-gradient(transparent 60%, color-mix(in srgb, var(--accent) 10%, transparent)); }
+
+.field { display: grid; grid-template-columns: 70px minmax(0, 1fr) 84px; align-items: center; gap: 8px; }
+.field label { font-weight: 600; font-size: 14px; }
+.field input[type=range] { width: 100%; accent-color: var(--accent); min-width: 0; }
+.num { width: 100%; padding: 5px 7px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-2); font-family: var(--f-mono); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.grid3 label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.seg button { border: 0; background: var(--panel-2); padding: 6px 12px; cursor: pointer; font-weight: 600; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row.between { justify-content: space-between; }
+.hint { font-size: 13px; color: var(--muted); line-height: 1.4; margin: 0; }
+.check { display: flex; gap: 8px; align-items: center; font-size: 14px; cursor: pointer; }
+.check input { accent-color: var(--accent); width: 16px; height: 16px; }
+.lock { width: 34px; padding: 6px 0; }
+.lock[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.apply { width: 100%; padding: 10px; font-size: 16px; }
+.toolbody[hidden] { display: none !important; }
+.foot { margin-top: auto; }
+.exportname { width: 100%; text-align: left; }
+
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--panel); padding: 9px 14px; border-radius: var(--r); font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,.3); z-index: 50; max-width: calc(100% - 32px); }
+
+@media (max-width: 820px) {
+  body { overflow: auto; }
+  .app { height: auto; min-height: 100%; }
+  main { grid-template-columns: minmax(0, 1fr); }
+  .vp { height: 56vh; min-height: 300px; }
+  .panel { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+  .tabs { position: static; }
+}
+
+/* splash */
+.splash { position: fixed; inset: 0; z-index: 60; background: rgba(20,23,27,.6); place-items: center; overflow-y: auto; padding-block: 24px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.splash-card { width: 100%; max-width: 820px; background: var(--panel); color: var(--ink); border-radius: 10px; overflow: hidden; display: grid; grid-template-columns: 300px minmax(0, 1fr); box-shadow: 0 24px 70px rgba(0,0,0,.4); }
+.splash-art { position: relative; display: grid; place-items: end center; padding: 56px 18px 0; background:
+  repeating-conic-gradient(from 0deg at 50% 62%, rgba(255,255,255,.06) 0deg 9deg, transparent 9deg 18deg),
+  radial-gradient(circle at 50% 62%, #3a4048, #16191d 75%); }
+.luchador { width: 100%; max-width: 250px; display: block; }
+.bubble { position: absolute; top: 14px; right: 14px; left: 70px; background: #ffffff; color: #1d2228; font-family: var(--f-display); font-size: 15px; line-height: 1.15; padding: 9px 12px; border-radius: 12px; border: 2.5px solid #1d2228; box-shadow: 3px 3px 0 #e8a100; }
+.bubble::after { content: ""; position: absolute; left: 30px; bottom: -12px; width: 16px; height: 16px; background: #ffffff; border-right: 2.5px solid #1d2228; border-bottom: 2.5px solid #1d2228; transform: rotate(45deg) skew(10deg, 10deg); }
+.splash-text { padding: 28px 30px 26px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
+.splash-text h1 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 27px; line-height: 1.12; text-wrap: balance; }
+.splash-text p { margin: 0; font-size: 16px; line-height: 1.45; max-width: 60ch; }
+.steps { margin: 2px 0 0; padding: 0; list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 9px; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; font-size: 15.5px; line-height: 1.4; }
+.steps li::before { content: counter(s); width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-family: var(--f-display); font-size: 13px; display: grid; place-items: center; box-shadow: 2px 2px 0 var(--gold); }
+.steps em { font-style: normal; font-weight: 700; color: var(--accent); }
+.splash-note { font-size: 14px !important; color: var(--muted); background: var(--panel-2); padding: 8px 11px; border-radius: var(--r); }
+.splash-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 4px; }
+.splash-actions .btn { padding: 11px 20px; font-size: 17px; }
+@media (max-width: 720px) {
+  .splash { place-items: start center; }
+  .splash-card { grid-template-columns: minmax(0, 1fr); }
+  .splash-art { padding-top: 64px; max-height: 300px; overflow: hidden; place-items: start center; }
+  .luchador { max-width: 190px; }
+  .splash-text h1 { font-size: 23px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <svg class="mask" viewBox="0 0 64 64" aria-hidden="true">
+        <path class="m-base" d="M32 3C48 3 58 15 58 31c0 17-11 30-26 30S6 48 6 31C6 15 16 3 32 3z"/>
+        <path class="m-trim" d="M27.5 3.6Q32 2.6 36.5 3.6L35 25h-6z"/>
+        <path class="m-turq" d="M32 9l3 4-3 4-3-4z"/>
+        <path class="m-trim" d="M8.5 27Q19 14 31 25.5Q25 37 13 34Q8 32 8.5 27z"/>
+        <path class="m-trim" d="M55.5 27Q45 14 33 25.5Q39 37 51 34Q56 32 55.5 27z"/>
+        <ellipse class="m-hole" cx="21" cy="27.5" rx="6.2" ry="3.8" transform="rotate(12 21 27.5)"/>
+        <ellipse class="m-hole" cx="43" cy="27.5" rx="6.2" ry="3.8" transform="rotate(-12 43 27.5)"/>
+        <path class="m-turq" d="M14 40l4 2-4 2zM50 40l-4 2 4 2z"/>
+        <ellipse class="m-trim" cx="32" cy="47" rx="10" ry="6.5"/>
+        <ellipse class="m-hole" cx="32" cy="47" rx="6.5" ry="3.6"/>
+        <path class="m-line" d="M32 3C48 3 58 15 58 31c0 17-11 30-26 30S6 48 6 31C6 15 16 3 32 3z"/>
+      </svg>
+      <div>
+        <div class="mark" aria-label="WreSTL">Wre<b>STL</b></div>
+      </div>
+    </div>
+    <div class="fname" id="fname">sample-knot.stl</div>
+    <div class="hbtns">
+      <button class="btn" id="openBtn" title="Open an STL file">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16M12 4v12M7 9l5-5 5 5"/></svg>Open STL</button>
+      <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>Undo</button>
+      <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>Redo</button>
+      <button class="btn" id="resetBtn" title="Go back to the file as it was loaded">Reset</button>
+      <button class="btn" id="helpBtn" title="What is WreSTL?" aria-label="How WreSTL works">?</button>
+    </div>
+    <input type="file" id="fileIn" accept=".stl" hidden>
+  </header>
+
+  <main>
+    <div class="vp" id="vp">
+      <canvas id="cv"></canvas>
+      <div class="vp-hud">
+        <span class="chip" id="hudBed">Bed 200 × 200 mm</span>
+        <span class="chip" id="hudCap"><span class="sw"></span>New cut faces</span>
+      </div>
+      <div class="vp-views" aria-label="Camera views">
+        <button data-view="iso">ISO</button><button data-view="top">TOP</button><button data-view="front">FRONT</button><button data-view="right">RIGHT</button>
+      </div>
+      <div class="banner" id="banner" hidden style="display:none"></div>
+      <div class="drop" id="drop" style="display:none">Drop an STL file to open it</div>
+      <div class="vp-tip" id="vpTip" hidden></div>
+      <div class="busy" id="busy" style="display:none">Working…</div>
+    </div>
+
+    <aside class="panel">
+      <section class="sec">
+        <h2>Model size <span class="row" style="gap:6px"><button class="btn small" id="repairBtn" hidden title="Fill holes, fix flipped and duplicate triangles">Repair mesh</button><span class="pill wait" id="wtPill">Checking…</span></span></h2>
+        <div class="dims">
+          <div class="dim" id="dimX"><div class="k">X</div><div class="v">0 <small>mm</small></div></div>
+          <div class="dim" id="dimY"><div class="k">Y</div><div class="v">0 <small>mm</small></div></div>
+          <div class="dim" id="dimZ"><div class="k">Z</div><div class="v">0 <small>mm</small></div></div>
+        </div>
+        <div class="stats"><span>Triangles <b id="stTris">0</b></span><span>Volume <b id="stVol">0</b> cm³</span></div>
+      </section>
+
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tool="scale" aria-selected="true">Scale</button>
+        <button role="tab" data-tool="crop" aria-selected="false">Crop</button>
+        <button role="tab" data-tool="cut" aria-selected="false">Cut</button>
+        <button role="tab" data-tool="orient" aria-selected="false">Orient</button>
+      </nav>
+
+      <!-- SCALE -->
+      <section class="sec toolbody" data-body="scale">
+        <h2>Resize</h2>
+        <div class="row" style="align-items:flex-end; flex-wrap:nowrap">
+          <div class="grid3" style="flex:1">
+            <label>X mm<input class="num" id="scX" type="number" step="0.1" min="0.01"></label>
+            <label>Y mm<input class="num" id="scY" type="number" step="0.1" min="0.01"></label>
+            <label>Z mm<input class="num" id="scZ" type="number" step="0.1" min="0.01"></label>
+          </div>
+          <button class="btn lock" id="scLock" aria-pressed="true" title="Keep proportions">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button>
+        </div>
+        <div class="field"><label for="scPct">Percent</label><span></span><input class="num" id="scPct" type="number" step="1" min="1" value="100"></div>
+        <div class="row">
+          <button class="btn small" data-pct="50">50%</button>
+          <button class="btn small" data-pct="200">200%</button>
+          <button class="btn small" data-mult="25.4" title="File was in inches">in → mm</button>
+          <button class="btn small" data-mult="0.03937008" title="Shrink by 25.4">mm → in</button>
+        </div>
+        <button class="btn primary apply" id="fitBtn">Fit to printer</button>
+        <p class="hint">Type a size and press Enter. With the lock on, the other sides follow.</p>
+      </section>
+
+      <!-- CROP -->
+      <section class="sec toolbody" data-body="crop" hidden>
+        <h2>Crop box <button class="btn small" id="cropReset">Fit to model</button></h2>
+        <div class="grid3">
+          <label>Width X<input class="num" id="crSX" type="number" step="0.5" min="0.1"></label>
+          <label>Depth Y<input class="num" id="crSY" type="number" step="0.5" min="0.1"></label>
+          <label>Height Z<input class="num" id="crSZ" type="number" step="0.5" min="0.1"></label>
+        </div>
+        <div class="field"><label for="crCX">Move X</label><input type="range" id="crCXr" step="0.1"><input class="num" id="crCX" type="number" step="0.5"></div>
+        <div class="field"><label for="crCY">Move Y</label><input type="range" id="crCYr" step="0.1"><input class="num" id="crCY" type="number" step="0.5"></div>
+        <div class="field"><label for="crCZ">Move Z</label><input type="range" id="crCZr" step="0.1"><input class="num" id="crCZ" type="number" step="0.5"></div>
+        <p class="hint">Drag the arrows in the view to move the box and the pink squares to resize a side. Everything outside the box is thrown away; gold faces show the new filled walls.</p>
+        <button class="btn primary apply" id="cropApply">Crop model</button>
+      </section>
+
+      <!-- CUT -->
+      <section class="sec toolbody" data-body="cut" hidden>
+        <h2>Plane cut</h2>
+        <div class="row between">
+          <span style="font-weight:600">Cut across</span>
+          <div class="seg" id="cutAxis"><button data-axis="0" aria-pressed="false">X</button><button data-axis="1" aria-pressed="false">Y</button><button data-axis="2" aria-pressed="true">Z</button></div>
+        </div>
+        <div class="field"><label for="cutPos" id="cutPosLbl">At Z</label><input type="range" id="cutPosR" step="0.1"><input class="num" id="cutPos" type="number" step="0.5"></div>
+        <div class="field"><label for="cutTA">Tilt 1</label><input type="range" id="cutTAr" min="-90" max="90" step="1" value="0"><input class="num" id="cutTA" type="number" min="-90" max="90" step="1" value="0"></div>
+        <div class="field"><label for="cutTB">Tilt 2</label><input type="range" id="cutTBr" min="-90" max="90" step="1" value="0"><input class="num" id="cutTB" type="number" min="-90" max="90" step="1" value="0"></div>
+        <div class="row between">
+          <span style="font-weight:600">Keep</span>
+          <div class="seg" id="cutKeep"><button data-keep="0" aria-pressed="true">Below</button><button data-keep="1" aria-pressed="false">Above</button></div>
+        </div>
+        <p class="hint">Drag the arrow in the view to slide the plane. Tilt angles are degrees; the faded part goes away.</p>
+        <button class="btn primary apply" id="cutApply">Cut model</button>
+      </section>
+
+      <!-- ORIENT -->
+      <section class="sec toolbody" data-body="orient" hidden>
+        <h2>Rotate 90°</h2>
+        <div class="grid3">
+          <button class="btn" data-rot="0">Around X</button>
+          <button class="btn" data-rot="1">Around Y</button>
+          <button class="btn" data-rot="2">Around Z</button>
+        </div>
+        <h2>Mirror</h2>
+        <div class="grid3">
+          <button class="btn" data-mir="0">Flip X</button>
+          <button class="btn" data-mir="1">Flip Y</button>
+          <button class="btn" data-mir="2">Flip Z</button>
+        </div>
+        <p class="hint">The model always drops back onto the bed, centered.</p>
+      </section>
+
+      <section class="sec">
+        <h2>Printer</h2>
+        <div class="grid3">
+          <label>Bed X<input class="num" id="bedX" type="number" step="1" min="10" value="200"></label>
+          <label>Bed Y<input class="num" id="bedY" type="number" step="1" min="10" value="200"></label>
+          <label>Max Z<input class="num" id="bedZ" type="number" step="1" min="10" value="200"></label>
+        </div>
+        <label class="check"><input type="checkbox" id="showCaps" checked> Highlight new cut faces</label>
+      </section>
+
+      <section class="sec foot">
+        <h2>Export</h2>
+        <input class="num exportname" id="outName" type="text" value="sample-knot_wrestl.stl" aria-label="File name">
+        <button class="btn primary apply" id="exportBtn">Download STL</button>
+        <p class="hint" id="exportHint">Binary STL, millimeters.</p>
+        <p class="hint" style="font-size:11px">WreSTL v1.8</p>
+      </section>
+    </aside>
+  </main>
+</div>
+<div class="splash" id="splash" style="display:none" role="dialog" aria-modal="true" aria-labelledby="splashTitle">
+  <div class="splash-card">
+    <div class="splash-art">
+      <div class="bubble">¡Hola! Let's wrestle that STL!</div>
+      <svg class="luchador" viewBox="0 0 240 360" aria-label="A cheerful luchador holding up a 3D printed cube">
+        <g stroke="#1d2228" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
+          <!-- legs (tights) -->
+          <path d="M78 246 L112 250 L100 300 L90 318 L60 318 L66 296 Z" fill="#0e9d97"/>
+          <path d="M128 250 L162 246 L174 296 L180 318 L150 318 L140 300 Z" fill="#0e9d97"/>
+          <path d="M80 254 L70 312" fill="none" stroke="#e8a100" stroke-width="4"/>
+          <path d="M160 254 L170 312" fill="none" stroke="#e8a100" stroke-width="4"/>
+          <!-- boots -->
+          <path d="M58 312 L92 312 L94 338 Q72 348 44 342 Q44 332 54 328 Z" fill="#cf2a27"/>
+          <path d="M148 312 L182 312 L186 328 Q196 332 196 342 Q168 348 146 338 Z" fill="#cf2a27"/>
+          <path d="M64 318 L86 322 M63 326 L87 330 M154 322 L176 318 M153 330 L177 326" stroke="#e8a100" stroke-width="2.5"/>
+          <path d="M58 312 L92 312 M148 312 L182 312" stroke="#ffffff" stroke-width="5"/>
+          <!-- trunks -->
+          <path d="M78 216 L162 216 L168 252 L130 258 L120 244 L110 258 L72 252 Z" fill="#0b7f7a"/>
+          <!-- arm on hip (behind torso) -->
+          <path d="M168 132 Q200 150 196 176 Q190 196 160 204" fill="none" stroke="#1d2228" stroke-width="27"/>
+          <path d="M168 132 Q200 150 196 176 Q190 196 160 204" fill="none" stroke="#c68a5e" stroke-width="21"/>
+          <!-- torso -->
+          <path d="M68 126 Q120 108 172 126 Q176 170 162 212 Q120 226 78 212 Q64 170 68 126 Z" fill="#c68a5e"/>
+          <path d="M96 150 Q108 160 118 150 M122 150 Q132 160 144 150" fill="none" stroke="#9c6640" stroke-width="2.5"/>
+          <path d="M120 162 L120 196 M108 176 Q120 182 132 176 M110 192 Q120 197 130 192" fill="none" stroke="#9c6640" stroke-width="2"/>
+          <!-- championship belt -->
+          <path d="M76 200 Q120 214 164 200 L166 222 Q120 236 74 222 Z" fill="#e8a100"/>
+          <ellipse cx="120" cy="214" rx="20" ry="14" fill="#ffd25e"/>
+          <path d="M120 205 L129 210 L129 219 L120 224 L111 219 L111 210 Z" fill="#cf2a27" stroke-width="1.8"/>
+          <path d="M111 210 L120 215 L129 210 M120 215 L120 224" fill="none" stroke-width="1.8"/>
+          <circle cx="90" cy="211" r="3" fill="#cf2a27" stroke-width="1.5"/>
+          <circle cx="150" cy="211" r="3" fill="#cf2a27" stroke-width="1.5"/>
+          <!-- flexing arm -->
+          <path d="M72 132 Q40 136 36 148" fill="none" stroke="#1d2228" stroke-width="29"/>
+          <path d="M36 150 Q30 118 40 92" fill="none" stroke="#1d2228" stroke-width="25"/>
+          <path d="M72 132 Q40 136 36 148" fill="none" stroke="#c68a5e" stroke-width="23"/>
+          <path d="M36 150 Q30 118 40 92" fill="none" stroke="#c68a5e" stroke-width="19"/>
+          <path d="M44 126 Q54 112 64 124" fill="none" stroke="#9c6640" stroke-width="2.5"/>
+          <!-- wrist tape -->
+          <path d="M30 100 L50 104 M31 106 L50 110" stroke="#ffffff" stroke-width="4"/>
+          <path d="M166 198 L176 214" stroke="#ffffff" stroke-width="9"/>
+          <!-- fists -->
+          <circle cx="41" cy="86" r="12" fill="#c68a5e"/>
+          <path d="M33 82 L49 82 M33 88 L49 88" stroke="#9c6640" stroke-width="1.6"/>
+          <circle cx="158" cy="205" r="11" fill="#c68a5e"/>
+          <!-- printed cube trophy -->
+          <path d="M41 46 L60 56 L60 76 L41 86 L22 76 L22 56 Z" fill="#2fc4bc"/>
+          <path d="M22 56 L41 66 L60 56 M41 66 L41 86" fill="none"/>
+          <path d="M41 66 L60 56 L60 76 L41 86 Z" fill="#0e9d97"/>
+          <path d="M14 44 L10 38 M68 44 L72 38 M41 34 L41 27" stroke="#e8a100" stroke-width="3"/>
+          <!-- neck -->
+          <path d="M106 102 L134 102 L136 120 Q120 126 104 120 Z" fill="#c68a5e"/>
+          <!-- head / mask -->
+          <path d="M120 22 C144 22 156 40 156 64 C156 90 140 108 120 108 C100 108 84 90 84 64 C84 40 96 22 120 22 Z" fill="#cf2a27"/>
+          <path d="M115 22.6 Q120 21.6 125 22.6 L123.5 52 L116.5 52 Z" fill="#e8a100" stroke-width="1.8"/>
+          <path d="M120 30 L124 35 L120 40 L116 35 Z" fill="#0e9d97" stroke-width="1.5"/>
+          <path d="M88 58 Q100 44 117 56 Q110 72 95 68 Q87 65 88 58 Z" fill="#e8a100" stroke-width="2"/>
+          <path d="M152 58 Q140 44 123 56 Q130 72 145 68 Q153 65 152 58 Z" fill="#e8a100" stroke-width="2"/>
+          <ellipse cx="103" cy="59" rx="8" ry="6" fill="#ffffff" stroke-width="2"/>
+          <ellipse cx="137" cy="59" rx="8" ry="6" fill="#ffffff" stroke-width="2"/>
+          <circle cx="105" cy="60" r="3" fill="#1d2228" stroke="none"/>
+          <circle cx="135" cy="60" r="3" fill="#1d2228" stroke="none"/>
+          <path d="M94 50 Q103 44 112 49 M128 49 Q137 44 146 50" fill="none" stroke-width="3"/>
+          <ellipse cx="120" cy="88" rx="17" ry="12" fill="#e8a100" stroke-width="2"/>
+          <path d="M107 87 Q120 102 133 87 Z" fill="#7a1d1b" stroke-width="2"/>
+          <path d="M110 88 L130 88 L129 91 L111 91 Z" fill="#ffffff" stroke="none"/>
+          <!-- mustache -->
+          <path d="M120 82 Q110 76 101 84 Q104 88 110 86 Q116 84 120 86 Q124 84 130 86 Q136 88 139 84 Q130 76 120 82 Z" fill="#3b2a1e" stroke-width="1.8"/>
+          <path d="M92 76 L96 80 M148 76 L144 80" fill="none" stroke="#0e9d97" stroke-width="3"/>
+        </g>
+      </svg>
+    </div>
+    <div class="splash-text">
+      <div class="eyebrow">Meet WreSTL</div>
+      <h1 id="splashTitle">Have you ever had a hard STL file that you needed to edit?</h1>
+      <p>Maybe it's way too big for your printer. Maybe you only need one piece of it. WreSTL lets you grab a 3D model and wrestle it into shape, no CAD program needed.</p>
+      <ol class="steps">
+        <li><b>Open it.</b> Drag an STL file onto the screen, or click <em>Open STL</em>.</li>
+        <li><b>Size it.</b> Make it bigger or smaller. Too big for your printer? WreSTL can shrink it to fit.</li>
+        <li><b>Trim it.</b> Use the <em>Crop</em> box to keep just one part, or <em>Cut</em> to slice it. The cut side gets filled in, so it still prints solid.</li>
+        <li><b>Save it.</b> Download your new STL and send it to your slicer like normal.</li>
+      </ol>
+      <p class="splash-note">Got a broken file? WreSTL tries to patch holes and backward faces the moment you open it.</p>
+      <div class="splash-actions">
+        <button class="btn primary" id="splashGo">¡Vámonos! Let's go</button>
+        <label class="check"><input type="checkbox" id="splashSkip"> Don't show this again</label>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" style="display:none"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/TransformControls.js"></script>
+<script>
+/* WreSTL mesh core: parse, weld, check, plane-cut with cap, export.
+   Mesh = { V: Float64Array (xyz), T: Uint32Array (abc), F: Uint8Array (1 = cut face) } */
+(function (root) {
+  'use strict';
+
+  function parseSTL(buf) {
+    const dv = new DataView(buf);
+    let isBinary = false;
+    if (buf.byteLength >= 84) {
+      const n = dv.getUint32(80, true);
+      if (84 + n * 50 === buf.byteLength) isBinary = true;
+    }
+    if (!isBinary) {
+      // check for "solid" text; if it isn't text, try binary anyway
+      const head = new TextDecoder().decode(new Uint8Array(buf, 0, Math.min(1024, buf.byteLength)));
+      if (!/^\s*solid/i.test(head) || !/facet/i.test(new TextDecoder().decode(new Uint8Array(buf, 0, Math.min(4096, buf.byteLength))))) {
+        if (buf.byteLength >= 84) isBinary = true;
+      }
+    }
+    let tri;
+    if (isBinary) {
+      const n = Math.min(dv.getUint32(80, true), Math.floor((buf.byteLength - 84) / 50));
+      tri = new Float32Array(n * 9);
+      let o = 84;
+      for (let i = 0; i < n; i++) {
+        o += 12;
+        for (let k = 0; k < 9; k++) { tri[i * 9 + k] = dv.getFloat32(o, true); o += 4; }
+        o += 2;
+      }
+    } else {
+      const text = new TextDecoder().decode(buf);
+      const re = /vertex\s+([-+\d.eE]+)\s+([-+\d.eE]+)\s+([-+\d.eE]+)/g;
+      const vals = [];
+      let m;
+      while ((m = re.exec(text))) vals.push(+m[1], +m[2], +m[3]);
+      tri = new Float32Array(vals.length - (vals.length % 9));
+      for (let i = 0; i < tri.length; i++) tri[i] = vals[i];
+    }
+    return tri; // flat triangle soup
+  }
+
+  // Merge coincident vertices, drop degenerate triangles.
+  function weld(soup, tol) {
+    const n = soup.length / 9;
+    let minX = Infinity, minY = Infinity, minZ = Infinity, maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (let i = 0; i < soup.length; i += 3) {
+      const x = soup[i], y = soup[i + 1], z = soup[i + 2];
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+      if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+    }
+    const diag = Math.hypot(maxX - minX, maxY - minY, maxZ - minZ) || 1;
+    const q = diag * (tol || 1e-6);
+    const map = new Map();
+    const V = [];
+    const idx = new Uint32Array(n * 3);
+    for (let i = 0; i < n * 3; i++) {
+      const x = soup[i * 3], y = soup[i * 3 + 1], z = soup[i * 3 + 2];
+      const key = Math.round(x / q) + ',' + Math.round(y / q) + ',' + Math.round(z / q);
+      let id = map.get(key);
+      if (id === undefined) { id = V.length / 3; V.push(x, y, z); map.set(key, id); }
+      idx[i] = id;
+    }
+    const T = [];
+    for (let i = 0; i < n; i++) {
+      const a = idx[i * 3], b = idx[i * 3 + 1], c = idx[i * 3 + 2];
+      if (a !== b && b !== c && a !== c) T.push(a, b, c);
+    }
+    return { V: new Float64Array(V), T: new Uint32Array(T), F: new Uint8Array(T.length / 3) };
+  }
+
+  function bounds(m) {
+    const V = m.V;
+    const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < V.length; i += 3)
+      for (let k = 0; k < 3; k++) { const v = V[i + k]; if (v < min[k]) min[k] = v; if (v > max[k]) max[k] = v; }
+    if (!V.length) return { min: [0, 0, 0], max: [0, 0, 0], size: [0, 0, 0] };
+    return { min, max, size: [max[0] - min[0], max[1] - min[1], max[2] - min[2]] };
+  }
+
+  // Count edges that are not shared by exactly two faces with opposite direction.
+  function checkWatertight(m) {
+    const T = m.T, nV = m.V.length / 3;
+    const dir = new Map();
+    for (let i = 0; i < T.length; i += 3) {
+      for (let e = 0; e < 3; e++) {
+        const a = T[i + e], b = T[i + (e + 1) % 3];
+        const k = a * nV + b;
+        dir.set(k, (dir.get(k) || 0) + 1);
+      }
+    }
+    let open = 0, bad = 0;
+    for (const [k, c] of dir) {
+      const a = Math.floor(k / nV), b = k - a * nV;
+      const r = dir.get(b * nV + a) || 0;
+      if (c > 1) bad++;
+      else if (r === 0) open++;
+    }
+    return { open, nonManifold: bad, watertight: open === 0 && bad === 0 };
+  }
+
+  function volume(m) {
+    const V = m.V, T = m.T;
+    let vol = 0;
+    for (let i = 0; i < T.length; i += 3) {
+      const a = T[i] * 3, b = T[i + 1] * 3, c = T[i + 2] * 3;
+      vol += V[a] * (V[b + 1] * V[c + 2] - V[b + 2] * V[c + 1])
+           - V[a + 1] * (V[b] * V[c + 2] - V[b + 2] * V[c])
+           + V[a + 2] * (V[b] * V[c + 1] - V[b + 1] * V[c]);
+    }
+    return vol / 6;
+  }
+
+  function transform(m, fn) { // fn(x,y,z) -> [x,y,z]
+    const V = new Float64Array(m.V.length);
+    for (let i = 0; i < V.length; i += 3) {
+      const p = fn(m.V[i], m.V[i + 1], m.V[i + 2]);
+      V[i] = p[0]; V[i + 1] = p[1]; V[i + 2] = p[2];
+    }
+    return { V, T: m.T, F: m.F };
+  }
+
+  function flipWinding(m) {
+    const T = new Uint32Array(m.T);
+    for (let i = 0; i < T.length; i += 3) { const t = T[i + 1]; T[i + 1] = T[i + 2]; T[i + 2] = t; }
+    return { V: m.V, T, F: m.F };
+  }
+
+  function area2(pts) {
+    let a = 0;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) a += (pts[j][0] - pts[i][0]) * (pts[j][1] + pts[i][1]);
+    return -a; // positive = CCW
+  }
+  function pointInPoly(p, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+      if ((yi > p[1]) !== (yj > p[1]) && p[0] < (xj - xi) * (p[1] - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+
+  /* Keep the part of the mesh where dot(n, p) < c. Fills the hole with a cap.
+     triangulate(contour, holes) -> array of [i,j,k] over concat(contour, ...holes) (THREE.ShapeUtils.triangulateShape). */
+  function cut(m, n, c, triangulate) {
+    const V = m.V, T = m.T, F = m.F, nV = V.length / 3;
+    const len = Math.hypot(n[0], n[1], n[2]); n = [n[0] / len, n[1] / len, n[2] / len]; c /= len;
+    const b = bounds(m);
+    const eps = Math.hypot(b.size[0], b.size[1], b.size[2]) * 1e-9 + 1e-12;
+    const s = new Float64Array(nV);
+    let maxD = -Infinity;
+    for (let i = 0; i < nV; i++) {
+      const d = n[0] * V[i * 3] + n[1] * V[i * 3 + 1] + n[2] * V[i * 3 + 2] - c;
+      if (d > maxD) maxD = d;
+      s[i] = Math.abs(d) < eps ? eps : d; // treat on-plane as discarded side
+    }
+    if (maxD <= eps * 10) return { mesh: m, info: { loops: 0, openChains: 0, orphanHoles: 0, capTris: 0, changed: false } };
+    const outV = [];
+    const remap = new Int32Array(nV).fill(-1);
+    const keep = (i) => { if (remap[i] < 0) { remap[i] = outV.length / 3; outV.push(V[i * 3], V[i * 3 + 1], V[i * 3 + 2]); } return remap[i]; };
+    const edgeMap = new Map();
+    const cross = (i, j) => { // i kept (s<0), j discarded
+      const k = i < j ? i * nV + j : j * nV + i;
+      let id = edgeMap.get(k);
+      if (id === undefined) {
+        const t = s[i] / (s[i] - s[j]);
+        id = outV.length / 3;
+        outV.push(V[i * 3] + (V[j * 3] - V[i * 3]) * t, V[i * 3 + 1] + (V[j * 3 + 1] - V[i * 3 + 1]) * t, V[i * 3 + 2] + (V[j * 3 + 2] - V[i * 3 + 2]) * t);
+        edgeMap.set(k, id);
+      }
+      return id;
+    };
+    const outT = [], outF = [];
+    const capNext = new Map(); // cap directed edge from -> to
+    let cutAny = false;
+    for (let t = 0, f = 0; t < T.length; t += 3, f++) {
+      const a = T[t], bb = T[t + 1], cc = T[t + 2];
+      const na = s[a] < 0, nb = s[bb] < 0, nc = s[cc] < 0;
+      const cnt = na + nb + nc;
+      if (cnt === 3) { outT.push(keep(a), keep(bb), keep(cc)); outF.push(F[f]); continue; }
+      if (cnt === 0) { cutAny = true; continue; }
+      cutAny = true;
+      // rotate so the odd vertex is first
+      let A, B, C;
+      if (cnt === 1) { if (na) { A = a; B = bb; C = cc; } else if (nb) { A = bb; B = cc; C = a; } else { A = cc; B = a; C = bb; } }
+      else { if (!na) { C = a; A = bb; B = cc; } else if (!nb) { C = bb; A = cc; B = a; } else { C = cc; A = a; B = bb; } }
+      if (cnt === 1) {
+        const ka = keep(A), ab = cross(A, B), ac = cross(A, C);
+        outT.push(ka, ab, ac); outF.push(F[f]);
+        capNext.set(ac, ab);
+      } else {
+        const ka = keep(A), kb = keep(B), bc = cross(B, C), ca = cross(A, C);
+        outT.push(ka, kb, bc); outF.push(F[f]);
+        outT.push(ka, bc, ca); outF.push(F[f]);
+        capNext.set(ca, bc);
+      }
+    }
+    // chain loops
+    const loops = []; let openChains = 0;
+    const visited = new Set();
+    for (const start of capNext.keys()) {
+      if (visited.has(start)) continue;
+      const loop = []; let cur = start, closed = false;
+      while (cur !== undefined && !visited.has(cur)) { visited.add(cur); loop.push(cur); cur = capNext.get(cur); if (cur === start) { closed = true; break; } }
+      if (closed && loop.length >= 3) loops.push(loop); else openChains++;
+    }
+    // 2D basis with u x v = n
+    const ref = Math.abs(n[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+    let u = [n[1] * ref[2] - n[2] * ref[1], n[2] * ref[0] - n[0] * ref[2], n[0] * ref[1] - n[1] * ref[0]];
+    const ul = Math.hypot(...u); u = u.map((x) => x / ul);
+    const v = [n[1] * u[2] - n[2] * u[1], n[2] * u[0] - n[0] * u[2], n[0] * u[1] - n[1] * u[0]];
+    const proj = (id) => { const x = outV[id * 3], y = outV[id * 3 + 1], z = outV[id * 3 + 2]; return [x * u[0] + y * u[1] + z * u[2], x * v[0] + y * v[1] + z * v[2]]; };
+    const L = loops.map((ids) => { const pts = ids.map(proj); return { ids, pts, area: -area2(pts) }; });
+    const outers = L.filter((l) => l.area > 0).sort((p, q) => p.area - q.area);
+    const holes = L.filter((l) => l.area < 0);
+    const groups = outers.map((o) => ({ o, h: [] }));
+    let orphan = 0;
+    for (const h of holes) {
+      const g = groups.find((g) => pointInPoly(h.pts[0], g.o.pts));
+      if (g) g.h.push(h); else orphan++;
+    }
+    let capTris = 0;
+    for (const g of groups) {
+      const contour = g.o.pts.map((p) => ({ x: p[0], y: p[1] }));
+      const hs = g.h.map((h) => h.pts.map((p) => ({ x: p[0], y: p[1] })));
+      const allIds = g.o.ids.concat(...g.h.map((h) => h.ids));
+      const allPts = g.o.pts.concat(...g.h.map((h) => h.pts));
+      const faces = triangulate(contour, hs);
+      // decide winding once per group from total signed area (degenerate slivers can't flip it)
+      let tot = 0;
+      for (const [i, j, k] of faces) {
+        const p = allPts[i], q = allPts[j], r = allPts[k];
+        tot += (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+      }
+      const flip = tot < 0;
+      for (const [i, j, k] of faces) {
+        if (flip) outT.push(allIds[i], allIds[k], allIds[j]); else outT.push(allIds[i], allIds[j], allIds[k]);
+        outF.push(1); capTris++;
+      }
+    }
+    return {
+      mesh: { V: new Float64Array(outV), T: new Uint32Array(outT), F: new Uint8Array(outF) },
+      info: { loops: loops.length, openChains, orphanHoles: orphan, capTris, changed: cutAny },
+    };
+  }
+
+  function toBinarySTL(m, name) {
+    const V = m.V, T = m.T, n = T.length / 3;
+    const buf = new ArrayBuffer(84 + n * 50);
+    const dv = new DataView(buf);
+    const hdr = ('WreSTL export ' + (name || '')).slice(0, 80);
+    for (let i = 0; i < hdr.length; i++) dv.setUint8(i, hdr.charCodeAt(i) & 0x7f);
+    dv.setUint32(80, n, true);
+    let o = 84;
+    for (let i = 0; i < n; i++) {
+      const a = T[i * 3] * 3, b = T[i * 3 + 1] * 3, c = T[i * 3 + 2] * 3;
+      const ux = V[b] - V[a], uy = V[b + 1] - V[a + 1], uz = V[b + 2] - V[a + 2];
+      const vx = V[c] - V[a], vy = V[c + 1] - V[a + 1], vz = V[c + 2] - V[a + 2];
+      let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      const l = Math.hypot(nx, ny, nz) || 1;
+      dv.setFloat32(o, nx / l, true); dv.setFloat32(o + 4, ny / l, true); dv.setFloat32(o + 8, nz / l, true); o += 12;
+      for (const p of [a, b, c]) { dv.setFloat32(o, V[p], true); dv.setFloat32(o + 4, V[p + 1], true); dv.setFloat32(o + 8, V[p + 2], true); o += 12; }
+      o += 2;
+    }
+    return buf;
+  }
+
+  // Minimal store-only ZIP (one file).
+  const CRC = (() => { const t = new Uint32Array(256); for (let i = 0; i < 256; i++) { let c = i; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[i] = c >>> 0; } return t; })();
+  function crc32(u8) { let c = 0xffffffff; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+  function zipOne(filename, data) {
+    const u8 = new Uint8Array(data), name = new TextEncoder().encode(filename), crc = crc32(u8);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint32(14, crc, true);
+    lh.setUint32(18, u8.length, true); lh.setUint32(22, u8.length, true); lh.setUint16(26, name.length, true);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint32(16, crc, true);
+    ch.setUint32(20, u8.length, true); ch.setUint32(24, u8.length, true); ch.setUint16(28, name.length, true);
+    const cdOff = 30 + name.length + u8.length, cdSize = 46 + name.length;
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, 1, true); end.setUint16(10, 1, true);
+    end.setUint32(12, cdSize, true); end.setUint32(16, cdOff, true);
+    return new Blob([lh.buffer, name, u8, ch.buffer, name, end.buffer]);
+  }
+
+
+  /* Repair: drop duplicate faces, make winding consistent, point normals out, fill holes.
+     triangulate(contour, holes) as in cut(). Returns { mesh, report }. */
+  function toSoup(m) {
+    const s = new Float32Array(m.T.length * 3);
+    for (let i = 0; i < m.T.length; i++) { const v = m.T[i] * 3; s[i * 3] = m.V[v]; s[i * 3 + 1] = m.V[v + 1]; s[i * 3 + 2] = m.V[v + 2]; }
+    return s;
+  }
+  // Merge vertices closer than tol*diag (checks neighbor cells, so no grid-boundary misses).
+  function weldNear(m, tol) {
+    const b = bounds(m), r = Math.hypot(b.size[0], b.size[1], b.size[2]) * tol, V = m.V, n = V.length / 3;
+    const cell = new Map(), rep = new Int32Array(n), outV = [], r2 = r * r;
+    const key = (i, j, k) => i + ',' + j + ',' + k;
+    for (let v = 0; v < n; v++) {
+      const x = V[v * 3], y = V[v * 3 + 1], z = V[v * 3 + 2];
+      const ci = Math.floor(x / r), cj = Math.floor(y / r), ck = Math.floor(z / r);
+      let found = -1;
+      for (let a = -1; a <= 1 && found < 0; a++) for (let bb = -1; bb <= 1 && found < 0; bb++) for (let cc = -1; cc <= 1 && found < 0; cc++) {
+        const l = cell.get(key(ci + a, cj + bb, ck + cc)); if (!l) continue;
+        for (const id of l) { const dx = outV[id * 3] - x, dy = outV[id * 3 + 1] - y, dz = outV[id * 3 + 2] - z; if (dx * dx + dy * dy + dz * dz <= r2) { found = id; break; } }
+      }
+      if (found < 0) { found = outV.length / 3; outV.push(x, y, z); const k = key(ci, cj, ck); const l = cell.get(k); if (l) l.push(found); else cell.set(k, [found]); }
+      rep[v] = found;
+    }
+    const T = [], F = [];
+    for (let f = 0; f < m.T.length / 3; f++) {
+      const a = rep[m.T[f * 3]], b2 = rep[m.T[f * 3 + 1]], c2 = rep[m.T[f * 3 + 2]];
+      if (a !== b2 && b2 !== c2 && a !== c2) { T.push(a, b2, c2); F.push(m.F[f]); }
+    }
+    return { V: new Float64Array(outV), T: new Uint32Array(T), F: new Uint8Array(F) };
+  }
+  function repair(m, triangulate) {
+    let best = repairOnce(m, triangulate);
+    const badCount = (w) => w.open + w.nonManifold;
+    for (const tol of [1e-5, 1e-4]) {
+      if (best.report.after.watertight) break;
+      const welded = weldNear(m, tol);
+      const tryIt = repairOnce(welded, triangulate);
+      if (badCount(tryIt.report.after) < badCount(best.report.after)) {
+        tryIt.report.cracks = (m.V.length - welded.V.length) / 3;
+        best = tryIt;
+      }
+    }
+    return best;
+  }
+  function repairOnce(m, triangulate) {
+    let V = Array.from(m.V); const T0 = m.T, F0 = m.F;
+    const report = { duplicates: 0, flipped: 0, holes: 0, holeTris: 0, inverted: false };
+    // 1. duplicate faces (same 3 vertices). Same winding: keep one. Opposite windings cancel out (internal wall).
+    const seen = new Map(); const keepF = new Uint8Array(T0.length / 3).fill(1);
+    for (let f = 0; f < T0.length / 3; f++) {
+      const a = T0[f * 3], b = T0[f * 3 + 1], c = T0[f * 3 + 2];
+      const key = [a, b, c].sort((x, y) => x - y).join(',');
+      const prev = seen.get(key);
+      if (prev === undefined) { seen.set(key, f); continue; }
+      // orientation equal if c follows b after rotating a to front
+      const pa = T0[prev * 3], pb = T0[prev * 3 + 1], pc = T0[prev * 3 + 2];
+      const same = (pa === a && pb === b) || (pb === a && pc === b) || (pc === a && pa === b);
+      keepF[f] = 0; report.duplicates++;
+      if (!same && keepF[prev]) { keepF[prev] = 0; report.duplicates++; seen.delete(key); }
+    }
+    let T = [], F = [];
+    for (let f = 0; f < keepF.length; f++) if (keepF[f]) { T.push(T0[f * 3], T0[f * 3 + 1], T0[f * 3 + 2]); F.push(F0[f]); }
+    // 2. consistent winding by flood fill across manifold edges
+    const nF = T.length / 3, nV = V.length / 3;
+    const edgeFaces = new Map();
+    const ek = (a, b) => (a < b ? a * nV + b : b * nV + a);
+    for (let f = 0; f < nF; f++) for (let e = 0; e < 3; e++) {
+      const k = ek(T[f * 3 + e], T[f * 3 + (e + 1) % 3]);
+      const l = edgeFaces.get(k); if (l) l.push(f); else edgeFaces.set(k, [f]);
+    }
+    const hasDir = (f, a, b) => { for (let e = 0; e < 3; e++) if (T[f * 3 + e] === a && T[f * 3 + (e + 1) % 3] === b) return true; return false; };
+    const done = new Uint8Array(nF);
+    const flipFace = (f) => { const t = T[f * 3 + 1]; T[f * 3 + 1] = T[f * 3 + 2]; T[f * 3 + 2] = t; };
+    const comps = [];
+    for (let s0 = 0; s0 < nF; s0++) {
+      if (done[s0]) continue;
+      const comp = [s0]; done[s0] = 1; const stack = [s0];
+      while (stack.length) {
+        const f = stack.pop();
+        for (let e = 0; e < 3; e++) {
+          const a = T[f * 3 + e], b = T[f * 3 + (e + 1) % 3];
+          const l = edgeFaces.get(ek(a, b));
+          if (!l || l.length !== 2) continue;
+          const g = l[0] === f ? l[1] : l[0];
+          if (done[g]) continue;
+          if (hasDir(g, a, b)) { flipFace(g); report.flipped++; }
+          done[g] = 1; comp.push(g); stack.push(g);
+        }
+      }
+      comps.push(comp);
+    }
+    // 3. fill holes: open directed edge a->b needs b->a in the filler
+    const dirSet = new Set();
+    for (let f = 0; f < nF; f++) for (let e = 0; e < 3; e++) dirSet.add(T[f * 3 + e] * nV + T[f * 3 + (e + 1) % 3]);
+    const next = new Map();
+    for (let f = 0; f < nF; f++) for (let e = 0; e < 3; e++) {
+      const a = T[f * 3 + e], b = T[f * 3 + (e + 1) % 3];
+      if (!dirSet.has(b * nV + a)) { const l = next.get(b); if (l) l.push(a); else next.set(b, [a]); }
+    }
+    const used = new Set();
+    const pushTri = (a, b, c) => { T.push(a, b, c); F.push(0); report.holeTris++; };
+    for (const [start] of next) {
+      while ((next.get(start) || []).length) {
+        const loop = [start]; let cur = next.get(start).pop(), guard = 0, ok = false;
+        while (guard++ < 1e6) {
+          if (cur === start) { ok = true; break; }
+          loop.push(cur);
+          const l = next.get(cur); if (!l || !l.length) break;
+          cur = l.pop();
+        }
+        if (!ok || loop.length < 3) continue;
+        report.holes++;
+        if (loop.length === 3) { pushTri(loop[0], loop[1], loop[2]); continue; }
+        // best-fit plane (Newell) and projection
+        let nx = 0, ny = 0, nz = 0, cx = 0, cy = 0, cz = 0;
+        for (let i = 0; i < loop.length; i++) {
+          const p = loop[i] * 3, q = loop[(i + 1) % loop.length] * 3;
+          nx += (V[p + 1] - V[q + 1]) * (V[p + 2] + V[q + 2]);
+          ny += (V[p + 2] - V[q + 2]) * (V[p] + V[q]);
+          nz += (V[p] - V[q]) * (V[p + 1] + V[q + 1]);
+          cx += V[p]; cy += V[p + 1]; cz += V[p + 2];
+        }
+        cx /= loop.length; cy /= loop.length; cz /= loop.length;
+        const nl = Math.hypot(nx, ny, nz);
+        let faces = [];
+        if (nl > 1e-12) {
+          const n = [nx / nl, ny / nl, nz / nl];
+          const ref = Math.abs(n[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+          let u = [n[1] * ref[2] - n[2] * ref[1], n[2] * ref[0] - n[0] * ref[2], n[0] * ref[1] - n[1] * ref[0]];
+          const ul = Math.hypot(u[0], u[1], u[2]); u = u.map((x) => x / ul);
+          const w = [n[1] * u[2] - n[2] * u[1], n[2] * u[0] - n[0] * u[2], n[0] * u[1] - n[1] * u[0]];
+          const pts = loop.map((id) => ({ x: V[id * 3] * u[0] + V[id * 3 + 1] * u[1] + V[id * 3 + 2] * u[2], y: V[id * 3] * w[0] + V[id * 3 + 1] * w[1] + V[id * 3 + 2] * w[2] }));
+          try { faces = triangulate(pts, []); } catch (_) { faces = []; }
+          if (faces.length !== loop.length - 2) faces = [];
+        }
+        if (faces.length) {
+          // orient: filler must contain loop edge loop[i]->loop[i+1]
+          let flip = false;
+          const tris = faces.map(([i, j, k]) => [loop[i], loop[j], loop[k]]);
+          // check first boundary edge orientation
+          const a = loop[0], b = loop[1];
+          let found = 0;
+          for (const t of tris) for (let e = 0; e < 3; e++) { if (t[e] === a && t[(e + 1) % 3] === b) found = 1; else if (t[e] === b && t[(e + 1) % 3] === a) found = -1; }
+          flip = found === -1;
+          for (const t of tris) flip ? pushTri(t[0], t[2], t[1]) : pushTri(t[0], t[1], t[2]);
+        } else {
+          // centroid fan
+          const c = V.length / 3; V.push(cx, cy, cz);
+          for (let i = 0; i < loop.length; i++) pushTri(loop[i], loop[(i + 1) % loop.length], c);
+        }
+      }
+    }
+    let out = { V: new Float64Array(V), T: new Uint32Array(T), F: new Uint8Array(F) };
+    if (volume(out) < 0) { out = flipWinding(out); report.inverted = true; }
+    report.after = checkWatertight(out);
+    return { mesh: out, report };
+  }
+
+  root.WreCore = { parseSTL, weld, bounds, checkWatertight, volume, transform, flipWinding, cut, toBinarySTL, zipOne, repair };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+(function () {
+'use strict';
+const C = window.WreCore;
+const $ = (id) => document.getElementById(id);
+const fmt = (v, d = 1) => (Math.round(v * 10 ** d) / 10 ** d).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+/* ---------- state ---------- */
+let mesh = null, original = null, name = 'sample-knot.stl';
+const undo = [], redo = [];
+let tool = 'scale';
+const bed = { x: 200, y: 200, z: 200 };
+const crop = { s: [0, 0, 0], c: [0, 0, 0] };
+const cutS = { axis: 2, pos: 0, ta: 0, tb: 0, keepAbove: false, range: [0, 1] };
+let wtToken = 0;
+
+/* ---------- three setup ---------- */
+const canvas = $('cv'), vp = $('vp');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.localClippingEnabled = true;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 20000);
+camera.up.set(0, 0, 1);
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.enableDamping = true;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.75));
+const key = new THREE.DirectionalLight(0xffffff, 0.75); camera.add(key); key.position.set(1, 2, 1);
+scene.add(camera);
+
+function cssColor(name) { return new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888'); }
+const colors = {};
+function readColors() { colors.model = cssColor('--model'); colors.gold = cssColor('--gold'); colors.bed = cssColor('--bed'); colors.bedLine = cssColor('--bed-line'); colors.accent = cssColor('--accent'); colors.turq = cssColor('--turq'); colors.ghost = cssColor('--ghost'); colors.vol = cssColor('--vol'); }
+readColors();
+
+const frontMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.62, metalness: 0.05, side: THREE.FrontSide });
+const backMat = new THREE.MeshBasicMaterial({ color: colors.gold, side: THREE.BackSide });
+const ghostMat = new THREE.MeshBasicMaterial({ color: colors.ghost, transparent: true, opacity: 0.08, depthWrite: false, side: THREE.DoubleSide });
+const geo = new THREE.BufferGeometry();
+const meshFront = new THREE.Mesh(geo, frontMat), meshBack = new THREE.Mesh(geo, backMat), meshGhost = new THREE.Mesh(geo, ghostMat);
+meshBack.visible = false; meshGhost.visible = false;
+scene.add(meshGhost, meshFront, meshBack);
+
+// bed
+const bedGroup = new THREE.Group(); scene.add(bedGroup);
+function buildBed() {
+  bedGroup.clear();
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(bed.x, bed.y), new THREE.MeshStandardMaterial({ color: colors.bed, roughness: 0.9, metalness: 0.1 }));
+  plate.position.z = -0.05; bedGroup.add(plate);
+  const pts = [];
+  for (let x = -bed.x / 2; x <= bed.x / 2 + 1e-6; x += 10) pts.push(x, -bed.y / 2, 0, x, bed.y / 2, 0);
+  for (let y = -bed.y / 2; y <= bed.y / 2 + 1e-6; y += 10) pts.push(-bed.x / 2, y, 0, bed.x / 2, y, 0);
+  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  bedGroup.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: colors.bedLine, transparent: true, opacity: 0.55 })));
+  const vol = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(bed.x, bed.y, bed.z)), new THREE.LineBasicMaterial({ color: colors.vol, transparent: true, opacity: 0.14 }));
+  vol.position.z = bed.z / 2; bedGroup.add(vol);
+  $('hudBed').textContent = `Bed ${bed.x} × ${bed.y} mm`;
+}
+
+// preview helpers
+const planeMat = new THREE.MeshBasicMaterial({ color: colors.accent, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false });
+const planeMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), planeMat);
+const planeEdge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(1, 1)), new THREE.LineBasicMaterial({ color: colors.accent }));
+planeMesh.add(planeEdge); planeMesh.visible = false; scene.add(planeMesh);
+const boxEdge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: colors.accent }));
+const boxFill = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: colors.accent, transparent: true, opacity: 0.06, depthWrite: false }));
+const boxGroup = new THREE.Group(); boxGroup.add(boxEdge, boxFill); boxGroup.visible = false; scene.add(boxGroup);
+
+// --- mouse handles ---
+const tctl = new THREE.TransformControls(camera, canvas);
+tctl.setMode('translate'); tctl.setSize(0.85); tctl.setSpace('world');
+tctl.addEventListener('dragging-changed', (e) => { controls.enabled = !e.value; });
+tctl.addEventListener('objectChange', () => {
+  const { ctr } = modelBox();
+  crop.c = [0, 1, 2].map((k) => +(boxGroup.position.getComponent(k) - ctr[k]).toFixed(2));
+  syncCropUI(); updatePreview();
+});
+scene.add(tctl);
+
+const handleMat = new THREE.MeshBasicMaterial({ color: colors.accent, depthTest: false, transparent: true });
+const handleHot = new THREE.MeshBasicMaterial({ color: colors.gold, depthTest: false, transparent: true });
+const faceHandles = [];
+for (let k = 0; k < 6; k++) {
+  const h = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), handleMat);
+  h.renderOrder = 999; h.userData = { kind: 'face', axis: k >> 1, sign: k & 1 ? -1 : 1 };
+  h.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0xffffff, depthTest: false })));
+  h.children[0].renderOrder = 1000;
+  h.visible = false; scene.add(h); faceHandles.push(h);
+}
+const cutHandle = new THREE.Group();
+{
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 2, 12), handleMat);
+  shaft.position.y = 1;
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1, 18), handleMat);
+  tip.position.y = 2.4;
+  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1, 18), handleMat);
+  tail.position.y = -0.4; tail.rotation.z = Math.PI;
+  const grab = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), handleMat); // center knob
+  for (const m of [shaft, tip, tail, grab]) { m.renderOrder = 999; m.userData = { kind: 'cut' }; cutHandle.add(m); }
+}
+cutHandle.visible = false; scene.add(cutHandle);
+
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function setRay(e) { const r = canvas.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera); }
+function activeHandles() { return tool === 'crop' ? faceHandles : tool === 'cut' ? cutHandle.children : []; }
+function axisParam(p, u) { // param along line p + t*u closest to the mouse ray
+  const o = ray.ray.origin, d = ray.ray.direction, w = o.clone().sub(p);
+  const b = d.dot(u), den = 1 - b * b;
+  if (den < 1e-4) return null;
+  return (u.dot(w) - b * d.dot(w)) / den;
+}
+let drag = null, hoverObj = null;
+function setHot(objs, hot) { for (const o of objs) o.material = hot ? handleHot : handleMat; }
+vp.addEventListener('pointerdown', (e) => {
+  if (e.target !== canvas || !mesh || e.button !== 0 || tctl.dragging || tctl.axis) return;
+  setRay(e);
+  const hit = ray.intersectObjects(activeHandles(), false)[0];
+  if (!hit) return;
+  e.stopPropagation(); e.preventDefault();
+  const obj = hit.object;
+  if (obj.userData.kind === 'face') {
+    const { axis, sign } = obj.userData, { ctr } = modelBox();
+    const u = new THREE.Vector3(); u.setComponent(axis, 1);
+    const mid = ctr[axis] + crop.c[axis], h = crop.s[axis] / 2;
+    drag = { kind: 'face', axis, sign, u, p: obj.position.clone(), lo: mid - h, hi: mid + h, objs: [obj] };
+  } else {
+    const u = cutNormal();
+    drag = { kind: 'cut', u, p: cutHandle.position.clone(), pos0: cutS.pos, objs: cutHandle.children };
+  }
+  drag.t0 = axisParam(drag.p, drag.u) ?? 0;
+  setHot(drag.objs, true); controls.enabled = false;
+  vp.setPointerCapture(e.pointerId);
+}, true);
+vp.addEventListener('pointermove', (e) => {
+  if (!mesh) return;
+  if (!drag && e.target !== canvas) return;
+  setRay(e);
+  if (!drag) {
+    const hit = activeHandles().length ? ray.intersectObjects(activeHandles(), false)[0] : null;
+    const obj = hit ? hit.object : null;
+    if (obj !== hoverObj) {
+      if (hoverObj) setHot(hoverObj.userData.kind === 'cut' ? cutHandle.children : [hoverObj], false);
+      hoverObj = obj;
+      if (obj) setHot(obj.userData.kind === 'cut' ? cutHandle.children : [obj], true);
+      canvas.style.cursor = obj ? 'grab' : '';
+    }
+    return;
+  }
+  canvas.style.cursor = 'grabbing';
+  const t = axisParam(drag.p, drag.u); if (t === null) return;
+  const dt = t - drag.t0;
+  if (drag.kind === 'face') {
+    let lo = drag.lo, hi = drag.hi;
+    if (drag.sign > 0) hi = Math.max(drag.hi + dt, lo + 0.5); else lo = Math.min(drag.lo + dt, hi - 0.5);
+    const { ctr } = modelBox();
+    crop.s[drag.axis] = +(hi - lo).toFixed(2);
+    crop.c[drag.axis] = +((lo + hi) / 2 - ctr[drag.axis]).toFixed(2);
+    syncCropUI();
+  } else {
+    cutS.pos = Math.min(Math.max(drag.pos0 + dt, cutS.range[0]), cutS.range[1]);
+    $('cutPosR').value = cutS.pos; $('cutPos').value = cutS.pos.toFixed(1);
+  }
+  updatePreview();
+});
+function endDrag(e) {
+  if (!drag) return;
+  setHot(drag.objs, false); drag = null; hoverObj = null; controls.enabled = true; canvas.style.cursor = '';
+  try { vp.releasePointerCapture(e.pointerId); } catch (_) {}
+}
+vp.addEventListener('pointerup', endDrag);
+vp.addEventListener('pointercancel', endDrag);
+
+function scaleHandles() {
+  for (const h of faceHandles) if (h.visible) h.scale.setScalar(camera.position.distanceTo(h.position) * 0.022);
+  if (cutHandle.visible) cutHandle.scale.setScalar(camera.position.distanceTo(cutHandle.position) * 0.03);
+}
+
+function resize() {
+  const w = vp.clientWidth, h = vp.clientHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / Math.max(h, 1); camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(vp);
+(function loop() { controls.update(); scaleHandles(); renderer.render(scene, camera); requestAnimationFrame(loop); })();
+
+function applyTheme() {
+  readColors(); backMat.color.copy(colors.gold); planeMat.color.copy(colors.accent);
+  planeEdge.material.color.copy(colors.accent); boxEdge.material.color.copy(colors.accent); boxFill.material.color.copy(colors.accent);
+  handleMat.color.copy(colors.accent); handleHot.color.copy(colors.gold); ghostMat.color.copy(colors.ghost);
+  buildBed(); if (mesh) rebuildGeometry();
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+/* ---------- mesh <-> geometry ---------- */
+function rebuildGeometry() {
+  const { V, T, F } = mesh, n = T.length;
+  const pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+  const showCaps = $('showCaps').checked;
+  const m = colors.model, g = colors.gold;
+  for (let i = 0; i < n; i++) {
+    const v = T[i] * 3; pos[i * 3] = V[v]; pos[i * 3 + 1] = V[v + 1]; pos[i * 3 + 2] = V[v + 2];
+    const c = showCaps && F[(i / 3) | 0] ? g : m;
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.deleteAttribute('normal'); geo.computeVertexNormals();
+  geo.computeBoundingSphere(); geo.computeBoundingBox();
+}
+
+// center on bed, sit on Z=0
+function placeOnBed(m) {
+  const b = C.bounds(m);
+  const dx = -(b.min[0] + b.max[0]) / 2, dy = -(b.min[1] + b.max[1]) / 2, dz = -b.min[2];
+  return C.transform(m, (x, y, z) => [x + dx, y + dy, z + dz]);
+}
+
+function frame(dir) {
+  if (!mesh || !mesh.T.length) return;
+  const b = C.bounds(mesh);
+  const c = new THREE.Vector3((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2);
+  const r = Math.max(Math.hypot(...b.size) / 2, 5);
+  const d = dir || new THREE.Vector3(1, -1.25, 0.9);
+  d.normalize();
+  const dist = r / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 1.05;
+  camera.near = dist / 200; camera.far = dist * 50; camera.updateProjectionMatrix();
+  controls.target.copy(c); camera.position.copy(c).addScaledVector(d, dist); controls.update();
+}
+document.querySelectorAll('.vp-views button').forEach((b) => b.addEventListener('click', () => {
+  const v = b.dataset.view;
+  frame(v === 'top' ? new THREE.Vector3(0, -0.001, 1) : v === 'front' ? new THREE.Vector3(0, -1, 0.001) : v === 'right' ? new THREE.Vector3(1, 0, 0.001) : null);
+}));
+
+/* ---------- UI refresh ---------- */
+function refreshStats() {
+  const b = C.bounds(mesh);
+  const lim = [bed.x, bed.y, bed.z];
+  ['X', 'Y', 'Z'].forEach((k, i) => {
+    const el = $('dim' + k);
+    el.querySelector('.v').innerHTML = `${fmt(b.size[i])} <small>mm</small>`;
+    el.classList.toggle('over', b.size[i] > lim[i] + 1e-6);
+  });
+  $('stTris').textContent = (mesh.T.length / 3).toLocaleString('en-US');
+  $('stVol').textContent = fmt(Math.abs(C.volume(mesh)) / 1000, 2);
+  $('scX').value = fmt(b.size[0], 2).replace(/,/g, ''); $('scY').value = fmt(b.size[1], 2).replace(/,/g, ''); $('scZ').value = fmt(b.size[2], 2).replace(/,/g, '');
+  $('scPct').value = 100;
+  $('hudCap').hidden = !mesh.F.some((f) => f);
+  $('undoBtn').disabled = !undo.length; $('redoBtn').disabled = !redo.length;
+  // watertight check off the main moment
+  const token = ++wtToken, pill = $('wtPill');
+  pill.className = 'pill wait'; pill.textContent = 'Checking…';
+  setTimeout(() => {
+    if (token !== wtToken) return;
+    const w = C.checkWatertight(mesh);
+    mesh._wt = w;
+    $('repairBtn').hidden = w.watertight;
+    if (w.watertight) { pill.className = 'pill ok'; pill.textContent = 'Watertight'; }
+    else { pill.className = 'pill bad'; pill.textContent = `${(w.open + w.nonManifold).toLocaleString()} bad edges`; pill.title = `${w.open} open edges, ${w.nonManifold} non-manifold edges`; }
+  }, 30);
+}
+
+function setMesh(m, opts = {}) {
+  if (opts.record !== false && mesh) { undo.push(mesh); if (undo.length > 25) undo.shift(); redo.length = 0; }
+  mesh = placeOnBed(m);
+  rebuildGeometry();
+  resetCrop(); resetCut();
+  refreshStats();
+  updatePreview();
+  if (opts.frame) frame();
+}
+
+/* ---------- busy wrapper ---------- */
+function busy(label, fn) {
+  const el = $('busy'); el.textContent = label; el.style.display = 'grid';
+  return new Promise((res) => setTimeout(() => {
+    try { res(fn()); } catch (e) { console.error(e); toast('Something went wrong: ' + e.message); res(null); }
+    finally { el.style.display = 'none'; }
+  }, 30));
+}
+let toastT;
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toastT); toastT = setTimeout(() => (t.style.display = 'none'), 3200); }
+
+/* ---------- banner ---------- */
+function showBanner(html, actions, kind) {
+  const b = $('banner'); b.className = 'banner' + (kind === 'bad' ? ' bad' : '');
+  b.innerHTML = `<p>${html}</p><div class="row"></div>`;
+  const hide = () => { b.style.display = 'none'; b.hidden = true; };
+  const row = b.querySelector('.row');
+  for (const [label, fn, primary] of actions) {
+    const btn = document.createElement('button'); btn.className = 'btn small' + (primary ? ' primary' : ''); btn.textContent = label;
+    btn.addEventListener('click', (e) => { e.stopPropagation(); hide(); if (fn) fn(); }); row.appendChild(btn);
+  }
+  b.hidden = false; b.style.display = 'flex';
+}
+
+function checkSizeOnLoad() {
+  const b = C.bounds(mesh), s = b.size, mx = Math.max(...s);
+  const dims = `${fmt(s[0])} × ${fmt(s[1])} × ${fmt(s[2])} mm`;
+  if (s[0] > bed.x || s[1] > bed.y || s[2] > bed.z) {
+    showBanner(`<b>This model is ${dims}.</b> That's bigger than your ${bed.x} × ${bed.y} × ${bed.z} mm printer. Scale it down to fit?`,
+      [['Scale to fit', fitToPrinter, true], ['Keep this size', null]]);
+  } else if (mx < 3) {
+    showBanner(`<b>This model is only ${dims}.</b> It may have been saved in inches or meters.`,
+      [['It’s inches (×25.4)', () => scaleBy([25.4, 25.4, 25.4]), true], ['It’s meters (×1000)', () => scaleBy([1000, 1000, 1000])], ['Keep this size', null]]);
+  } else { $('banner').hidden = true; $('banner').style.display = 'none'; }
+}
+
+/* ---------- loading ---------- */
+$('drop').addEventListener('click', () => ($('drop').style.display = 'none'));
+function loadBuffer(buf, fileName) {
+  return busy('Loading…', () => {
+    const soup = C.parseSTL(buf);
+    if (!soup.length) { toast('No triangles found. Is this really an STL file?'); return; }
+    const m = C.weld(soup);
+    name = fileName; $('fname').textContent = fileName;
+    $('outName').value = fileName.replace(/\.stl$/i, '') + '_wrestl.stl';
+    undo.length = 0; redo.length = 0; mesh = null;
+    original = placeOnBed(m);
+    setMesh(original, { record: false, frame: true });
+    // volume sign: fix inside-out files
+    if (C.volume(mesh) < 0) { mesh = C.flipWinding(mesh); original = mesh; rebuildGeometry(); }
+    const w0 = C.checkWatertight(mesh);
+    if (!w0.watertight) { autoRepair(true); return; }
+    checkSizeOnLoad();
+  });
+}
+function repairText(r) {
+  const bits = [];
+  if (r.holes) bits.push(`filled ${r.holes.toLocaleString()} hole${r.holes === 1 ? '' : 's'}`);
+  if (r.flipped) bits.push(`flipped ${r.flipped.toLocaleString()} backward triangle${r.flipped === 1 ? '' : 's'}`);
+  if (r.duplicates) bits.push(`removed ${r.duplicates.toLocaleString()} duplicate${r.duplicates === 1 ? '' : 's'}`);
+  if (r.inverted) bits.push('turned the inside-out mesh right side out');
+  if (r.cracks) bits.push(`closed tiny cracks by merging ${r.cracks.toLocaleString()} nearly-touching point${r.cracks === 1 ? '' : 's'}`);
+  return bits.join(', ');
+}
+function autoRepair(onLoad) {
+  const before = C.checkWatertight(mesh);
+  const r = C.repair(mesh, triangulate);
+  const after = r.report.after;
+  setMesh(r.mesh, { frame: onLoad });
+  const fixed = repairText(r.report);
+  if (after.watertight) {
+    const msg = `<b>Repaired and watertight.</b> The file had ${(before.open + before.nonManifold).toLocaleString()} bad edges, so WreSTL ${fixed}.`;
+    if (onLoad) showBanner(msg + ' Press Undo to see the file as it came in.', [['OK', checkSizeOnLoad, true]]);
+    else toast('Repaired: ' + fixed + '.');
+  } else {
+    const left = (after.open + after.nonManifold).toLocaleString();
+    showBanner(fixed
+      ? `<b>Partly repaired.</b> WreSTL ${fixed}, but ${left} bad edges are left that it can't fix automatically (usually overlapping parts). Cuts still work, but a filled face may have gaps.`
+      : `<b>Not fully closed.</b> This mesh has ${left} bad edges that WreSTL can't fix automatically (usually overlapping parts). Cuts still work, but a filled face may have gaps.`, [['OK', onLoad ? checkSizeOnLoad : null, true]], 'bad');
+  }
+}
+$('repairBtn').addEventListener('click', () => busy('Repairing…', () => autoRepair(false)));
+function openFile(file) {
+  if (!file) return;
+  if (!/\.stl$/i.test(file.name)) { toast('WreSTL only opens .stl files.'); return; }
+  file.arrayBuffer().then((buf) => loadBuffer(buf, file.name));
+}
+$('openBtn').addEventListener('click', () => $('fileIn').click());
+$('fileIn').addEventListener('change', (e) => { openFile(e.target.files[0]); e.target.value = ''; });
+let dragDepth = 0;
+window.addEventListener('dragenter', (e) => { if (!e.dataTransfer || ![...e.dataTransfer.types].includes('Files')) return; e.preventDefault(); dragDepth++; $('drop').style.display = 'grid'; });
+window.addEventListener('dragleave', (e) => { dragDepth--; if (dragDepth <= 0 || !e.relatedTarget) { dragDepth = 0; $('drop').style.display = 'none'; } });
+window.addEventListener('dragend', () => { dragDepth = 0; $('drop').style.display = 'none'; });
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => { e.preventDefault(); dragDepth = 0; $('drop').style.display = 'none'; openFile(e.dataTransfer.files[0]); });
+
+/* ---------- history ---------- */
+function doUndo() { if (!undo.length) return; redo.push(mesh); mesh = null; setMesh(undo.pop(), { record: false }); }
+function doRedo() { if (!redo.length) return; undo.push(mesh); mesh = null; setMesh(redo.pop(), { record: false }); }
+$('undoBtn').addEventListener('click', doUndo);
+$('redoBtn').addEventListener('click', doRedo);
+$('resetBtn').addEventListener('click', () => { if (original) { setMesh(original, { frame: true }); toast('Back to the original file'); } });
+window.addEventListener('keydown', (e) => {
+  if (e.target.matches('input')) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); doRedo(); }
+});
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
+  tool = b.dataset.tool;
+  document.querySelectorAll('.tabs button').forEach((x) => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('.toolbody').forEach((s) => (s.hidden = s.dataset.body !== tool));
+  updatePreview();
+}));
+
+/* ---------- scale ---------- */
+function scaleBy(f) {
+  setMesh(C.transform(mesh, (x, y, z) => [x * f[0], y * f[1], z * f[2]]), { frame: true });
+  const s = C.bounds(mesh).size;
+  toast(`Now ${fmt(s[0])} × ${fmt(s[1])} × ${fmt(s[2])} mm`);
+}
+function fitToPrinter() {
+  const s = C.bounds(mesh).size;
+  const f = Math.min(bed.x / s[0], bed.y / s[1], bed.z / s[2]);
+  if (!isFinite(f)) return;
+  scaleBy([f, f, f]);
+}
+$('fitBtn').addEventListener('click', fitToPrinter);
+document.querySelectorAll('[data-pct]').forEach((b) => b.addEventListener('click', () => { const f = b.dataset.pct / 100; scaleBy([f, f, f]); }));
+document.querySelectorAll('[data-mult]').forEach((b) => b.addEventListener('click', () => { const f = +b.dataset.mult; scaleBy([f, f, f]); }));
+$('scLock').addEventListener('click', (e) => { const b = e.currentTarget; b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); });
+['scX', 'scY', 'scZ'].forEach((id, i) => {
+  const el = $(id);
+  const go = () => {
+    const v = parseFloat(el.value), s = C.bounds(mesh).size;
+    if (!(v > 0) || !(s[i] > 0) || Math.abs(v - s[i]) < 1e-4) return;
+    const f = v / s[i];
+    scaleBy($('scLock').getAttribute('aria-pressed') === 'true' ? [f, f, f] : [i === 0 ? f : 1, i === 1 ? f : 1, i === 2 ? f : 1]);
+  };
+  el.addEventListener('change', go);
+  el.addEventListener('keydown', (e) => { if (e.key === 'Enter') el.blur(); });
+});
+$('scPct').addEventListener('change', (e) => { const p = parseFloat(e.target.value); if (p > 0 && p !== 100) scaleBy([p / 100, p / 100, p / 100]); });
+
+/* ---------- crop ---------- */
+let mbCache = null;
+function modelBox() { if (!mbCache || mbCache.m !== mesh) { const b = C.bounds(mesh); mbCache = { m: mesh, b, ctr: [0, 1, 2].map((k) => (b.min[k] + b.max[k]) / 2) }; } return mbCache; }
+function resetCrop() {
+  if (!mesh) return;
+  const { b } = modelBox();
+  crop.s = b.size.map((v) => +v.toFixed(2)); crop.c = [0, 0, 0];
+  syncCropUI();
+}
+function syncCropUI() {
+  const { b } = modelBox();
+  ['X', 'Y', 'Z'].forEach((k, i) => {
+    $('crS' + k).value = crop.s[i];
+    const r = $('crC' + k + 'r'), half = b.size[i] / 2 + crop.s[i] / 2;
+    r.min = -half.toFixed(1); r.max = half.toFixed(1); r.value = crop.c[i];
+    $('crC' + k).value = crop.c[i].toFixed(1);
+  });
+}
+function cropPlanes() { // [n, c] keep n·p < c, in model coords
+  const { ctr } = modelBox(); const out = [];
+  for (let k = 0; k < 3; k++) {
+    const mid = ctr[k] + crop.c[k], h = crop.s[k] / 2;
+    const n = [0, 0, 0]; n[k] = 1; out.push([n, mid + h]);
+    const m = [0, 0, 0]; m[k] = -1; out.push([m, -(mid - h)]);
+  }
+  return out;
+}
+['X', 'Y', 'Z'].forEach((k, i) => {
+  $('crS' + k).addEventListener('input', (e) => { const v = parseFloat(e.target.value); if (v > 0) { crop.s[i] = v; syncCropUI(); updatePreview(); } });
+  $('crC' + k + 'r').addEventListener('input', (e) => { crop.c[i] = +e.target.value; $('crC' + k).value = crop.c[i].toFixed(1); updatePreview(); });
+  $('crC' + k).addEventListener('change', (e) => { const v = parseFloat(e.target.value); if (isFinite(v)) { crop.c[i] = v; syncCropUI(); updatePreview(); } });
+});
+$('cropReset').addEventListener('click', () => { resetCrop(); updatePreview(); });
+$('cropApply').addEventListener('click', () => busy('Cropping…', () => {
+  let m = mesh, open = 0, changed = false;
+  for (const [n, c] of cropPlanes()) { const r = C.cut(m, n, c, triangulate); m = r.mesh; open += r.info.openChains; changed = changed || r.info.changed; }
+  if (!changed) { toast('The box covers the whole model, so nothing was cut.'); return; }
+  if (!m.T.length) { toast('The box doesn’t touch the model. Move it over the part you want to keep.'); return; }
+  setMesh(m, { frame: true });
+  toast(open ? 'Cropped, but the mesh had gaps so some walls may be open.' : 'Cropped. New walls are filled and watertight.');
+}));
+
+/* ---------- cut ---------- */
+function cutNormal() { // normal before keep-flip
+  const base = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)][cutS.axis].clone();
+  const a1 = [new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0), new THREE.Vector3(1, 0, 0)][cutS.axis];
+  const a2 = [new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0)][cutS.axis];
+  base.applyAxisAngle(a1, THREE.MathUtils.degToRad(cutS.ta)).applyAxisAngle(a2, THREE.MathUtils.degToRad(cutS.tb));
+  return base.normalize();
+}
+function projRange(n) {
+  const V = mesh.V; let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i < V.length; i += 3) { const d = n.x * V[i] + n.y * V[i + 1] + n.z * V[i + 2]; if (d < lo) lo = d; if (d > hi) hi = d; }
+  return [lo, hi];
+}
+function syncCutUI(keepFraction) {
+  if (!mesh) return;
+  const old = cutS.range, frac = keepFraction && old[1] > old[0] ? (cutS.pos - old[0]) / (old[1] - old[0]) : 0.5;
+  cutS.range = projRange(cutNormal());
+  cutS.pos = +(cutS.range[0] + frac * (cutS.range[1] - cutS.range[0])).toFixed(2);
+  const r = $('cutPosR'); r.min = cutS.range[0].toFixed(2); r.max = cutS.range[1].toFixed(2); r.value = cutS.pos;
+  $('cutPos').value = cutS.pos.toFixed(1);
+  const ax = 'XYZ'[cutS.axis], tilted = cutS.ta || cutS.tb;
+  $('cutPosLbl').textContent = tilted ? 'Position' : 'At ' + ax;
+  const names = [['−X side', '+X side'], ['−Y side', '+Y side'], ['Below', 'Above']][cutS.axis];
+  const kb = $('cutKeep').querySelectorAll('button');
+  kb[0].textContent = names[0]; kb[1].textContent = names[1];
+  kb[0].setAttribute('aria-pressed', !cutS.keepAbove); kb[1].setAttribute('aria-pressed', cutS.keepAbove);
+  $('cutAxis').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.axis === cutS.axis));
+}
+function resetCut() { cutS.ta = cutS.tb = 0; $('cutTA').value = $('cutTAr').value = 0; $('cutTB').value = $('cutTBr').value = 0; cutS.range = [0, 1]; syncCutUI(false); }
+function cutPlane() { // keep n·p < c
+  const n = cutNormal(); let c = cutS.pos;
+  return cutS.keepAbove ? [[-n.x, -n.y, -n.z], -c] : [[n.x, n.y, n.z], c];
+}
+$('cutAxis').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; cutS.axis = +b.dataset.axis; syncCutUI(false); updatePreview(); });
+$('cutKeep').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; cutS.keepAbove = b.dataset.keep === '1'; syncCutUI(true); updatePreview(); });
+$('cutPosR').addEventListener('input', (e) => { cutS.pos = +e.target.value; $('cutPos').value = cutS.pos.toFixed(1); updatePreview(); });
+$('cutPos').addEventListener('change', (e) => { const v = parseFloat(e.target.value); if (isFinite(v)) { cutS.pos = Math.min(Math.max(v, cutS.range[0]), cutS.range[1]); $('cutPosR').value = cutS.pos; e.target.value = cutS.pos.toFixed(1); updatePreview(); } });
+[['TA', 'ta'], ['TB', 'tb']].forEach(([id, k]) => {
+  $('cut' + id + 'r').addEventListener('input', (e) => { cutS[k] = +e.target.value; $('cut' + id).value = cutS[k]; syncCutUI(true); updatePreview(); });
+  $('cut' + id).addEventListener('change', (e) => { const v = Math.max(-90, Math.min(90, parseFloat(e.target.value) || 0)); cutS[k] = v; e.target.value = v; $('cut' + id + 'r').value = v; syncCutUI(true); updatePreview(); });
+});
+$('cutApply').addEventListener('click', () => busy('Cutting…', () => {
+  const [n, c] = cutPlane();
+  const r = C.cut(mesh, n, c, triangulate);
+  if (!r.info.changed) { toast('The plane misses the model, so nothing was cut.'); return; }
+  if (!r.mesh.T.length) { toast('That would remove the whole model. Swap the side you keep.'); return; }
+  setMesh(r.mesh, { frame: true });
+  toast(r.info.openChains ? 'Cut, but the mesh had gaps so the filled face may be incomplete.' : 'Cut. The new face is filled and watertight.');
+}));
+
+/* ---------- orient ---------- */
+document.querySelectorAll('[data-rot]').forEach((b) => b.addEventListener('click', () => {
+  const k = +b.dataset.rot;
+  const f = [(x, y, z) => [x, -z, y], (x, y, z) => [z, y, -x], (x, y, z) => [-y, x, z]][k];
+  setMesh(C.transform(mesh, f), { frame: true });
+}));
+document.querySelectorAll('[data-mir]').forEach((b) => b.addEventListener('click', () => {
+  const k = +b.dataset.mir;
+  setMesh(C.flipWinding(C.transform(mesh, (x, y, z) => [k === 0 ? -x : x, k === 1 ? -y : y, k === 2 ? -z : z])));
+}));
+
+/* ---------- preview ---------- */
+function toThreePlanes(list) { return list.map(([n, c]) => new THREE.Plane(new THREE.Vector3(-n[0], -n[1], -n[2]), c)); }
+function updatePreview() {
+  if (!mesh) return;
+  let planes = null;
+  planeMesh.visible = false; boxGroup.visible = false; cutHandle.visible = false;
+  faceHandles.forEach((h) => (h.visible = false));
+  if (tool !== 'crop' && tctl.object) tctl.detach();
+  const { b, ctr } = modelBox();
+  const diag = Math.max(Math.hypot(...b.size), 1);
+  if (tool === 'crop') {
+    planes = toThreePlanes(cropPlanes());
+    boxGroup.visible = true;
+    boxGroup.position.set(ctr[0] + crop.c[0], ctr[1] + crop.c[1], ctr[2] + crop.c[2]);
+    boxGroup.scale.set(crop.s[0], crop.s[1], crop.s[2]);
+    if (tctl.object !== boxGroup) tctl.attach(boxGroup);
+    faceHandles.forEach((h) => {
+      const { axis, sign } = h.userData;
+      h.position.copy(boxGroup.position);
+      h.position.setComponent(axis, boxGroup.position.getComponent(axis) + sign * crop.s[axis] / 2);
+      h.visible = true;
+    });
+    $('vpTip').textContent = 'Arrows move the box. Pink squares resize a side.';
+  } else if (tool === 'cut') {
+    const [n, c] = cutPlane();
+    planes = toThreePlanes([[n, c]]);
+    const nn = cutNormal();
+    const center = new THREE.Vector3(...ctr);
+    const p = center.clone().addScaledVector(nn, cutS.pos - nn.dot(center));
+    planeMesh.position.copy(p);
+    planeMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nn);
+    planeMesh.scale.set(diag * 1.15, diag * 1.15, 1);
+    planeMesh.visible = true;
+    cutHandle.position.copy(p);
+    cutHandle.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), nn);
+    cutHandle.visible = true;
+    $('vpTip').textContent = 'Drag the arrow to slide the cut plane.';
+  }
+  $('vpTip').hidden = !(tool === 'crop' || tool === 'cut');
+  frontMat.clippingPlanes = planes; backMat.clippingPlanes = planes;
+  frontMat.needsUpdate = true; backMat.needsUpdate = true;
+  meshBack.visible = !!planes; meshGhost.visible = !!planes;
+}
+$('showCaps').addEventListener('change', () => { rebuildGeometry(); });
+
+/* ---------- printer ---------- */
+['bedX', 'bedY', 'bedZ'].forEach((id, i) => $(id).addEventListener('change', (e) => {
+  const v = Math.max(10, parseFloat(e.target.value) || 200); e.target.value = v;
+  bed[['x', 'y', 'z'][i]] = v; buildBed(); refreshStats();
+  try { localStorage.setItem('wrestl.bed', JSON.stringify(bed)); } catch (_) {}
+}));
+try { const s = JSON.parse(localStorage.getItem('wrestl.bed') || 'null'); if (s && s.x) { Object.assign(bed, s); $('bedX').value = bed.x; $('bedY').value = bed.y; $('bedZ').value = bed.z; } } catch (_) {}
+
+/* ---------- export ---------- */
+let downloads = null;
+if (window.claude && typeof window.claude.use === 'function') {
+  window.claude.use('downloads').then((d) => { downloads = d; if (d) $('exportHint').textContent = 'Binary STL, millimeters. Inside the Claude viewer the STL comes packed in a .zip; unzip it to get the file.'; }).catch(() => {});
+}
+$('exportBtn').addEventListener('click', async () => {
+  if (!mesh || !mesh.T.length) return;
+  let fn = ($('outName').value.trim() || 'model_wrestl.stl').replace(/[\\/:*?"<>|]/g, '_');
+  if (!/\.stl$/i.test(fn)) fn += '.stl';
+  const buf = C.toBinarySTL(mesh, fn);
+  if (!downloads && window.claude && typeof window.claude.use === 'function') { try { downloads = await window.claude.use('downloads'); } catch (_) {} }
+  if (downloads) {
+    try { await downloads.save({ filename: fn.replace(/\.stl$/i, '.zip'), data: C.zipOne(fn, buf) }); toast('Saved ' + fn.replace(/\.stl$/i, '.zip')); }
+    catch (e) { if (e && e.code !== 'declined') toast('Couldn’t save the file here (' + (e.code || 'error') + ').'); }
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([buf], { type: 'model/stl' }));
+  const a = document.createElement('a'); a.href = url; a.download = fn; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast('Downloaded ' + fn);
+});
+
+/* ---------- triangulation (earcut via three) ---------- */
+function triangulate(contour, holes) {
+  return THREE.ShapeUtils.triangulateShape(contour.map((p) => new THREE.Vector2(p.x, p.y)), holes.map((h) => h.map((p) => new THREE.Vector2(p.x, p.y))));
+}
+
+/* ---------- splash ---------- */
+function showSplash() { $('splash').style.display = 'grid'; setTimeout(() => $('splashGo').focus(), 50); }
+function hideSplash() {
+  $('splash').style.display = 'none';
+  try { if ($('splashSkip').checked) localStorage.setItem('wrestl.splashSeen', '1'); else localStorage.removeItem('wrestl.splashSeen'); } catch (_) {}
+}
+$('splashGo').addEventListener('click', hideSplash);
+$('splash').addEventListener('click', (e) => { if (e.target === $('splash')) hideSplash(); });
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('splash').style.display !== 'none') hideSplash(); });
+$('helpBtn').addEventListener('click', () => { try { $('splashSkip').checked = localStorage.getItem('wrestl.splashSeen') === '1'; } catch (_) {} showSplash(); });
+let seen = false; try { seen = localStorage.getItem('wrestl.splashSeen') === '1'; } catch (_) {}
+if (!seen) showSplash();
+
+/* ---------- start with a sample ---------- */
+buildBed();
+resize();
+(function sample() {
+  const g = new THREE.TorusKnotGeometry(20, 7, 220, 28).toNonIndexed();
+  const m = C.weld(new Float32Array(g.attributes.position.array));
+  original = placeOnBed(m);
+  setMesh(original, { record: false, frame: true });
+  $('fname').textContent = 'sample-knot.stl (example model, open your own STL)';
+})();
+})();
+</script>
+
+</body>
+</html>

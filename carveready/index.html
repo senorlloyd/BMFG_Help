@@ -390,6 +390,9 @@ details.adv[open] { display: grid; gap: 10px; }
             <label class="fld"><span>Leave for finishing</span><span class="unit"><input data-k="rough.leave" inputmode="decimal"><i>in</i></span></label>
             <label class="fld"><span>Spindle</span><span class="unit"><input data-k="rough.rpm" inputmode="decimal"><i>rpm</i></span></label>
           </div>
+          <div class="fld"><span style="font-size:12px;color:var(--muted)">Passes run</span>
+            <div class="seg" data-k="rough.dir"><button data-v="x">Left ↔ right</button><button data-v="y">Front ↔ back</button><button data-v="spiral" title="Rings around the carve area, starting in the middle and working outward">Spiral out</button></div>
+          </div>
         </div>
         <div class="bitbox" id="boxFin">
           <div class="bithead">
@@ -406,7 +409,7 @@ details.adv[open] { display: grid; gap: 10px; }
             <label class="fld"><span>Spindle</span><span class="unit"><input data-k="fin.rpm" inputmode="decimal"><i>rpm</i></span></label>
           </div>
           <div class="fld"><span style="font-size:12px;color:var(--muted)">Passes run</span>
-            <div class="seg" data-k="fin.dir"><button data-v="x">Left ↔ right</button><button data-v="y">Front ↔ back</button></div>
+            <div class="seg" data-k="fin.dir"><button data-v="x">Left ↔ right</button><button data-v="y">Front ↔ back</button><button data-v="spiral" title="Rings around the carve area, starting in the middle and working outward">Spiral out</button></div>
           </div>
         </div>
         <div class="fld"><span style="font-size:12px;color:var(--muted)">Detail (higher is slower to calculate)</span>
@@ -700,7 +703,66 @@ function run(tris, p, prog) {
   Builder.prototype.done = function () { this.retract(); return Float32Array.from(this.m); };
 
   // ---- raster toolpath over the pocket, layer by layer ----
+  // ---- spiral toolpath: rectangles around the carve area, innermost first, working outward ----
+  function spiral(o) {
+    const { comp, layers, rowStep, B, feed, plunge, sweep, stride, mergeCells, rideCells, pa, pb } = o;
+    const ringCells = (a0, a1, b0, b1) => {
+      const c = [];
+      if (a0 === a1) { for (let j = b0; j <= b1; j++) c.push([a0, j]); return c; }
+      if (b0 === b1) { for (let i = a0; i <= a1; i++) c.push([i, b0]); return c; }
+      for (let i = a0; i <= a1; i++) c.push([i, b0]);
+      for (let j = b0 + 1; j <= b1; j++) c.push([a1, j]);
+      for (let i = a1 - 1; i >= a0; i--) c.push([i, b1]);
+      for (let j = b1 - 1; j > b0; j--) c.push([a0, j]);
+      return c;
+    };
+    const rings = [];
+    for (let k = 0; ; k++) {
+      const a0 = ib0 + k * rowStep, a1 = ib1 - k * rowStep, b0 = jb0 + k * rowStep, b1 = jb1 - k * rowStep;
+      if (a0 > a1 || b0 > b1) break;
+      rings.push(ringCells(a0, a1, b0, b1));
+    }
+    rings.reverse();
+    let cnt = 0;
+    const total = layers.length * rings.length;
+    for (let li = 0; li < layers.length; li++) {
+      const L = layers[li][0], Pz = layers[li][1];
+      const zAt = (i, j) => { const c = comp(i, j); return c > L ? c : L; };
+      const emit = (i, j, force) => { const z = zAt(i, j); B.feed(i * res, j * res, z, feed); if (force || (cnt++ % stride) === 0) sweep(i, j, z); };
+      let has = false, pi = 0, pj = 0;
+      for (let r = 0; r < rings.length; r++) {
+        if ((li * rings.length + r) % 8 === 0) prog(pa + (pb - pa) * (li * rings.length + r) / total);
+        const ring = rings[r], runs = [];
+        let a = -1, last = -1;
+        for (let k = 0; k < ring.length; k++) {
+          if (zAt(ring[k][0], ring[k][1]) < Pz - 1e-4) {
+            if (a < 0) a = k; else if (k - last - 1 > mergeCells) { runs.push([a, last]); a = k; }
+            last = k;
+          }
+        }
+        if (a >= 0) runs.push([a, last]);
+        for (const [s0, e0] of runs) {
+          const [si, sj] = ring[s0];
+          if (has && Math.abs(si - pi) + Math.abs(sj - pj) <= rideCells) {
+            // ride over to the next run along the surface instead of lifting
+            if (pi !== si) { const d = si > pi ? 1 : -1; for (let i = pi + d; ; i += d) { emit(i, pj, false); if (i === si) break; } }
+            if (pj !== sj) { const d = sj > pj ? 1 : -1; for (let j = pj + d; ; j += d) { emit(si, j, false); if (j === sj) break; } }
+          } else {
+            const zs = zAt(si, sj);
+            B.travel(si * res, sj * res);
+            B.plunge(Math.min(p.safeZ, Math.max(Pz, zs) + 0.05), zs, plunge);
+            sweep(si, sj, zs);
+          }
+          for (let k = s0 + 1; k <= e0; k++) emit(ring[k][0], ring[k][1], k === e0);
+          has = true; pi = ring[e0][0]; pj = ring[e0][1];
+        }
+      }
+      B.retract();
+    }
+  }
+  // ---- raster toolpath over the pocket, layer by layer ----
   function raster(o) {
+    if (o.pattern === 'spiral') return spiral(o);
     const { comp, layers, rowStep, alongX, B, feed, plunge, sweep, stride, mergeCells, rideCells, pa, pb } = o;
     const u0 = alongX ? ib0 : jb0, u1 = alongX ? ib1 : jb1, v0 = alongX ? jb0 : ib0, v1 = alongX ? jb1 : ib1;
     const rows = []; for (let v = v0; v <= v1; v += rowStep) rows.push(v); if (rows[rows.length - 1] !== v1) rows.push(v1);
@@ -803,7 +865,7 @@ function run(tris, p, prog) {
       let prev = 0; const n = Math.ceil((-minC - 1e-6) / doc);
       for (let k = 1; k <= n; k++) { const L = Math.max(minC, -doc * k); layers.push([L, prev]); prev = L; }
       const B = new Builder(0.002);
-      if (layers.length) raster({ comp, layers, rowStep, alongX: true, B, feed: p.rough.feed, plunge: p.rough.plunge, sweep: makeSweep(S, KR), stride: Math.max(1, Math.floor(KR.n / 4)), mergeCells: Math.ceil(0.6 / res), rideCells: Math.ceil(1.0 / res), pa, pb });
+      if (layers.length) raster({ comp, layers, rowStep, alongX: p.rough.dir !== 'y', pattern: p.rough.dir, B, feed: p.rough.feed, plunge: p.rough.plunge, sweep: makeSweep(S, KR), stride: Math.max(1, Math.floor(KR.n / 4)), mergeCells: Math.ceil(0.6 / res), rideCells: Math.ceil(1.0 / res), pa, pb });
       ops.push({ key: 'rough' + side, side, bit: 'rough', moves: B.done(), time: B.time, depth: -minC, passes: layers.length });
     }
     if (p.fin.on) {
@@ -812,7 +874,7 @@ function run(tris, p, prog) {
       const comp = makeComp(T, KF, 0);
       const rowStep = Math.max(1, Math.round(p.fin.dia * p.fin.so / 100 / res));
       const B = new Builder(0.0005);
-      raster({ comp, layers: [[-Infinity, 0]], rowStep, alongX: p.fin.dir !== 'y', B, feed: p.fin.feed, plunge: p.fin.plunge, sweep: makeSweep(S, KF), stride: Math.max(1, Math.floor(KF.n / 5)), mergeCells: Math.ceil(0.5 / res), rideCells: Math.ceil(0.75 / res), pa, pb });
+      raster({ comp, layers: [[-Infinity, 0]], rowStep, alongX: p.fin.dir !== 'y', pattern: p.fin.dir, B, feed: p.fin.feed, plunge: p.fin.plunge, sweep: makeSweep(S, KF), stride: Math.max(1, Math.floor(KF.n / 5)), mergeCells: Math.ceil(0.5 / res), rideCells: Math.ceil(0.75 / res), pa, pb });
       ops.push({ key: 'fin' + side, side, bit: 'fin', moves: B.done(), time: B.time, depth: reach[side] });
     }
   }
@@ -842,7 +904,7 @@ function baseProject() {
     partAuto: true, parting: 0.75, over: 0.03, margin: 0.375,
     tabs: { count: 2, width: 0.375, thick: 0.125 },
     pin: { on: true, dia: 0.25, fit: 0.005, spoil: 0.25 },
-    rough: { on: true, dia: 0.25, feed: 40, plunge: 12, doc: 0.125, so: 40, leave: 0.02, rpm: 12000 },
+    rough: { on: true, dia: 0.25, feed: 40, plunge: 12, doc: 0.125, so: 40, leave: 0.02, rpm: 12000, dir: 'x' },
     fin: { on: true, dia: 0.125, feed: 60, plunge: 15, so: 10, dir: 'x', rpm: 12000 },
     detail: 'normal', safeZ: 0.25,
     machine: { header: DEFAULT_HEADER, footer: '' },

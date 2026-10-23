@@ -16,7 +16,7 @@ CarveReady is RouteReady's 3D sibling. Students import an STL or OBJ, place it i
 - **Dowel pin registration**: two holes on the flip line, drilled through the stock into the spoilboard. Any dowel size, plus an "extra for fit" allowance
 - **No-pin option** for two-sided jobs: line side B up with fence strips (or a traced outline) against the board's edges instead
 - **Holding tabs** at the parting line so the part stays in the frame until you cut it free
-- **Roughing** (flat end mill, layer by layer, leaves stock for finishing) and **finishing** (ball nose raster, along X or Y)
+- **Roughing** (flat end mill, layer by layer, leaves stock for finishing) and **finishing** (ball nose). Each can run left ↔ right, front ↔ back, or as a spiral that starts in the middle and works outward
 - **Any bit size**: presets from 1/32 to 3/8 in, or type any diameter (`1/32`, `0.04`, `1mm`). The calculation detail follows the smallest bit
 - **3D shop view**: setup view (model, parting plane, tabs, pins), carve preview of what will actually come out, toolpaths, and an animated flip
 - **Job sheet**: every file in order with bit changes, zeroing and flip instructions; printable

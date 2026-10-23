@@ -29,6 +29,9 @@ The three numbers on the **Fit** card control it:
 - **RouteReady's workbench:** the same drawing tools, SVG/DXF import, sizing and alignment, undo, and project files
 - **Pocket and plug toolpaths** from one design. The plug is mirrored for you.
 - **Two bits:** an end mill clears the bulk in terraced steps, then the V-bit cuts the walls and sharp corners. V-bit-only works for small lettering.
+- **Clearing pattern:** spiral from the inside out (default), or back and forth left-to-right or front-to-back with a final lap around the edge
+- **V-bit passes go around the outline in order**, picking up each sharp corner as they pass it
+- **Preview colors follow the woods** you pick on the Boards card
 - **Flat-tip V-bits:** enter the tip width and the plug is adjusted so it still seats at the right depth
 - **3D preview of both boards**, with the carve simulation
 - **ShopBot files** in the same format RouteReady uses (start code, then G-code). Choose four files (one per bit) or two files (one per board, pausing for the bit change).

@@ -1323,7 +1323,7 @@ const DEFAULTS = {
   useEM:true, emDia:0.125, emStepdown:0.1, emStepover:0.4, emFeed:60, emPlunge:20, emRPM:18000,
   vFeed:50, vPlunge:20, vRPM:18000, vStepdown:0.1,
   border:0.25, safeZ:0.25, plungeClear:0.05, origin:'center',
-  dz:0.002, vTip:0, wallLeave:0.003, linkMax:0.3
+  dz:0.002, vTip:0, wallLeave:0.003, linkMax:0.3, emPattern:'offset'
 };
 
 function planSide(side, shapeC, o){
@@ -1381,7 +1381,15 @@ function planSide(side, shapeC, o){
       const z=total*j/M, leave=j===M?0.0005:o.wallLeave;
       const cr=emRegion(z,leave); const key='e'+side+j; regions.set(key,cr);
       if(j===M) emClear=offset(cr,r);
-      for(const ring of rings(cr,o.emStepover*o.emDia)) emCuts.push({pts:fromC(ring),closed:true,z,safe:key,band:j});
+      const step=o.emStepover*o.emDia;
+      if(o.emPattern==='rasterX'||o.emPattern==='rasterY'){
+        // back-and-forth lines, then one lap around the edge to clean up the scallops
+        for(const c of raster(cr,step,o.emPattern==='rasterY')) emCuts.push({pts:c.pts,closed:false,z,safe:key,band:j,grp:0,sub:c.idx});
+        for(const p of cr) emCuts.push({pts:fromC(p),closed:true,z,safe:key,band:j,grp:1,sub:0});
+      } else {
+        // spiral from the inside out: innermost ring first, each ring a stepover further out
+        for(const rg of rings(cr,step)) emCuts.push({pts:fromC(rg.p),closed:true,z,safe:key,band:j,grp:0,sub:-rg.idx});
+      }
     }
   }
   /* V-bit flat passes for whatever the end mill can't reach. Ridge height allowed: half the gap it faces. */
@@ -1392,15 +1400,51 @@ function planSide(side, shapeC, o){
   const residualArea=residual.reduce((A,p)=>A+CL.Clipper.Area(p)/(SC*SC),0);
   if(residual.length){
     const zone=offset(residual,sv);
-    const fr=rings(offset(floor,-sv),sv);
-    const loops=fr.map(closeLoop);
-    for(const p of openAnd(loops,zone)){ const pts=fromC(p); if(pts.length<2) continue;
-      vCuts.push({pts,closed:false,z:total,safe:'floor'+side}); }
+    for(const rg of rings(offset(floor,-sv),sv))
+      for(const p of openAnd([closeLoop(rg.p)],zone)){ const pts=fromC(p); if(pts.length<2) continue;
+        vCuts.push({pts,closed:false,z:total,safe:'floor'+side,grp:1e6,sub:-rg.idx}); }
   }
+  const ol=new Outline(shapeC);
+  for(const c of vCuts){ if(c.grp!=null) continue; const q=ol.locate(c.pts[0]); c.grp=q.li; c.sub=q.s; }
   return {vCuts,emCuts,regions,B,total,S,F,t,sv,residualArea};
 }
-function rings(region,step){ const out=[]; let cur=region; let guard=0;
-  while(cur.length&&guard++<4000){ for(const p of cur) out.push(p); cur=offset(cur,-step); }
+/* Where a point sits along the design outline: loop number (loops in reading order) and distance along it */
+class Outline {
+  constructor(shapeC){
+    const loops=shapeC.map(fromC);
+    const order=loops.map((l,i)=>{ let x0=Infinity,y1=-Infinity; for(const q of l){ if(q[0]<x0)x0=q[0]; if(q[1]>y1)y1=q[1]; } return {i,x0,y1}; })
+      .sort((a,b)=>Math.abs(a.y1-b.y1)>0.5?b.y1-a.y1:a.x0-b.x0);
+    const rank=new Map(order.map((o,k)=>[o.i,k]));
+    this.cell=0.1; this.grid=new Map(); this.segs=[];
+    loops.forEach((l,i)=>{ let s=0;
+      for(let k=0;k<l.length;k++){ const a=l[k], b=l[(k+1)%l.length]; const L=Math.hypot(b[0]-a[0],b[1]-a[1]);
+        const sg={a,b,L,s,li:rank.get(i)}; this.segs.push(sg); s+=L;
+        const gx0=Math.floor(Math.min(a[0],b[0])/this.cell), gx1=Math.floor(Math.max(a[0],b[0])/this.cell), gy0=Math.floor(Math.min(a[1],b[1])/this.cell), gy1=Math.floor(Math.max(a[1],b[1])/this.cell);
+        for(let gx=gx0;gx<=gx1;gx++) for(let gy=gy0;gy<=gy1;gy++){ const kk=gx+','+gy; if(!this.grid.has(kk)) this.grid.set(kk,[]); this.grid.get(kk).push(sg); } } });
+  }
+  locate(p){
+    const gx=Math.floor(p[0]/this.cell), gy=Math.floor(p[1]/this.cell); let best=null, bd=Infinity;
+    for(let r=0;r<60&&!best;r++){
+      for(let dx=-r;dx<=r;dx++) for(let dy=-r;dy<=r;dy++){ if(Math.max(Math.abs(dx),Math.abs(dy))!==r) continue; const L=this.grid.get((gx+dx)+','+(gy+dy)); if(!L) continue;
+        for(const sg of L){ const ex=sg.b[0]-sg.a[0], ey=sg.b[1]-sg.a[1], LL=ex*ex+ey*ey; let u=LL?((p[0]-sg.a[0])*ex+(p[1]-sg.a[1])*ey)/LL:0; u=u<0?0:u>1?1:u;
+          const d=Math.hypot(sg.a[0]+u*ex-p[0],sg.a[1]+u*ey-p[1]); if(d<bd){ bd=d; best={li:sg.li,s:sg.s+u*sg.L}; } } }
+      if(best&&r>0) break; }
+    return best||{li:0,s:0};
+  }
+}
+/* back-and-forth lines across a region, each line clipped to it */
+function raster(region,step,vertical){
+  const bb=bboxC(region), out=[];
+  const lo=vertical?bb.x0:bb.y0, hi=vertical?bb.x1:bb.y1, n=Math.max(1,Math.ceil((hi-lo)/step));
+  const st=(hi-lo)/n, lines=[];
+  for(let i=0;i<n;i++){ const v=lo+(i+0.5)*st;
+    lines.push(vertical?toC([[v,bb.y0-1],[v,bb.y1+1]]):toC([[bb.x0-1,v],[bb.x1+1,v]])); }
+  // clip line by line so each piece keeps its line number
+  lines.forEach((ln,i)=>{ for(const p of openAnd([ln],region)) if(p.length>1) out.push({pts:fromC(p),idx:i}); });
+  return out;
+}
+function rings(region,step){ const out=[]; let cur=region; let idx=0;
+  while(cur.length&&idx<4000){ for(const p of cur) out.push({p,idx}); cur=offset(cur,-step); idx++; }
   return out; }
 
 /* ---------- ordering, stepdowns and links ---------- */
@@ -1418,12 +1462,15 @@ function sequence(cuts, regions, tool, o){
   const retractTo=(x,y,z)=>{ moves.push({t:'J',z:safeZ}); moves.push({t:'J',x,y}); moves.push({t:'J',z:o.plungeClear}); moves.push({t:'P',z:-z}); };
   for(const b of bands){
     const pend=list.filter(c=>c.band===b);
-    // within a band: deeper first? no — shallow to deep keeps chip load sane, then nearest-neighbour
-    pend.sort((a,b2)=>a.z-b2.z);
+    // fixed order: by group (outline / ring / raster line), then position; nearest-neighbour only to pick
+    // the start point and direction, or among pieces that share a group slot (islands of the same ring)
+    pend.sort((a,b2)=>(a.grp||0)-(b2.grp||0)||(a.sub||0)-(b2.sub||0)||a.z-b2.z);
     const used=new Uint8Array(pend.length);
     for(let n=0;n<pend.length;n++){
       let best=-1,bd=Infinity,bi=0,brev=false; const px=pos?pos.x:0, py=pos?pos.y:0;
-      for(let i=0;i<pend.length;i++){ if(used[i]) continue; const c=pend[i]; const p=c.pts;
+      let first=0; while(used[first]) first++;
+      const g0=pend[first].grp||0, s0=pend[first].sub||0;
+      for(let i=first;i<pend.length;i++){ if(used[i]) continue; const c=pend[i]; if((c.grp||0)!==g0||(c.sub||0)!==s0) break; const p=c.pts;
         if(c.closed){ const step=Math.max(1,Math.floor(p.length/24));
           for(let k=0;k<p.length;k+=step){ const d=(p[k][0]-px)**2+(p[k][1]-py)**2; if(d<bd){ bd=d; best=i; bi=k; brev=false; } } }
         else { const d0=(p[0][0]-px)**2+(p[0][1]-py)**2, d1=(p[p.length-1][0]-px)**2+(p[p.length-1][1]-py)**2;
@@ -1590,7 +1637,7 @@ function baseProject(name, w, h, t) {
     material: { type: 'Maple', w, h, t },
     plug: { type: 'Walnut', t: 0.75 },
     zero: 'center', safeZ: 0.15,
-    bit: { use: true, dia: 0.125, feed: 30, plunge: 9, doc: 0.1, rpm: 12000, stepover: 40 },
+    bit: { use: true, dia: 0.125, feed: 30, plunge: 9, doc: 0.1, rpm: 12000, stepover: 40, pattern: 'offset' },
     vbit: { angle: 60, tip: 0, feed: 30, plunge: 9, doc: 0.1, rpm: 16000 },
     inlay: { depth: 0.2, glue: 0.03, top: 0.1, border: 0.25 },
     files: 'separate',
@@ -1705,7 +1752,7 @@ const CAM = (() => {
 function camOpts() {
   const b = P.bit, v = P.vbit, i = P.inlay;
   return { vAngle: +v.angle, vTip: +v.tip || 0, pocketDepth: +i.depth, glueGap: +i.glue, topGap: +i.top, border: +i.border,
-    useEM: !!b.use, emDia: +b.dia, emStepdown: Math.max(0.01, +b.doc), emStepover: Math.max(0.05, Math.min(0.5, (+b.stepover || 40) / 100)), emFeed: +b.feed, emPlunge: +b.plunge,
+    useEM: !!b.use, emDia: +b.dia, emStepdown: Math.max(0.01, +b.doc), emStepover: Math.max(0.05, Math.min(0.5, (+b.stepover || 40) / 100)), emFeed: +b.feed, emPlunge: +b.plunge, emPattern: b.pattern || 'offset',
     vFeed: +v.feed, vPlunge: +v.plunge, vStepdown: Math.max(0.01, +v.doc), safeZ: +P.safeZ || 0.15, plungeClear: 0.05, origin: 'raw' };
 }
 function inlayShapes() {
@@ -1769,8 +1816,8 @@ function setSide(sd) {
   if (P3.ok) P3.orbKey = '';
 }
 function renderLegend() {
-  const pre = side === 'male' ? 'plug' : 'wood';
-  $('#pvLegend').innerHTML = `<span><i style="background:var(--${pre}-cut)"></i>Cut</span><span><i style="background:var(--${pre}-deep)"></i>Deeper</span><span>${side === 'male' ? 'Plug board, mirrored. It flips over into the pocket.' : 'Pocket board'}</span>`;
+  const c = sideCol(side);
+  $('#pvLegend').innerHTML = `<span><i style="background:${c.cut}"></i>Cut</span><span><i style="background:${c.deep}"></i>Deeper</span><span>${side === 'male' ? esc(P.plug.type) + ' plug board, mirrored. It flips over into the pocket.' : esc(P.material.type) + ' pocket board'}</span>`;
 }
 
 // ---------- geometry helpers ----------
@@ -1978,7 +2025,19 @@ function makeWood(base, grain) {
   x.globalAlpha = 1;
   return c;
 }
-const sideCol = sd => sd === 'male' ? { base: T.plug, grain: T['plug-grain'], cut: T['plug-cut'], deep: T['plug-deep'] } : { base: T.wood, grain: T['wood-grain'], cut: T['wood-cut'], deep: T['wood-deep'] };
+/* Preview colors follow the wood picked on the Boards card: [face, grain, cut, deep cut] */
+const WOODS = {
+  'Maple': ['#ead7b2', '#d6bd92', '#b99c6e', '#7f6645'], 'Walnut': ['#73503a', '#5a3c27', '#4b311f', '#2c1b10'],
+  'Cherry': ['#c98b5f', '#ad7049', '#8f5736', '#5d341c'], 'Oak': ['#d8b47f', '#c0965c', '#a07845', '#6c4d29'],
+  'Ash': ['#e8dbc0', '#d0be9a', '#b39d76', '#7b674a'], 'Padauk': ['#c65532', '#a84226', '#8b341c', '#5a2010'],
+  'Purpleheart': ['#86486a', '#6c3854', '#592c45', '#37192a'], 'Birch plywood': ['#e5cba4', '#d0ae7e', '#9a774d', '#5d4428'],
+  'MDF': ['#bc9a6c', '#a9875c', '#8e6e48', '#5f482d']
+};
+const sideCol = sd => {
+  const w = WOODS[sd === 'male' ? P.plug.type : P.material.type];
+  if (w) return { base: w[0], grain: w[1], cut: w[2], deep: w[3] };
+  return sd === 'male' ? { base: T.plug, grain: T['plug-grain'], cut: T['plug-cut'], deep: T['plug-deep'] } : { base: T.wood, grain: T['wood-grain'], cut: T['wood-cut'], deep: T['wood-deep'] };
+};
 const curStock = () => job ? job.stock : side === 'male' && jobs ? jobs.male.stock : { w: P.material.w, h: P.material.h, t: side === 'male' ? P.plug.t : P.material.t };
 let woodPats = {};
 function drawPreview() {
@@ -1994,8 +2053,9 @@ function drawPreview() {
   const edge = Math.max(3, Math.min(14, m.t * s * 0.6));
   ctx.fillStyle = col.deep; ctx.fillRect(px(0) + edge * 0.4, py(m.h) + edge, m.w * s, m.h * s);
   if (!woodPat) woodPats = {}, woodPat = true;
-  if (!woodPats[side]) woodPats[side] = ctx.createPattern(makeWood(col.base, col.grain), 'repeat');
-  ctx.fillStyle = woodPats[side]; ctx.fillRect(px(0), py(m.h), m.w * s, m.h * s);
+  const pk = col.base + col.grain;
+  if (!woodPats[pk]) woodPats[pk] = ctx.createPattern(makeWood(col.base, col.grain), 'repeat');
+  ctx.fillStyle = woodPats[pk]; ctx.fillRect(px(0), py(m.h), m.w * s, m.h * s);
   if (pv && job) {
     const limit = simIdx === null ? Infinity : simIdx;
     ctx.save(); ctx.beginPath(); ctx.rect(px(0), py(m.h), m.w * s, m.h * s); ctx.clip();
@@ -2106,7 +2166,10 @@ function renderCards() {
   $('#cFit').textContent = `${fmtN(i.depth)} in deep`;
   $('#cFitSub').textContent = `glue ${fmtN(i.glue)} · top ${fmtN(i.top)}`;
   if (document.activeElement !== $('#projName')) $('#projName').value = P.name;
+  renderLegend(); drawPreview();
 }
+/* dark or light label color, whichever reads on this wood */
+function inkOn(hex) { const c = parseCol(hex), L = (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; return L > 0.55 ? '#2b1d10' : '#f6ead9'; }
 /* Side view of the glue-up: pocket board below, plug board flipped on top. Labels follow the Fit numbers. */
 function fitSVG() {
   const i = P.inlay, slope = Math.tan(P.vbit.angle * Math.PI / 360);
@@ -2114,9 +2177,10 @@ function fitSVG() {
   const top = 8, yb = top + 26, P0 = yb + Tg, cx = 150, wTop = 170;
   const fx0 = cx - wTop / 2, fx1 = cx + wTop / 2;
   const bw = Math.max(24, wTop - 2 * Pd * slope), bx0 = cx - bw / 2, bx1 = cx + bw / 2;
-  let g = `<path d="M10 ${P0}H${fx0}L${bx0} ${P0 + Pd}H${bx1}L${fx1} ${P0}H290V${P0 + Pd + 26}H10Z" fill="var(--wood)" stroke="var(--wood-deep)"/>`;
+  const cw = sideCol('female'), cp = sideCol('male');
+  let g = `<path d="M10 ${P0}H${fx0}L${bx0} ${P0 + Pd}H${bx1}L${fx1} ${P0}H290V${P0 + Pd + 26}H10Z" fill="${cw.base}" stroke="${cw.deep}"/>`;
   const tip = P0 + Pd - G, tw = Math.max(18, wTop - 2 * (tip - P0) * slope), ox = Tg * slope;
-  g += `<path d="M10 ${top}H290V${yb}H${fx1 + ox}L${cx + tw / 2} ${tip}H${cx - tw / 2}L${fx0 - ox} ${yb}H10Z" fill="var(--plug)" stroke="var(--plug-deep)"/>`;
+  g += `<path d="M10 ${top}H290V${yb}H${fx1 + ox}L${cx + tw / 2} ${tip}H${cx - tw / 2}L${fx0 - ox} ${yb}H10Z" fill="${cp.base}" stroke="${cp.deep}"/>`;
   const dim = (x, y1, y2, label, sub, side) => {
     const tx = x + side * 7, an = side > 0 ? 'start' : 'end', my = (y1 + y2) / 2;
     return `<path class="dl" d="M${x} ${y1}V${y2}M${x - 4} ${y1}h8M${x - 4} ${y2}h8"/><text x="${tx}" y="${my + 1}" text-anchor="${an}">${label}</text><text class="lb" x="${tx}" y="${my + 12}" text-anchor="${an}">${sub}</text>`;
@@ -2124,8 +2188,8 @@ function fitSVG() {
   g += dim(cx + tw / 2 + 6, tip, P0 + Pd, fmtN(i.glue), 'glue gap', 1);
   g += `<g class="gp">${dim(26, yb, P0, fmtN(i.top), 'top gap', 1)}</g>`;
   g += dim(fx0 - 14, P0, P0 + Pd, fmtN(i.depth), 'pocket', -1);
-  g += `<text class="lb" x="16" y="${top + 16}" style="fill:var(--plug-ink)">Plug board, upside down</text><text class="lb" x="16" y="${P0 + Pd + 18}">Pocket board</text>`;
-  return `<svg viewBox="0 0 300 ${Math.round(P0 + Pd + 28)}" role="img" aria-label="Side view: plug seated in the pocket with a ${fmtN(i.glue)} inch glue gap and a ${fmtN(i.top)} inch top gap">${g}</svg>`;
+  g += `<text class="lb" x="16" y="${top + 16}" style="fill:${inkOn(cp.base)}">Plug board, upside down</text><text class="lb" x="16" y="${P0 + Pd + 18}">Pocket board</text>`;
+  return `<svg style="--on-wood:${inkOn(cw.base)}" viewBox="0 0 300 ${Math.round(P0 + Pd + 28)}" role="img" aria-label="Side view: plug seated in the pocket with a ${fmtN(i.glue)} inch glue gap and a ${fmtN(i.top)} inch top gap">${g}</svg>`;
 }
 let openPop = null;
 function renderPop() {
@@ -2171,7 +2235,8 @@ function renderPop() {
         ${unitField('bFeed', 'Feed rate', b.feed, 'in/min')}${unitField('bPlunge', 'Plunge rate', b.plunge, 'in/min')}
         ${unitField('bDoc', 'Depth per pass', b.doc)}${unitField('bRpm', 'Spindle speed', b.rpm, 'rpm')}
         ${custom ? unitField('bStep', 'Stepover', b.stepover, '%') : ''}
-      </div>` : '<p class="note">The V-bit will clear everything by itself. That works for small lettering but is slow on big shapes.</p>'}</div>
+      </div>
+      <label class="fld"><span>Clearing pattern</span><select class="sel" id="bPat">${[['offset', 'Spiral, inside out'], ['rasterX', 'Back and forth, left to right'], ['rasterY', 'Back and forth, front to back']].map(x => `<option value="${x[0]}"${(b.pattern || 'offset') === x[0] ? ' selected' : ''}>${x[1]}</option>`).join('')}</select></label>` : '<p class="note">The V-bit will clear everything by itself. That works for small lettering but is slow on big shapes.</p>'}</div>
       <div class="insp-sec"><div class="grid2">${unitField('bSafe', 'Safe height', P.safeZ)}<span></span></div></div>
       <div class="insp-sec"><details class="adv"><summary>ShopBot start, end and bit-change code</summary>
         <div style="display:grid;gap:8px;margin-top:8px">
@@ -2218,6 +2283,7 @@ $('#pop').addEventListener('change', e => {
     case 'bDoc': b.doc = Math.max(0.005, num(v, b.doc)); break;
     case 'bRpm': b.rpm = Math.max(0, Math.round(num(v, b.rpm))); break;
     case 'bStep': b.stepover = Math.max(5, Math.min(50, num(v, b.stepover))); break;
+    case 'bPat': b.pattern = v; break;
     case 'vAng': if (v !== 'custom') vb.angle = +v; renderPop(); break;
     case 'vAngC': vb.angle = Math.max(10, Math.min(150, num(v, vb.angle))); break;
     case 'vTip': vb.tip = Math.max(0, Math.min(0.1, num(v, vb.tip))); break;
@@ -3168,7 +3234,7 @@ function refreshRows(g, j0, j1) {
 function update3D() {
   if (!P3.ok) return;
   const m = curStock();
-  const key = [side, m.w, m.h, m.t, P.bit.dia, P.vbit.angle, P.vbit.tip, T.wood, T.plug, T.through, T.tray].join('|');
+  const key = [side, m.w, m.h, m.t, P.bit.dia, P.vbit.angle, P.vbit.tip, P.material.type, P.plug.type, T.wood, T.plug, T.through, T.tray].join('|');
   if (key !== P3.key || P3.themeDirty || !P3.grid) { P3.key = key; P3.themeDirty = false; P3.jobRef = null; build3D(); }
   const g = P3.grid;
   const limit = simIdx === null ? Infinity : simIdx;

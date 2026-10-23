@@ -1,0 +1,1738 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CarveReady</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* CarveReady: RouteReady's 3D sibling. Setup column on the left, 3D shop view on the right. */
+:root {
+  --chrome: #1c2330; --chrome-2: #273041; --chrome-ink: #e9eef5; --chrome-muted: #9ba7b8;
+  --bg: #eef1f5; --panel: #ffffff; --panel-2: #f4f6f9; --ink: #1a2230; --muted: #5b6676; --line: #d6dce5;
+  --accent: #2a5fc4; --accent-ink: #ffffff; --accent-soft: #e2eafa;
+  --workspace: #cddaea; --shape: #2a5fc4; --zero: #dd4425; --tab: #d98a1c; --pin: #c9a46a;
+  --wood: #e5cba4; --wood-grain: #d0ae7e; --wood-cut: #9a774d; --wood-deep: #5d4428;
+  --tray: #b9c4d3; --warn: #9a6512; --warn-soft: #fbf0db; --ok: #2d7a46;
+  --f-display: "Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --chrome: #10141b; --chrome-2: #1d2430; --chrome-ink: #e6ebf2; --chrome-muted: #8e9aab;
+    --bg: #161b23; --panel: #1d232d; --panel-2: #242b37; --ink: #e5eaf1; --muted: #98a3b3; --line: #333b49;
+    --accent: #6d9af0; --accent-ink: #0c1320; --accent-soft: #233251;
+    --workspace: #18212d; --shape: #7fa6f4; --zero: #f0623f; --tab: #e9a443; --pin: #b8925a;
+    --wood: #cdb08a; --wood-grain: #b7956a; --wood-cut: #7a5d3d; --wood-deep: #4a3721;
+    --tray: #2a3442; --warn: #e3b25c; --warn-soft: #33291a; --ok: #6cc28b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --chrome: #10141b; --chrome-2: #1d2430; --chrome-ink: #e6ebf2; --chrome-muted: #8e9aab;
+  --bg: #161b23; --panel: #1d232d; --panel-2: #242b37; --ink: #e5eaf1; --muted: #98a3b3; --line: #333b49;
+  --accent: #6d9af0; --accent-ink: #0c1320; --accent-soft: #233251;
+  --workspace: #18212d; --shape: #7fa6f4; --zero: #f0623f; --tab: #e9a443; --pin: #b8925a;
+  --wood: #cdb08a; --wood-grain: #b7956a; --wood-cut: #7a5d3d; --wood-deep: #4a3721;
+  --tray: #2a3442; --warn: #e3b25c; --warn-soft: #33291a; --ok: #6cc28b;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-body); overflow: hidden; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.app { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+
+/* top bar */
+.top { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; background: var(--chrome); color: var(--chrome-ink);
+  padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.brand { display: flex; align-items: center; gap: 8px; font: 700 19px/1 var(--f-display); letter-spacing: .02em; text-transform: uppercase; }
+.brand svg { width: 26px; height: 26px; flex: none; }
+.projname { background: transparent; border: 1px solid transparent; border-radius: var(--r); color: var(--chrome-ink); padding: 5px 8px; font-weight: 500; min-width: 0; width: 14em; max-width: 40vw; }
+.projname:hover { border-color: var(--chrome-2); }
+.projname:focus { background: var(--chrome-2); outline: none; border-color: var(--accent); }
+.menu { display: flex; align-items: center; gap: 2px; }
+.menu button { background: none; border: 0; color: var(--chrome-muted); padding: 6px 9px; border-radius: var(--r); display: inline-flex; align-items: center; gap: 6px; }
+.menu button:hover { background: var(--chrome-2); color: var(--chrome-ink); }
+.menu svg { width: 16px; height: 16px; }
+.top-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: var(--r); padding: 8px 16px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary:disabled { opacity: .45; cursor: default; filter: none; }
+.btn-primary svg { width: 16px; height: 16px; }
+
+/* main */
+.main { display: grid; grid-template-columns: minmax(330px, 380px) minmax(0, 1fr); min-height: 0; }
+.side { background: var(--panel); border-right: 1px solid var(--line); overflow: auto; min-height: 0; }
+.sec { padding: 14px 16px 16px; display: grid; gap: 11px; border-bottom: 1px solid var(--line); }
+.sec-h { display: flex; align-items: center; gap: 9px; }
+.sec-h .n { width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--panel); display: grid; place-items: center; font: 600 13px var(--f-display); flex: none; }
+.sec-h h2 { margin: 0; font: 600 17px/1 var(--f-display); letter-spacing: .05em; text-transform: uppercase; }
+.sec-h .aside { margin-left: auto; font-size: 12px; color: var(--muted); }
+.eyebrow { font: 600 11px/1 var(--f-display); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.tip { margin: 0; font-size: 12.5px; color: var(--muted); }
+.tip b { color: var(--ink); font-weight: 600; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px 8px; }
+.fld { display: grid; gap: 4px; min-width: 0; }
+.fld > span { font-size: 12px; color: var(--muted); }
+.unit { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); overflow: hidden; min-width: 0; }
+.unit:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.unit input { border: 0; background: none; padding: 6px 7px; width: 100%; min-width: 0; font-variant-numeric: tabular-nums; outline: none; }
+.unit i { font-style: normal; font-size: 12px; color: var(--muted); padding: 0 8px 0 2px; display: grid; place-items: center; }
+select.sel, textarea.ta { border: 1px solid var(--line); border-radius: 5px; background: var(--panel); padding: 6px 7px; width: 100%; }
+textarea.ta { font: 12px/1.4 var(--f-mono); min-height: 70px; resize: vertical; }
+.seg { display: flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 2px; gap: 2px; }
+.seg button { flex: 1; border: 0; background: none; border-radius: 4px; padding: 6px 6px; font-weight: 500; color: var(--muted); white-space: nowrap; min-width: 0; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgba(15, 25, 45, .14), inset 0 0 0 1px var(--line); }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r); padding: 6px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; }
+.btn:hover { background: var(--panel-2); }
+.btn svg { width: 16px; height: 16px; }
+.btn:disabled { opacity: .45; cursor: default; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row > .btn { flex: 1; }
+.rot { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.rot .btn { padding: 6px 4px; font-size: 13px; }
+
+.drop { border: 1.5px dashed var(--grid-major, var(--line)); border-color: var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 8px; justify-items: center; text-align: center; background: var(--panel-2); }
+.drop b { font: 600 17px var(--f-display); letter-spacing: .03em; text-transform: uppercase; }
+.modelcard { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; }
+.modelcard svg { width: 28px; height: 28px; color: var(--accent); }
+.modelcard b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.modelcard small { color: var(--muted); font-size: 12px; }
+.modelcard select { width: auto; }
+
+.choice { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.card { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 10px 8px 9px; display: grid; justify-items: center; gap: 4px; text-align: center; }
+.card svg { width: 92px; height: 58px; }
+.card b { font: 600 15px var(--f-display); letter-spacing: .02em; }
+.card small { color: var(--muted); font-size: 11.5px; line-height: 1.3; }
+.card:hover { background: var(--panel-2); }
+.card[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+
+.bitbox { border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: grid; gap: 10px; }
+.bitbox.off > :not(.bithead) { display: none; }
+.bithead { display: flex; align-items: center; gap: 10px; }
+.bithead svg { width: 22px; height: 36px; flex: none; }
+.bithead b { font: 600 16px var(--f-display); letter-spacing: .02em; }
+.bithead small { display: block; color: var(--muted); font-size: 12px; }
+.switch { margin-left: auto; position: relative; width: 38px; height: 22px; flex: none; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+.switch span { position: absolute; inset: 0; border-radius: 11px; background: var(--line); transition: background .15s; }
+.switch span::after { content: ""; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--panel); box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .15s; }
+.switch input:checked + span { background: var(--accent); }
+.switch input:checked + span::after { transform: translateX(16px); }
+.switch input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+details.adv summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+details.adv[open] { display: grid; gap: 10px; }
+.meter { font: 12px var(--f-mono); color: var(--muted); }
+.reach { font-size: 12.5px; border-radius: 6px; padding: 6px 9px; background: var(--panel-2); border: 1px solid var(--line); }
+.reach.bad { background: var(--warn-soft); border-color: transparent; color: var(--warn); }
+.reach.good { color: var(--ok); }
+.slider { width: 100%; accent-color: var(--accent); margin: 0; }
+
+.warns { display: grid; gap: 6px; }
+.warn { background: var(--warn-soft); color: var(--warn); border-radius: 6px; padding: 7px 10px; font-size: 13px; display: flex; gap: 8px; }
+.warn svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
+
+/* job steps */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: s; }
+.step { display: grid; grid-template-columns: 30px 1fr; gap: 4px 10px; padding: 10px 0; border-top: 1px dashed var(--line); }
+.step:first-child { border-top: 0; }
+.step .num { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--ink); display: grid; place-items: center; font: 600 13px var(--f-display); }
+.step.file .num { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.step.flip .num { background: var(--zero); border-color: var(--zero); color: #fff; }
+.step .num svg { width: 15px; height: 15px; }
+.step .bd { display: grid; gap: 4px; min-width: 0; }
+.step .bd > b { font: 600 15.5px/1.2 var(--f-display); letter-spacing: .02em; }
+.step .meta { font: 12px var(--f-mono); color: var(--muted); }
+.step ul { margin: 2px 0 0; padding-left: 17px; font-size: 13px; color: var(--ink); }
+.step ul li + li { margin-top: 2px; }
+.step .act { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.step .act .btn { padding: 5px 10px; font-size: 13px; }
+.step .act .btn.go { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.step .flipfig { width: 100%; max-width: 260px; height: auto; margin-top: 2px; }
+.badge { display: inline-block; font: 600 11px/1 var(--f-display); letter-spacing: .06em; text-transform: uppercase; padding: 3px 6px; border-radius: 4px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); vertical-align: 2px; margin-left: 4px; }
+.empty-steps { font-size: 13px; color: var(--muted); }
+
+/* 3D view */
+.view { position: relative; min-width: 0; min-height: 0; background: var(--workspace); overflow: hidden; }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.ov { position: absolute; display: flex; gap: 8px; align-items: center; pointer-events: none; }
+.ov > * { pointer-events: auto; }
+.ov.tl { top: 12px; left: 12px; }
+.ov.tr { top: 12px; right: 12px; }
+.ov.bl { bottom: 12px; left: 12px; right: 12px; flex-wrap: wrap; }
+.ov .seg { background: var(--panel); box-shadow: 0 2px 10px rgba(15, 25, 45, .12); }
+.ov .seg button { padding: 6px 11px; }
+.ov .seg svg { width: 15px; height: 15px; vertical-align: -3px; }
+.sideseg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); box-shadow: none; }
+.chk { white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 5px 9px; cursor: pointer; user-select: none; }
+.chk input { accent-color: var(--accent); margin: 0; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); background: color-mix(in srgb, var(--panel) 88%, transparent); border: 1px solid var(--line); border-radius: var(--r); padding: 5px 10px; }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+.hint { font-size: 12px; color: var(--muted); margin-left: auto; background: color-mix(in srgb, var(--panel) 80%, transparent); border-radius: var(--r); padding: 4px 8px; }
+.center { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; padding: 16px; }
+.center > * { pointer-events: auto; }
+.emptycard { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 22px 24px; display: grid; gap: 10px; justify-items: center; text-align: center; max-width: 360px; box-shadow: 0 10px 30px rgba(15, 25, 45, .15); }
+.emptycard h3 { margin: 0; font: 700 22px var(--f-display); letter-spacing: .03em; text-transform: uppercase; }
+.emptycard p { margin: 0; color: var(--muted); font-size: 13.5px; }
+.emptycard svg.big { width: 64px; height: 64px; color: var(--accent); }
+.busy { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: 0 4px 16px rgba(15, 25, 45, .14); }
+.busy .bar { width: 120px; height: 5px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+.busy .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+.drop-hint { position: absolute; inset: 14px; border: 2px dashed var(--accent); border-radius: 10px; display: grid; place-items: center; background: color-mix(in srgb, var(--panel) 70%, transparent); font: 600 20px var(--f-display); letter-spacing: .03em; color: var(--accent); text-transform: uppercase; pointer-events: none; }
+.toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--ink); color: var(--panel); padding: 9px 14px; border-radius: 8px; font-size: 13.5px; z-index: 50; max-width: calc(100vw - 32px); box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+
+@media (max-width: 860px) {
+  body { overflow: auto; height: auto; }
+  .app { height: auto; min-height: 100%; }
+  .main { display: flex; flex-direction: column-reverse; }
+  .view { height: 58vh; min-height: 340px; position: sticky; top: 0; z-index: 2; }
+  .side { border-right: 0; overflow: visible; }
+  .projname { width: 9em; }
+  .menu .lbl { display: none; }
+  .hint { display: none; }
+  .wide { display: none; }
+  .ov .seg button { padding: 6px 8px; }
+}
+@media (max-width: 860px) { .view { position: relative; } }
+
+@media print {
+  body { overflow: visible; background: #fff; color: #000; }
+  .top, .view, .sec:not(#secJob), #secJob .act, #secJob .sec-h .aside, #btnAll, #btnPrint { display: none !important; }
+  .app, .main { display: block; height: auto; }
+  .side { overflow: visible; border: 0; }
+  .printhead { display: block !important; font: 700 22px var(--f-display); margin-bottom: 6px; }
+}
+.printhead { display: none; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="1" width="24" height="24" rx="5" fill="var(--accent)"/><path d="M4.5 17.5c2-.2 3-4.2 5.4-4.4 2.4-.2 2.7 3.2 5.2 3.1 2.6-.1 3.2-6.2 6.4-6.4" fill="none" stroke="var(--accent-ink)" stroke-width="2.4" stroke-linecap="round"/><path d="M4.5 20.5h17" stroke="var(--accent-ink)" stroke-width="1.6" stroke-linecap="round" opacity=".55"/><circle cx="20" cy="6.8" r="2.3" fill="var(--zero)"/></svg>
+      CarveReady
+    </div>
+    <input class="projname" id="projName" aria-label="Project name" spellcheck="false">
+    <nav class="menu">
+      <button id="btnImport" title="Import an STL or OBJ model"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 3 7.5v9L12 21l9-4.5v-9z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg><span class="lbl">Import model</span></button>
+      <button id="btnOpen" title="Open a saved project"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="lbl">Open</span></button>
+      <button id="btnSave" title="Save this project (model included)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v6h9M7 21v-7h10v7"/></svg><span class="lbl">Save</span></button>
+    </nav>
+    <div class="top-right">
+      <button class="btn-primary" id="btnAll" disabled title="Download every .sbp file for this job"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Download all .sbp</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <aside class="side" id="side">
+      <!-- 1 MODEL -->
+      <section class="sec" id="secModel">
+        <div class="sec-h"><span class="n">1</span><h2>Model</h2></div>
+        <div class="drop" data-show="nomodel">
+          <b>Import a 3D model</b>
+          <p class="tip">STL or OBJ. Most CAD exports work (Onshape: right-click the part, Export, STL).</p>
+          <div class="row" style="width:100%"><button class="btn" data-act="import">Choose file</button><button class="btn" data-act="sample">Try the sample pawn</button></div>
+        </div>
+        <div data-show="model" style="display:grid;gap:11px">
+          <div class="modelcard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 3 7.5v9L12 21l9-4.5v-9z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>
+            <div style="min-width:0"><b id="mName">model.stl</b><small id="mInfo">0 triangles</small></div>
+            <label title="Units the file was drawn in"><select class="sel" data-k="model.units"><option value="mm">mm</option><option value="in">inches</option><option value="cm">cm</option></select></label>
+          </div>
+          <div>
+            <div class="eyebrow" style="margin-bottom:6px">Size <span style="text-transform:none;letter-spacing:0;font-weight:500">(stays in proportion)</span></div>
+            <div class="grid3">
+              <label class="fld"><span>X width</span><span class="unit"><input data-act="sizex" inputmode="decimal"><i>in</i></span></label>
+              <label class="fld"><span>Y length</span><span class="unit"><input data-act="sizey" inputmode="decimal"><i>in</i></span></label>
+              <label class="fld"><span>Z height</span><span class="unit"><input data-act="sizez" inputmode="decimal"><i>in</i></span></label>
+            </div>
+          </div>
+          <div>
+            <div class="eyebrow" style="margin-bottom:6px">Turn the model</div>
+            <div class="rot">
+              <button class="btn" data-act="rotx" title="Roll forward 90°">X 90°</button>
+              <button class="btn" data-act="roty" title="Roll sideways 90°">Y 90°</button>
+              <button class="btn" data-act="rotz" title="Spin flat on the table 90°">Z 90°</button>
+              <button class="btn" data-act="rotreset" title="Back to how the file came in">Reset</button>
+            </div>
+          </div>
+          <div class="row">
+            <button class="btn" data-act="fit">Fit to stock</button>
+            <button class="btn" data-act="stockfit">Size stock to model</button>
+          </div>
+          <div class="grid2">
+            <label class="fld"><span>Move X (from center)</span><span class="unit"><input data-act="posx" inputmode="decimal"><i>in</i></span></label>
+            <label class="fld"><span>Move Y (from center)</span><span class="unit"><input data-act="posy" inputmode="decimal"><i>in</i></span></label>
+          </div>
+          <div class="grid2" style="align-items:end">
+            <label class="fld"><span>Top of model below stock top</span><span class="unit"><input data-act="mtop" inputmode="decimal"><i>in</i></span></label>
+            <button class="btn" data-act="mtopauto" id="btnTopAuto">Auto</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2 STOCK -->
+      <section class="sec">
+        <div class="sec-h"><span class="n">2</span><h2>Stock</h2></div>
+        <div class="grid3">
+          <label class="fld"><span>X width</span><span class="unit"><input data-k="stock.w" inputmode="decimal"><i>in</i></span></label>
+          <label class="fld"><span>Y length</span><span class="unit"><input data-k="stock.h" inputmode="decimal"><i>in</i></span></label>
+          <label class="fld"><span>Thickness</span><span class="unit"><input data-k="stock.t" inputmode="decimal"><i>in</i></span></label>
+        </div>
+        <p class="tip" data-show="two"><b>Measure the thickness with calipers.</b> Side B is cut from the other face, so a wrong thickness shows up as a step where the two sides meet.</p>
+      </section>
+
+      <!-- 3 SIDES -->
+      <section class="sec">
+        <div class="sec-h"><span class="n">3</span><h2>Sides</h2></div>
+        <div class="seg" data-k="sides" data-num>
+          <button data-v="1">One side (no flip)</button>
+          <button data-v="2">Two sides (flip)</button>
+        </div>
+        <div data-show="one"><p class="tip">Carves what you can see from above. The model's lowest point becomes the floor around it. Zero X/Y in the <b>center</b> of the stock, Z on top.</p></div>
+
+        <div data-show="two" style="display:grid;gap:11px">
+          <div>
+            <div class="eyebrow" style="margin-bottom:6px">Flip direction</div>
+            <div class="choice" data-k="flip">
+              <button class="card" data-v="lr">
+                <svg viewBox="0 0 92 58" aria-hidden="true"><rect x="18" y="16" width="56" height="34" rx="2" fill="var(--wood)" stroke="var(--wood-cut)"/><path d="M46 10v46" stroke="var(--zero)" stroke-width="2" stroke-dasharray="4 3"/><path d="M28 12c4-9 32-9 36 0" fill="none" stroke="var(--ink)" stroke-width="2"/><path d="m60 8 4 4-5 2" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/><circle cx="46" cy="21" r="2.6" fill="var(--pin)" stroke="var(--wood-deep)"/><circle cx="46" cy="45" r="2.6" fill="var(--pin)" stroke="var(--wood-deep)"/><text x="30" y="37" font-family="Barlow Semi Condensed,Arial" font-weight="700" font-size="12" fill="var(--wood-deep)">A</text></svg>
+                <b>Left ↔ Right</b><small>Turn it over like a book page. Pins go front and back.</small>
+              </button>
+              <button class="card" data-v="fb">
+                <svg viewBox="0 0 92 58" aria-hidden="true"><rect x="14" y="14" width="56" height="34" rx="2" fill="var(--wood)" stroke="var(--wood-cut)"/><path d="M8 31h70" stroke="var(--zero)" stroke-width="2" stroke-dasharray="4 3"/><path d="M80 18c9 4 9 22 0 26" fill="none" stroke="var(--ink)" stroke-width="2"/><path d="m84 41-4 3-1-5" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/><circle cx="20" cy="31" r="2.6" fill="var(--pin)" stroke="var(--wood-deep)"/><circle cx="64" cy="31" r="2.6" fill="var(--pin)" stroke="var(--wood-deep)"/><text x="26" y="27" font-family="Barlow Semi Condensed,Arial" font-weight="700" font-size="12" fill="var(--wood-deep)">A</text></svg>
+                <b>Front ↔ Back</b><small>Roll it toward you. Pins go left and right.</small>
+              </button>
+            </div>
+          </div>
+
+          <div style="display:grid;gap:7px">
+            <div class="eyebrow">Parting line <span style="text-transform:none;letter-spacing:0;font-weight:500">(where side A meets side B)</span></div>
+            <div class="seg" data-k="partAuto" data-bool>
+              <button data-v="true">Auto (best fit)</button>
+              <button data-v="false">Set it myself</button>
+            </div>
+            <div data-show="partManual" class="grid2" style="grid-template-columns:1fr 92px;align-items:center">
+              <input type="range" class="slider" id="partSlider" min="0" max="1" step="0.005" aria-label="Parting depth">
+              <span class="unit"><input data-k="parting" inputmode="decimal"><i>in</i></span>
+            </div>
+            <div class="reach" id="reach">Import a model to see how much each side can reach.</div>
+          </div>
+
+          <div style="display:grid;gap:7px">
+            <div class="eyebrow">Holding tabs</div>
+            <div class="seg" data-k="tabs.count" data-num>
+              <button data-v="0">None</button><button data-v="2">2 tabs</button><button data-v="4">4 tabs</button>
+            </div>
+            <div class="grid2" data-show="tabsOn">
+              <label class="fld"><span>Tab width</span><span class="unit"><input data-k="tabs.width" inputmode="decimal"><i>in</i></span></label>
+              <label class="fld"><span>Tab thickness</span><span class="unit"><input data-k="tabs.thick" inputmode="decimal"><i>in</i></span></label>
+            </div>
+            <p class="tip" data-show="tabsOff">With no tabs the part comes loose during side B finishing. Use tabs unless the part is big and you hold it another way.</p>
+          </div>
+
+          <div style="display:grid;gap:7px">
+            <div class="eyebrow">Lining up side B</div>
+            <div class="seg" data-k="pin.on" data-bool>
+              <button data-v="true">Dowel pins</button>
+              <button data-v="false">No pins (board edges)</button>
+            </div>
+            <div data-show="pinsOn" style="display:grid;gap:8px">
+              <div class="seg" data-k="pin.dia" data-num><button data-v="0.25">1/4</button><button data-v="0.3125">5/16</button><button data-v="0.375">3/8</button><button data-v="0.5">1/2</button></div>
+              <div class="grid3">
+                <label class="fld"><span>Dowel size</span><span class="unit"><input data-k="pin.dia" id="pinDia" inputmode="decimal"><i>in</i></span></label>
+                <label class="fld"><span>Extra for fit</span><span class="unit"><input data-k="pin.fit" id="pinFit" inputmode="decimal"><i>in</i></span></label>
+                <label class="fld"><span>Into spoilboard</span><span class="unit"><input data-k="pin.spoil" id="pinSpoil" inputmode="decimal"><i>in</i></span></label>
+              </div>
+              <p class="tip">Two holes are drilled on the flip line, through the stock and into the spoilboard. Dowels in those holes put side B back exactly where side A was. <b>Measure your dowels</b>: dowel rod is often a little under size. "Extra for fit" makes the hole that much bigger (0 = tight, 0.005 = slip fit).</p>
+            </div>
+            <p class="tip" data-show="pinsOff">No holes are drilled. Before cutting side A, screw two straight strips to the spoilboard touching the left and front edges of the board (or trace around it). Flipping across the center keeps the same footprint, so you put the board back into that spot and X/Y zero stays put. <b>The board must be cut square and exactly the size in Stock</b>, or the two halves won't line up.</p>
+          </div>
+        </div>
+        <details class="adv">
+          <summary>More: margin and overlap</summary>
+          <div class="grid2">
+            <label class="fld"><span>Room around the part</span><span class="unit"><input data-k="margin" inputmode="decimal"><i>in</i></span></label>
+            <label class="fld" data-show="two"><span>Cut past parting line</span><span class="unit"><input data-k="over" inputmode="decimal"><i>in</i></span></label>
+          </div>
+          <p class="tip">The carve pocket is the part's outline plus this room on every side; the rest of the board stays full thickness as a frame. Make the room at least as wide as your biggest bit.</p>
+        </details>
+      </section>
+
+      <!-- 4 BITS -->
+      <section class="sec">
+        <div class="sec-h"><span class="n">4</span><h2>Bits</h2></div>
+        <div class="bitbox" id="boxRough">
+          <div class="bithead">
+            <svg viewBox="0 0 22 36" aria-hidden="true"><rect x="7" y="1" width="8" height="14" rx="1" fill="var(--muted)"/><path d="M5 15h12v17H5z" fill="var(--accent)"/><path d="M5 20l12-3M5 26l12-3M5 32l12-3" stroke="var(--accent-ink)" stroke-width="1.2" opacity=".6"/></svg>
+            <div><b>Roughing</b><small>Flat end mill. Hogs out most of the wood fast.</small></div>
+            <label class="switch" title="Use a roughing pass"><input type="checkbox" data-k="rough.on"><span></span></label>
+          </div>
+          <div class="seg" data-k="rough.dia" data-num><button data-v="0.0625">1/16</button><button data-v="0.125">1/8</button><button data-v="0.25">1/4</button><button data-v="0.375">3/8</button></div>
+          <label class="fld"><span>Bit diameter (or type any size, like 1/32, 0.04 or 1mm)</span><span class="unit"><input data-k="rough.dia" id="roughDia" inputmode="decimal"><i>in</i></span></label>
+          <div class="grid2">
+            <label class="fld"><span>Feed</span><span class="unit"><input data-k="rough.feed" inputmode="decimal"><i>ipm</i></span></label>
+            <label class="fld"><span>Plunge</span><span class="unit"><input data-k="rough.plunge" inputmode="decimal"><i>ipm</i></span></label>
+            <label class="fld"><span>Depth per pass</span><span class="unit"><input data-k="rough.doc" inputmode="decimal"><i>in</i></span></label>
+            <label class="fld"><span>Stepover</span><span class="unit"><input data-k="rough.so" inputmode="decimal"><i>%</i></span></label>
+            <label class="fld"><span>Leave for finishing</span><span class="unit"><input data-k="rough.leave" inputmode="decimal"><i>in</i></span></label>
+            <label class="fld"><span>Spindle</span><span class="unit"><input data-k="rough.rpm" inputmode="decimal"><i>rpm</i></span></label>
+          </div>
+        </div>
+        <div class="bitbox" id="boxFin">
+          <div class="bithead">
+            <svg viewBox="0 0 22 36" aria-hidden="true"><rect x="7" y="1" width="8" height="14" rx="1" fill="var(--muted)"/><path d="M5 15h12v12a6 6 0 0 1-12 0z" fill="var(--zero)"/><path d="M5 20l12-3M5 26l12-3" stroke="#fff" stroke-width="1.2" opacity=".55"/></svg>
+            <div><b>Finishing</b><small>Ball nose. Small steps leave a smooth surface.</small></div>
+            <label class="switch" title="Use a finishing pass"><input type="checkbox" data-k="fin.on"><span></span></label>
+          </div>
+          <div class="seg" data-k="fin.dia" data-num><button data-v="0.03125">1/32</button><button data-v="0.0625">1/16</button><button data-v="0.125">1/8</button><button data-v="0.25">1/4</button></div>
+          <label class="fld"><span>Bit diameter (or type any size, like 1/32, 0.04 or 1mm)</span><span class="unit"><input data-k="fin.dia" id="finDia" inputmode="decimal"><i>in</i></span></label>
+          <div class="grid2">
+            <label class="fld"><span>Feed</span><span class="unit"><input data-k="fin.feed" inputmode="decimal"><i>ipm</i></span></label>
+            <label class="fld"><span>Plunge</span><span class="unit"><input data-k="fin.plunge" inputmode="decimal"><i>ipm</i></span></label>
+            <label class="fld"><span>Stepover</span><span class="unit"><input data-k="fin.so" inputmode="decimal"><i>%</i></span></label>
+            <label class="fld"><span>Spindle</span><span class="unit"><input data-k="fin.rpm" inputmode="decimal"><i>rpm</i></span></label>
+          </div>
+          <div class="fld"><span style="font-size:12px;color:var(--muted)">Passes run</span>
+            <div class="seg" data-k="fin.dir"><button data-v="x">Left ↔ right</button><button data-v="y">Front ↔ back</button></div>
+          </div>
+        </div>
+        <div class="fld"><span style="font-size:12px;color:var(--muted)">Detail (higher is slower to calculate)</span>
+          <div class="seg" data-k="detail"><button data-v="draft">Draft</button><button data-v="normal">Normal</button><button data-v="fine">Fine</button></div>
+        </div>
+        <details class="adv">
+          <summary>More: ShopBot header and safe height</summary>
+          <label class="fld"><span>Safe height above stock</span><span class="unit"><input data-k="safeZ" inputmode="decimal"><i>in</i></span></label>
+          <label class="fld"><span>Start of every file ({rpm} becomes the bit's spindle speed)</span><textarea class="ta" data-k="machine.header" spellcheck="false"></textarea></label>
+          <label class="fld"><span>End of every file</span><textarea class="ta" data-k="machine.footer" spellcheck="false"></textarea></label>
+        </details>
+      </section>
+
+      <!-- 5 JOB -->
+      <section class="sec" id="secJob">
+        <div class="printhead" id="printHead">CarveReady job sheet</div>
+        <div class="sec-h"><span class="n">5</span><h2>Cut it</h2><span class="aside" id="jobTime"></span></div>
+        <div class="warns" id="warns"></div>
+        <ol class="steps" id="steps"><li class="empty-steps">Import a model and the step-by-step job shows up here.</li></ol>
+        <div class="row" style="margin-top:2px">
+          <button class="btn" id="btnPrint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2"/><path d="M6 14h12v7H6z"/></svg>Print job sheet</button>
+        </div>
+      </section>
+    </aside>
+
+    <section class="view" id="view">
+      <canvas id="cv"></canvas>
+      <div class="ov tl">
+        <div class="seg" id="vmode"><button data-v="setup">Setup</button><button data-v="carve">Carve<span class="wide"> preview</span></button></div>
+      </div>
+      <div class="ov tr">
+        <div class="seg sideseg" id="vside" data-show="two">
+          <button data-v="A"><span class="wide">Side </span>A up</button>
+          <button data-v="B" title="Shows the flip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/></svg> <span class="wide">Side </span>B up</button>
+        </div>
+      </div>
+      <div class="ov bl">
+        <div class="seg" id="vcam"><button data-v="iso">3D</button><button data-v="top">Top</button><button data-v="front">Front</button></div>
+        <label class="chk"><input type="checkbox" id="chkPaths">Toolpaths</label>
+        <div class="legend" id="legend"></div>
+        <span class="hint">Drag to turn · right-drag to slide · scroll to zoom</span>
+      </div>
+      <div class="center" id="emptyView">
+        <div class="emptycard">
+          <svg class="big" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M32 6 8 18v28l24 12 24-12V18z"/><path d="M8 18l24 12 24-12M32 30v28"/><path d="M20 40c3-6 6-6 8-2s5 3 8-3" stroke="var(--zero)"/></svg>
+          <h3>Drop an STL here</h3>
+          <p>Or OBJ. CarveReady makes roughing and finishing files for the ShopBot and walks you through flipping the board for side B.</p>
+          <div class="row" style="width:100%"><button class="btn-primary" data-act="import" style="flex:1;justify-content:center">Import model</button><button class="btn" data-act="sample" style="flex:1">Try the sample</button></div>
+        </div>
+      </div>
+      <div class="busy" id="busy" hidden><span id="busyLbl">Calculating toolpaths</span><span class="bar"><i id="busyBar"></i></span></div>
+      <div class="drop-hint" id="dropHint" hidden>Drop to import</div>
+    </section>
+  </div>
+</div>
+<input type="file" id="fileModel" accept=".stl,.obj" hidden>
+<input type="file" id="fileProject" accept=".json,.carveready" hidden>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+
+<!-- ===================== toolpath worker (runs off the main thread) ===================== -->
+<script type="text/plain" id="workerSrc">
+'use strict';
+/* Coordinates: inches. Stock x in [0,w], y in [0,h] (front-left corner origin), z in [-t,0] with 0 = top of side A.
+   Side B heights are measured from side B's top face: zB = -t - z. Tool positions are ball/flat tip heights. */
+self.onmessage = function (e) {
+  const { id, tris, p } = e.data;
+  try {
+    const out = run(tris, p, (f, label) => self.postMessage({ id, progress: f, label }));
+    const tr = [out.SA.buffer]; if (out.SB) tr.push(out.SB.buffer);
+    for (const o of out.ops) tr.push(o.moves.buffer);
+    self.postMessage({ id, done: true, out }, tr);
+  } catch (err) { self.postMessage({ id, error: (err && err.message) || String(err) }); }
+};
+
+function run(tris, p, prog) {
+  const w = p.w, h = p.h, t = p.t, two = p.two;
+  const warnings = [];
+  // ---- grid ----
+  let base = Math.max(p.resFloor, Math.sqrt(w * h / p.cellCap));
+  const dias = []; if (p.rough.on) dias.push(p.rough.dia); if (p.fin.on) dias.push(p.fin.dia);
+  const smallest = dias.length ? Math.min.apply(null, dias) : 0.25;
+  const hardMin = Math.max(0.002, Math.sqrt(w * h / 4.5e6)); // memory limit
+  if (smallest / 5 < base) base = Math.max(smallest / 5, hardMin);
+  let res = base;
+  const fso = p.fin.dia * p.fin.so / 100;
+  if (p.fin.on && fso >= base) { const k = Math.max(1, Math.floor(fso / base + 1e-9)); res = fso / k; }
+  else if (p.fin.on) res = Math.max(fso, hardMin); // tiny stepover: shrink the grid to match, within the memory limit
+  const nx = Math.floor(w / res + 1e-9) + 1, ny = Math.floor(h / res + 1e-9) + 1, N = nx * ny;
+  if (p.fin.on) {
+    const real = Math.max(1, Math.round(fso / res)) * res;
+    if (real > fso * 1.3) warnings.push('Finishing stepover is ' + real.toFixed(4) + ' in instead of ' + fso.toFixed(4) + ' in because the stock is large for this bit. The surface will be a little rougher. Try a smaller stock or a bigger stepover %.');
+  }
+  if (smallest < 4 * res - 1e-9) warnings.push('The ' + smallest + ' in bit is tiny for a board this size, so CarveReady works at ' + res.toFixed(4) + ' in detail. Small features may come out softer than the bit could cut.');
+
+  // ---- heightmaps: highest (top) and lowest (bot) model surface over each node ----
+  const top = new Float32Array(N).fill(-Infinity), bot = new Float32Array(N).fill(Infinity);
+  let mx0 = Infinity, my0 = Infinity, mz0 = Infinity, mx1 = -Infinity, my1 = -Infinity, mz1 = -Infinity;
+  const stamp = (x, y, z) => {
+    const i = Math.round(x / res), j = Math.round(y / res);
+    if (i < 0 || j < 0 || i >= nx || j >= ny) return;
+    const id = j * nx + i; if (z > top[id]) top[id] = z; if (z < bot[id]) bot[id] = z;
+  };
+  const T9 = tris.length;
+  for (let k = 0; k < T9; k += 9) {
+    if (k % 180000 === 0) prog(0.12 * k / T9, 'Reading the model');
+    const ax = tris[k], ay = tris[k + 1], az = tris[k + 2], bx = tris[k + 3], by = tris[k + 4], bz = tris[k + 5], cx = tris[k + 6], cy = tris[k + 7], cz = tris[k + 8];
+    const xa = Math.min(ax, bx, cx), xb = Math.max(ax, bx, cx), ya = Math.min(ay, by, cy), yb = Math.max(ay, by, cy);
+    if (xa < mx0) mx0 = xa; if (xb > mx1) mx1 = xb; if (ya < my0) my0 = ya; if (yb > my1) my1 = yb;
+    const za = Math.min(az, bz, cz), zb = Math.max(az, bz, cz); if (za < mz0) mz0 = za; if (zb > mz1) mz1 = zb;
+    stamp(ax, ay, az); stamp(bx, by, bz); stamp(cx, cy, cz);
+    const d = (bx - ax) * (cy - ay) - (cx - ax) * (by - ay);
+    if (Math.abs(d) < 1e-12) continue;
+    const i0 = Math.max(0, Math.ceil(xa / res - 1e-7)), i1 = Math.min(nx - 1, Math.floor(xb / res + 1e-7));
+    const j0 = Math.max(0, Math.ceil(ya / res - 1e-7)), j1 = Math.min(ny - 1, Math.floor(yb / res + 1e-7));
+    for (let j = j0; j <= j1; j++) {
+      const y = j * res;
+      for (let i = i0; i <= i1; i++) {
+        const x = i * res;
+        const w0 = ((bx - x) * (cy - y) - (cx - x) * (by - y)) / d; if (w0 < -1e-6) continue;
+        const w1 = ((cx - x) * (ay - y) - (ax - x) * (cy - y)) / d; if (w1 < -1e-6) continue;
+        const w2 = 1 - w0 - w1; if (w2 < -1e-6) continue;
+        const z = w0 * az + w1 * bz + w2 * cz, id = j * nx + i;
+        if (z > top[id]) top[id] = z; if (z < bot[id]) bot[id] = z;
+      }
+    }
+  }
+  let M = 0; for (let i = 0; i < N; i++) if (top[i] > -Infinity) M++;
+  if (!M) throw new Error('The model is not over the stock. Try "Fit to stock".');
+  const tol = 0.002;
+  if (mx0 < -tol || my0 < -tol || mx1 > w + tol || my1 > h + tol) warnings.push('The model hangs past the edge of the stock. Make the stock bigger, or click "Fit to stock".');
+  if (mz1 > tol) warnings.push('The model sticks up above the top of the stock. Lower it, or use thicker stock.');
+  if (mz0 < -t - tol) warnings.push(two ? 'The model is thicker than the stock. Use thicker stock or make the model smaller.' : 'The model goes below the bottom of the stock.');
+  mz1 = Math.min(mz1, 0); mz0 = Math.max(mz0, -t);
+  prog(0.14, 'Finding the parting line');
+
+  // ---- parting line ----
+  let zP = 0, best = null, unreach = 0;
+  if (two) {
+    const tops = new Float32Array(M), bots = new Float32Array(M); let q = 0;
+    for (let i = 0; i < N; i++) if (top[i] > -Infinity) { tops[q] = top[i]; bots[q] = bot[i]; q++; }
+    tops.sort(); bots.sort();
+    const lower = (a, v) => { let lo = 0, hi = a.length; while (lo < hi) { const m = (lo + hi) >> 1; if (a[m] < v) lo = m + 1; else hi = m; } return lo; };
+    const bad = z => lower(tops, z - 1e-4) + (M - lower(bots, z + 1e-4 + 1e-7));
+    const mid = (mz0 + mz1) / 2; let bestBad = Infinity;
+    for (let s = 0; s <= 120; s++) {
+      const z = mz0 + (mz1 - mz0) * (0.02 + 0.96 * s / 120);
+      const b = bad(z);
+      if (b < bestBad - M * 0.001 || (Math.abs(b - bestBad) <= M * 0.001 && Math.abs(z - mid) < Math.abs(best - mid))) { bestBad = Math.min(b, bestBad); best = z; }
+    }
+    best = Math.round(best * 1000) / 1000;
+    zP = p.partAuto ? best : -Math.min(t - 0.01, Math.max(0.01, p.parting));
+    unreach = bad(zP) / M;
+  }
+
+  // ---- carve boundary (pocket around the part) ----
+  const bx0 = Math.max(0, mx0 - p.margin), bx1 = Math.min(w, mx1 + p.margin), by0 = Math.max(0, my0 - p.margin), by1 = Math.min(h, my1 + p.margin);
+  const ib0 = Math.max(0, Math.ceil(bx0 / res - 1e-6)), ib1 = Math.min(nx - 1, Math.floor(bx1 / res + 1e-6));
+  const jb0 = Math.max(0, Math.ceil(by0 / res - 1e-6)), jb1 = Math.min(ny - 1, Math.floor(by1 / res + 1e-6));
+
+  // ---- target surfaces each side must reach (0 = untouched stock) ----
+  const TA = new Float32Array(N), TB = two ? new Float32Array(N) : null;
+  const floorA = two ? zP - p.over : mz0, floorB = -t - zP - p.over;
+  for (let j = jb0; j <= jb1; j++) for (let i = ib0; i <= ib1; i++) {
+    const id = j * nx + i, m = top[id] > -Infinity;
+    let a = m ? (two ? Math.max(top[id], zP) : top[id]) : floorA;
+    TA[id] = Math.min(0, Math.max(-t, a));
+    if (two) { const b = m ? Math.max(-t - bot[id], -t - zP) : floorB; TB[id] = Math.min(0, Math.max(-t, b)); }
+  }
+  // tabs: bridges at the parting line from the part out to the frame
+  const tabs = [];
+  if (two && p.tabs.count > 0) {
+    const cxm = (mx0 + mx1) / 2, cym = (my0 + my1) / 2, tw = p.tabs.width / 2, tt = p.tabs.thick / 2;
+    const longX = (mx1 - mx0) >= (my1 - my0);
+    const dirs = p.tabs.count >= 4 ? ['+x', '-x', '+y', '-y'] : (longX ? ['+x', '-x'] : ['+y', '-y']);
+    const isM = (i, j) => top[j * nx + i] > -Infinity;
+    for (const dname of dirs) {
+      let r = null;
+      if (dname[1] === 'x') {
+        const jc = Math.max(0, Math.min(ny - 1, Math.round(cym / res)));
+        let e = -1;
+        if (dname[0] === '+') { for (let i = ib1; i >= ib0; i--) if (isM(i, jc)) { e = i; break; } if (e >= 0) r = { x0: e * res - res, x1: bx1 + res, y0: cym - tw, y1: cym + tw }; }
+        else { for (let i = ib0; i <= ib1; i++) if (isM(i, jc)) { e = i; break; } if (e >= 0) r = { x0: bx0 - res, x1: e * res + res, y0: cym - tw, y1: cym + tw }; }
+      } else {
+        const ic = Math.max(0, Math.min(nx - 1, Math.round(cxm / res)));
+        let e = -1;
+        if (dname[0] === '+') { for (let j = jb1; j >= jb0; j--) if (isM(ic, j)) { e = j; break; } if (e >= 0) r = { x0: cxm - tw, x1: cxm + tw, y0: e * res - res, y1: by1 + res }; }
+        else { for (let j = jb0; j <= jb1; j++) if (isM(ic, j)) { e = j; break; } if (e >= 0) r = { x0: cxm - tw, x1: cxm + tw, y0: by0 - res, y1: e * res + res }; }
+      }
+      if (!r) continue;
+      tabs.push(r);
+      const ta = Math.min(0, zP + tt), tb = Math.min(0, -t - zP + tt);
+      const i0 = Math.max(ib0, Math.ceil(r.x0 / res)), i1 = Math.min(ib1, Math.floor(r.x1 / res));
+      const j0 = Math.max(jb0, Math.ceil(r.y0 / res)), j1 = Math.min(jb1, Math.floor(r.y1 / res));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+        const id = j * nx + i; if (top[id] > -Infinity) continue;
+        if (TA[id] < ta) TA[id] = ta; if (TB[id] < tb) TB[id] = tb;
+      }
+    }
+    if (tabs.length < dirs.length) warnings.push('Some tabs could not find the part to connect to. Check the preview.');
+  }
+
+  // ---- registration holes on the flip line ----
+  const holes = [];
+  if (two) {
+    const need = p.pin.dia / 2 + 0.2;
+    if (p.pin.on) {
+    if (p.flip === 'lr') {
+      const g0 = by0, g1 = h - by1;
+      if (g0 >= need * 2 && g1 >= need * 2) holes.push({ x: w / 2, y: g0 / 2 }, { x: w / 2, y: by1 + g1 / 2 });
+    } else {
+      const g0 = bx0, g1 = w - bx1;
+      if (g0 >= need * 2 && g1 >= need * 2) holes.push({ x: g0 / 2, y: h / 2 }, { x: bx1 + g1 / 2, y: h / 2 });
+    }
+    if (!holes.length) warnings.push(p.flip === 'lr'
+      ? 'No room for dowel pins in front of and behind the carve. Make the stock longer in Y (about ' + (4 * need).toFixed(2) + ' in more) or the model smaller.'
+      : 'No room for dowel pins left and right of the carve. Make the stock wider in X (about ' + (4 * need).toFixed(2) + ' in more) or the model smaller.');
+    }
+  }
+
+  // ---- tool kernels ----
+  function kernel(dia, ball) {
+    const R = dia / 2, n = Math.ceil(R / res - 1e-9);
+    const di = [], dj = [], dr = [];
+    for (let b = -n; b <= n; b++) for (let a = -n; a <= n; a++) {
+      const r = Math.hypot(a, b) * res; if (r > R + 1e-9) continue;
+      di.push(a); dj.push(b); dr.push(ball ? R - Math.sqrt(Math.max(0, R * R - r * r)) : 0);
+    }
+    const off = new Int32Array(di.length); for (let k = 0; k < di.length; k++) off[k] = dj[k] * nx + di[k];
+    return { di: Int32Array.from(di), dj: Int32Array.from(dj), dr: Float32Array.from(dr), off, n, len: di.length };
+  }
+  // lowest safe tip height at node (i,j) for tool K over target T
+  function makeComp(T, K, add) {
+    const C = new Float32Array(N).fill(NaN), { di, dj, dr, off, n, len } = K;
+    return function (i, j) {
+      const id = j * nx + i; let v = C[id]; if (v === v) return v;
+      let m = -Infinity;
+      if (i >= n && j >= n && i < nx - n && j < ny - n) { for (let k = 0; k < len; k++) { const q = T[id + off[k]] - dr[k]; if (q > m) m = q; } }
+      else for (let k = 0; k < len; k++) {
+        const ii = i + di[k], jj = j + dj[k];
+        const q = (ii < 0 || jj < 0 || ii >= nx || jj >= ny ? 0 : T[jj * nx + ii]) - dr[k]; if (q > m) m = q;
+      }
+      m += add; C[id] = m; return m;
+    };
+  }
+  function makeSweep(S, K) {
+    const { di, dj, dr, off, n, len } = K;
+    return function (i, j, z) {
+      if (i >= n && j >= n && i < nx - n && j < ny - n) { const id = j * nx + i; for (let k = 0; k < len; k++) { const v = z + dr[k], q = id + off[k]; if (v < S[q]) S[q] = v; } }
+      else for (let k = 0; k < len; k++) {
+        const ii = i + di[k], jj = j + dj[k]; if (ii < 0 || jj < 0 || ii >= nx || jj >= ny) continue;
+        const v = z + dr[k], q = jj * nx + ii; if (v < S[q]) S[q] = v;
+      }
+    };
+  }
+
+  // ---- move list builder (G0/G1, with line simplification) ----
+  function Builder(tolr) {
+    this.m = []; this.x = NaN; this.y = NaN; this.z = NaN; this.pend = []; this.pf = 0; this.tol = tolr; this.time = 0; this.feedLen = 0;
+  }
+  Builder.prototype.raw = function (g, x, y, z, f) {
+    const dx = (x === x && this.x === this.x) ? x - this.x : 0, dy = (y === y && this.y === this.y) ? y - this.y : 0, dz = (this.z === this.z) ? z - this.z : 0;
+    const dxy = Math.hypot(dx, dy);
+    if (g === 0) this.time += dxy / p.rapidXY + Math.abs(dz) / p.rapidZ;
+    else { const L = Math.hypot(dxy, dz); this.time += L / f; this.feedLen += L; }
+    this.m.push(g, x, y, z, f); this.x = x; this.y = y; this.z = z;
+  };
+  Builder.prototype.flush = function () {
+    const P = this.pend; if (!P.length) return;
+    const pts = [this.x, this.y, this.z].concat(P), n = pts.length / 3, keep = new Uint8Array(n); keep[0] = keep[n - 1] = 1;
+    const st = [0, n - 1];
+    while (st.length) {
+      const b = st.pop(), a = st.pop(); if (b - a < 2) continue;
+      const ax = pts[a * 3], ay = pts[a * 3 + 1], az = pts[a * 3 + 2], ux = pts[b * 3] - ax, uy = pts[b * 3 + 1] - ay, uz = pts[b * 3 + 2] - az;
+      const L2 = ux * ux + uy * uy + uz * uz; let md = -1, mi = -1;
+      for (let k = a + 1; k < b; k++) {
+        const vx = pts[k * 3] - ax, vy = pts[k * 3 + 1] - ay, vz = pts[k * 3 + 2] - az;
+        let tt = L2 > 0 ? (vx * ux + vy * uy + vz * uz) / L2 : 0; tt = tt < 0 ? 0 : tt > 1 ? 1 : tt;
+        const ex = vx - tt * ux, ey = vy - tt * uy, ez = vz - tt * uz, d = ex * ex + ey * ey + ez * ez;
+        if (d > md) { md = d; mi = k; }
+      }
+      if (md > this.tol * this.tol) { keep[mi] = 1; st.push(a, mi, mi, b); }
+    }
+    for (let k = 1; k < n; k++) if (keep[k]) this.raw(1, pts[k * 3], pts[k * 3 + 1], pts[k * 3 + 2], this.pf);
+    this.pend = [];
+  };
+  Builder.prototype.feed = function (x, y, z, f) { if (this.pend.length && f !== this.pf) this.flush(); this.pf = f; this.pend.push(x, y, z); };
+  Builder.prototype.retract = function () { this.flush(); if (!(this.z >= p.safeZ - 1e-6)) this.raw(0, this.x, this.y, p.safeZ, 0); };
+  Builder.prototype.travel = function (x, y) { this.retract(); if (Math.abs(x - this.x) > 1e-6 || Math.abs(y - this.y) > 1e-6 || this.x !== this.x) this.raw(0, x, y, this.z, 0); };
+  Builder.prototype.plunge = function (zFast, z, f) { this.flush(); if (zFast < this.z - 1e-6) this.raw(0, this.x, this.y, zFast, 0); if (z < this.z - 1e-6) this.raw(1, this.x, this.y, z, f); };
+  Builder.prototype.done = function () { this.retract(); return Float32Array.from(this.m); };
+
+  // ---- raster toolpath over the pocket, layer by layer ----
+  function raster(o) {
+    const { comp, layers, rowStep, alongX, B, feed, plunge, sweep, stride, mergeCells, rideCells, pa, pb } = o;
+    const u0 = alongX ? ib0 : jb0, u1 = alongX ? ib1 : jb1, v0 = alongX ? jb0 : ib0, v1 = alongX ? jb1 : ib1;
+    const rows = []; for (let v = v0; v <= v1; v += rowStep) rows.push(v); if (rows[rows.length - 1] !== v1) rows.push(v1);
+    const C = alongX ? (u, v) => comp(u, v) : (u, v) => comp(v, u);
+    const X = alongX ? (u, v) => u * res : (u, v) => v * res, Y = alongX ? (u, v) => v * res : (u, v) => u * res;
+    const SW = alongX ? (u, v, z) => sweep(u, v, z) : (u, v, z) => sweep(v, u, z);
+    let cnt = 0;
+    const total = layers.length * rows.length;
+    for (let li = 0; li < layers.length; li++) {
+      const L = layers[li][0], Pz = layers[li][1];
+      const zAt = (u, v) => { const c = C(u, v); return c > L ? c : L; };
+      const emit = (u, v, force) => { const z = zAt(u, v); B.feed(X(u, v), Y(u, v), z, feed); if (force || (cnt++ % stride) === 0) SW(u, v, z); };
+      let fwd = true, has = false, prevK = -9, pu = 0, pv = 0;
+      for (let k = 0; k < rows.length; k++) {
+        if ((li * rows.length + k) % 16 === 0) prog(pa + (pb - pa) * (li * rows.length + k) / total);
+        const v = rows[k], segs = [];
+        let a = -1, last = -1;
+        for (let u = u0; u <= u1; u++) {
+          if (zAt(u, v) < Pz - 1e-4) {
+            if (a < 0) a = u; else if (u - last - 1 > mergeCells) { segs.push([a, last]); a = u; }
+            last = u;
+          }
+        }
+        if (a >= 0) segs.push([a, last]);
+        if (!segs.length) continue;
+        if (!fwd) { segs.reverse(); for (const s of segs) { const q = s[0]; s[0] = s[1]; s[1] = q; } }
+        for (const s of segs) {
+          const su = s[0], eu = s[1], dir = eu >= su ? 1 : -1;
+          let linked = false;
+          if (has && (prevK === k || prevK === k - 1) && Math.abs(su - pu) + Math.abs(v - pv) <= rideCells) {
+            if (pu !== su) { const du = su > pu ? 1 : -1; for (let u = pu + du; ; u += du) { emit(u, pv, false); if (u === su) break; } }
+            if (pv !== v) { const dv = v > pv ? 1 : -1; for (let vv = pv + dv; ; vv += dv) { emit(su, vv, false); if (vv === v) break; } }
+            linked = true;
+          }
+          if (!linked) {
+            const zs = zAt(su, v);
+            B.travel(X(su, v), Y(su, v));
+            B.plunge(Math.min(p.safeZ, Math.max(Pz, zs) + 0.05), zs, plunge);
+            SW(su, v, zs);
+          }
+          if (su !== eu) for (let u = su + dir; ; u += dir) { emit(u, v, u === eu); if (u === eu) break; }
+          has = true; prevK = k; pu = eu; pv = v;
+        }
+        fwd = !fwd;
+      }
+      B.retract();
+    }
+  }
+
+  const ops = [];
+  const sims = {};
+  const reach = {};
+  const sides = two ? ['A', 'B'] : ['A'];
+  const nOps = sides.length * ((p.rough.on ? 1 : 0) + (p.fin.on ? 1 : 0)) || 1;
+  let opi = 0;
+  const KR = p.rough.on ? kernel(p.rough.dia, false) : null, KF = p.fin.on ? kernel(p.fin.dia, true) : null;
+
+  // dowel holes (drilled from side A, same bit as roughing)
+  if (two && holes.length) {
+    const bit = p.rough.on ? p.rough : p.fin, B = new Builder(0.0005), depth = t + p.pin.spoil;
+    const rr = (p.pin.dia + p.pin.fit - bit.dia) / 2;
+    if (rr < -0.002) warnings.push('The dowel holes are drilled with the ' + bit.dia + ' in bit, which is bigger than a ' + p.pin.dia + ' in dowel. The holes will be ' + bit.dia + ' in and the pins will be loose. Use bigger dowels.');
+    for (const hc of holes) {
+      if (rr < 0.004) { // drill (peck)
+        B.travel(hc.x, hc.y);
+        let z = 0; const peck = Math.max(0.08, Math.min(0.25, bit.dia));
+        while (z > -depth + 1e-6) {
+          const zn = Math.max(-depth, z - peck);
+          B.plunge(Math.min(p.safeZ, z + 0.03), zn, bit.plunge); B.raw(0, hc.x, hc.y, 0.05, 0); z = zn;
+        }
+        B.retract();
+      } else { // helix down, one clean lap at the bottom
+        B.travel(hc.x + rr, hc.y); B.plunge(0.05, 0, bit.plunge);
+        const pitch = Math.min(bit.doc || 0.1, 0.1), seg = 32; let z = 0;
+        while (z > -depth + 1e-6) {
+          for (let s = 1; s <= seg; s++) { const a = 2 * Math.PI * s / seg; z = Math.max(-depth, z - pitch / seg); B.raw(1, hc.x + rr * Math.cos(a), hc.y + rr * Math.sin(a), z, bit.plunge * 2); }
+        }
+        for (let s = 1; s <= seg; s++) { const a = 2 * Math.PI * s / seg; B.raw(1, hc.x + rr * Math.cos(a), hc.y + rr * Math.sin(a), -depth, bit.plunge * 2); }
+        B.raw(1, hc.x, hc.y, -depth, bit.plunge * 2);
+        B.retract();
+      }
+    }
+    ops.push({ key: 'holes', side: 'A', bit: p.rough.on ? 'rough' : 'fin', moves: B.done(), time: B.time, depth });
+  }
+
+  for (const side of sides) {
+    const T = side === 'A' ? TA : TB;
+    let tmin = 0; for (let j = jb0; j <= jb1; j++) for (let i = ib0; i <= ib1; i++) { const v = T[j * nx + i]; if (v < tmin) tmin = v; }
+    reach[side] = -tmin;
+    const S = new Float32Array(N); sims[side] = S;
+    if (p.rough.on) {
+      const pa = 0.16 + 0.82 * opi / nOps, pb = 0.16 + 0.82 * (opi + 1) / nOps; opi++;
+      prog(pa, 'Roughing side ' + side);
+      const comp = makeComp(T, KR, p.rough.leave);
+      const rowStep = Math.max(1, Math.round(p.rough.dia * p.rough.so / 100 / res));
+      // find the deepest point the flat bit needs to reach
+      let minC = 0; for (let j = jb0; j <= jb1; j += rowStep) for (let i = ib0; i <= ib1; i++) { const c = comp(i, j); if (c < minC) minC = c; }
+      for (let i = ib0; i <= ib1; i++) { const c = comp(i, jb1); if (c < minC) minC = c; }
+      const doc = Math.max(0.01, p.rough.doc), layers = [];
+      let prev = 0; const n = Math.ceil((-minC - 1e-6) / doc);
+      for (let k = 1; k <= n; k++) { const L = Math.max(minC, -doc * k); layers.push([L, prev]); prev = L; }
+      const B = new Builder(0.002);
+      if (layers.length) raster({ comp, layers, rowStep, alongX: true, B, feed: p.rough.feed, plunge: p.rough.plunge, sweep: makeSweep(S, KR), stride: Math.max(1, Math.floor(KR.n / 4)), mergeCells: Math.ceil(0.6 / res), rideCells: Math.ceil(1.0 / res), pa, pb });
+      ops.push({ key: 'rough' + side, side, bit: 'rough', moves: B.done(), time: B.time, depth: -minC, passes: layers.length });
+    }
+    if (p.fin.on) {
+      const pa = 0.16 + 0.82 * opi / nOps, pb = 0.16 + 0.82 * (opi + 1) / nOps; opi++;
+      prog(pa, 'Finishing side ' + side);
+      const comp = makeComp(T, KF, 0);
+      const rowStep = Math.max(1, Math.round(p.fin.dia * p.fin.so / 100 / res));
+      const B = new Builder(0.0005);
+      raster({ comp, layers: [[-Infinity, 0]], rowStep, alongX: p.fin.dir !== 'y', B, feed: p.fin.feed, plunge: p.fin.plunge, sweep: makeSweep(S, KF), stride: Math.max(1, Math.floor(KF.n / 5)), mergeCells: Math.ceil(0.5 / res), rideCells: Math.ceil(0.75 / res), pa, pb });
+      ops.push({ key: 'fin' + side, side, bit: 'fin', moves: B.done(), time: B.time, depth: reach[side] });
+    }
+  }
+  if (p.rough.on && p.rough.doc > p.rough.dia + 1e-6) warnings.push('Roughing depth per pass is deeper than the bit is wide. That is hard on small bits; try ' + p.rough.dia + ' in or less.');
+  const bigBit = Math.max(p.rough.on ? p.rough.dia : 0, p.fin.on ? p.fin.dia : 0);
+  if (p.margin < bigBit - 1e-6) warnings.push('The room around the part (' + p.margin + ' in) is narrower than your ' + bigBit + ' in bit, so it cannot get all the way around. Increase "Room around the part".');
+  prog(1, 'Done');
+  return { nx, ny, res, SA: sims.A, SB: two ? sims.B : null, ops, zP, best, unreach, tabs, holes,
+    boundary: { x0: bx0, y0: by0, x1: bx1, y1: by1 }, mbox: { x0: mx0, y0: my0, z0: mz0, x1: mx1, y1: my1, z1: mz1 }, reach, warnings, modelCells: M };
+}
+</script>
+
+<script>
+(function () {
+'use strict';
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const STORE = 'carveready.project.v1', MSTORE = 'carveready.model.v1';
+const DEFAULT_HEADER = "SO,1,1\t\t\t\t\t' Turn on router\nM3 S{rpm}\t\t\t\t' Set spindle speed\nPAUSE 2\t\t\t\t' Give router time to reach cutting rpm";
+const UNIT_K = { in: 1, mm: 1 / 25.4, cm: 1 / 2.54 };
+const DETAIL = { draft: { cap: 3.5e5, floor: 0.014 }, normal: { cap: 1.1e6, floor: 0.008 }, fine: { cap: 2.8e6, floor: 0.005 } };
+const ID3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+
+function baseProject() {
+  return {
+    app: 'CarveReady', version: 1, name: 'Untitled carve',
+    stock: { w: 8, h: 6, t: 1.5 }, sides: 2, flip: 'lr',
+    partAuto: true, parting: 0.75, over: 0.03, margin: 0.375,
+    tabs: { count: 2, width: 0.375, thick: 0.125 },
+    pin: { on: true, dia: 0.25, fit: 0.005, spoil: 0.25 },
+    rough: { on: true, dia: 0.25, feed: 40, plunge: 12, doc: 0.125, so: 40, leave: 0.02, rpm: 12000 },
+    fin: { on: true, dia: 0.125, feed: 60, plunge: 15, so: 10, dir: 'x', rpm: 12000 },
+    detail: 'normal', safeZ: 0.25,
+    machine: { header: DEFAULT_HEADER, footer: '' },
+    model: null
+  };
+}
+function normalize(pr) {
+  if (!pr || !pr.stock) throw new Error('This file is not a CarveReady project.');
+  const d = baseProject();
+  const out = Object.assign(d, pr);
+  for (const k of ['stock', 'tabs', 'pin', 'rough', 'fin', 'machine']) out[k] = Object.assign(baseProject()[k], pr[k] || {});
+  if (out.model) out.model = Object.assign({ units: 'mm', rot: ID3.slice(), scale: 1, x: out.stock.w / 2, y: out.stock.h / 2, top: 0, zAuto: true }, out.model);
+  return out;
+}
+
+let P = baseProject();
+let MODEL = null; // { raw: Float32Array (file units), bb, name, tris }
+let R = null;     // latest worker result
+let viewMode = 'setup', sideUp = 'A', camView = 'iso';
+
+// ---------- small helpers ----------
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function fmtN(v, d) { if (v == null || !isFinite(v)) return ''; const k = Math.pow(10, d == null ? 3 : d); const r = Math.round(v * k) / k; return String(Object.is(r, -0) ? 0 : r); }
+function fracIn(d) {
+  const map = { 0.03125: '1/32', 0.0625: '1/16', 0.09375: '3/32', 0.125: '1/8', 0.15625: '5/32', 0.1875: '3/16', 0.25: '1/4', 0.3125: '5/16', 0.375: '3/8', 0.5: '1/2', 0.625: '5/8', 0.75: '3/4' };
+  for (const k in map) if (Math.abs(+k - d) < 1e-4) return map[k];
+  return fmtN(d, 4);
+}
+function parseLen(s) {
+  s = String(s).trim().toLowerCase(); if (!s) return NaN;
+  let k = 1;
+  if (/mm$/.test(s)) { k = 1 / 25.4; s = s.replace(/mm$/, ''); } else if (/cm$/.test(s)) { k = 1 / 2.54; s = s.replace(/cm$/, ''); } else s = s.replace(/(in|"|')$/, '');
+  s = s.trim();
+  const m = s.match(/^(-?\d+(?:\.\d+)?)?\s*(?:(\d+)\s*\/\s*(\d+))?$/);
+  if (!m || (!m[1] && !m[2])) return NaN;
+  let v = m[1] ? parseFloat(m[1]) : 0;
+  if (m[2]) { const f = parseInt(m[2], 10) / parseInt(m[3], 10); v = v < 0 ? v - f : v + f; }
+  return v * k;
+}
+function fmtTime(min) {
+  if (!isFinite(min)) return '';
+  if (min < 1) return 'under 1 min';
+  const m = Math.round(min); if (m < 60) return m + ' min';
+  return Math.floor(m / 60) + ' hr ' + (m % 60) + ' min';
+}
+function getPath(o, k) { return k.split('.').reduce((a, b) => (a == null ? a : a[b]), o); }
+function setPath(o, k, v) { const ks = k.split('.'); let a = o; for (let i = 0; i < ks.length - 1; i++) a = a[ks[i]]; a[ks[ks.length - 1]] = v; }
+let toastT = 0;
+function toast(msg) {
+  let el = $('.toast'); if (!el) { el = document.createElement('div'); el.className = 'toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+  el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 3800);
+}
+function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+// ---------- model files ----------
+function parseSTL(buf) {
+  const dv = new DataView(buf);
+  if (buf.byteLength >= 84) {
+    const n = dv.getUint32(80, true);
+    if (84 + n * 50 === buf.byteLength) {
+      const out = new Float32Array(n * 9);
+      for (let i = 0; i < n; i++) { const o = 84 + i * 50 + 12; for (let k = 0; k < 9; k++) out[i * 9 + k] = dv.getFloat32(o + k * 4, true); }
+      return out;
+    }
+  }
+  const txt = new TextDecoder().decode(buf);
+  const re = /vertex\s+([-+\d.eE]+)\s+([-+\d.eE]+)\s+([-+\d.eE]+)/g; const v = []; let m;
+  while ((m = re.exec(txt))) v.push(+m[1], +m[2], +m[3]);
+  if (v.length < 9) throw new Error('No triangles found in this STL.');
+  return Float32Array.from(v.slice(0, v.length - (v.length % 9)));
+}
+function parseOBJ(txt) {
+  const vs = [], out = [];
+  for (const line of txt.split(/\r?\n/)) {
+    const s = line.trim();
+    if (s.startsWith('v ')) { const a = s.split(/\s+/); vs.push([+a[1], +a[2], +a[3]]); }
+    else if (s.startsWith('f ')) {
+      const ids = s.split(/\s+/).slice(1).map(x => { const n = parseInt(x.split('/')[0], 10); return n < 0 ? vs.length + n : n - 1; });
+      for (let k = 1; k + 1 < ids.length; k++) for (const q of [ids[0], ids[k], ids[k + 1]]) { const p = vs[q]; if (!p) throw new Error('This OBJ file has a broken face.'); out.push(p[0], p[1], p[2]); }
+    }
+  }
+  if (out.length < 9) throw new Error('No faces found in this OBJ.');
+  return Float32Array.from(out);
+}
+function rawBox(raw) {
+  const b = { x0: Infinity, y0: Infinity, z0: Infinity, x1: -Infinity, y1: -Infinity, z1: -Infinity };
+  for (let i = 0; i < raw.length; i += 3) {
+    const x = raw[i], y = raw[i + 1], z = raw[i + 2];
+    if (x < b.x0) b.x0 = x; if (x > b.x1) b.x1 = x; if (y < b.y0) b.y0 = y; if (y > b.y1) b.y1 = y; if (z < b.z0) b.z0 = z; if (z > b.z1) b.z1 = z;
+  }
+  return b;
+}
+function setModel(raw, name, units, keepPlacement) {
+  for (let i = 0; i < raw.length; i++) if (!isFinite(raw[i])) throw new Error('This model has bad numbers in it.');
+  MODEL = { raw, bb: rawBox(raw), name };
+  const b = MODEL.bb, big = Math.max(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0);
+  if (!keepPlacement || !P.model) {
+    P.model = { name, units: units || (big > 20 ? 'mm' : 'in'), rot: ID3.slice(), scale: 1, x: P.stock.w / 2, y: P.stock.h / 2, top: 0, zAuto: true };
+    if (!modelFits()) fitModel();
+  } else P.model.name = name;
+}
+function modelDims() {
+  if (!MODEL || !P.model) return [0, 0, 0];
+  const b = MODEL.bb, d = [b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0], Rm = P.model.rot, k = UNIT_K[P.model.units] * P.model.scale;
+  return [0, 1, 2].map(r => (Math.abs(Rm[r * 3]) * d[0] + Math.abs(Rm[r * 3 + 1]) * d[1] + Math.abs(Rm[r * 3 + 2]) * d[2]) * k);
+}
+function modelTop() {
+  const m = P.model, dz = modelDims()[2];
+  if (m.zAuto) return P.sides === 2 ? Math.max(0, (P.stock.t - dz) / 2) : 0;
+  return m.top;
+}
+function pinRoom() { return P.sides === 2 && P.pin.on ? 2 * (P.pin.dia + 0.4) : 0; }
+function availXY() {
+  const a = [P.stock.w - 2 * P.margin, P.stock.h - 2 * P.margin];
+  if (P.sides === 2) a[P.flip === 'lr' ? 1 : 0] -= pinRoom();
+  return a;
+}
+function modelFits() {
+  const d = modelDims(), a = availXY();
+  return d[0] <= a[0] + 1e-6 && d[1] <= a[1] + 1e-6 && d[2] <= P.stock.t + 1e-6;
+}
+function fitModel() {
+  const d = modelDims(), a = availXY(), m = P.model;
+  const s = Math.min(a[0] / d[0], a[1] / d[1], (P.stock.t - (P.sides === 2 ? 0.04 : 0)) / d[2]);
+  if (s > 0 && isFinite(s)) m.scale = Math.round(m.scale * s * 1e4) / 1e4 * 0.999;
+  m.x = P.stock.w / 2; m.y = P.stock.h / 2; m.zAuto = true;
+}
+function stockToModel() {
+  const d = modelDims(), m = P.model;
+  P.stock.w = Math.ceil((d[0] + 2 * P.margin + (P.sides === 2 && P.flip === 'fb' ? pinRoom() : 0) + 0.5) * 4) / 4;
+  P.stock.h = Math.ceil((d[1] + 2 * P.margin + (P.sides === 2 && P.flip === 'lr' ? pinRoom() : 0) + 0.5) * 4) / 4;
+  if (d[2] > P.stock.t) P.stock.t = Math.ceil((d[2] + (P.sides === 2 ? 0.1 : 0)) * 8) / 8;
+  m.x = P.stock.w / 2; m.y = P.stock.h / 2; m.zAuto = true;
+}
+// transformed triangles in stock coordinates
+function modelTris() {
+  const m = P.model, raw = MODEL.raw, b = MODEL.bb;
+  const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2, cz = (b.z0 + b.z1) / 2;
+  const k = UNIT_K[m.units] * m.scale, Rm = m.rot, d = modelDims();
+  const zc = -modelTop() - d[2] / 2;
+  const out = new Float32Array(raw.length);
+  for (let i = 0; i < raw.length; i += 3) {
+    const x = raw[i] - cx, y = raw[i + 1] - cy, z = raw[i + 2] - cz;
+    out[i] = (Rm[0] * x + Rm[1] * y + Rm[2] * z) * k + m.x;
+    out[i + 1] = (Rm[3] * x + Rm[4] * y + Rm[5] * z) * k + m.y;
+    out[i + 2] = (Rm[6] * x + Rm[7] * y + Rm[8] * z) * k + zc;
+  }
+  return out;
+}
+function mul3(a, b) { const o = []; for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) o.push(a[r * 3] * b[c] + a[r * 3 + 1] * b[3 + c] + a[r * 3 + 2] * b[6 + c]); return o; }
+const QX = [1, 0, 0, 0, 0, -1, 0, 1, 0], QY = [0, 0, 1, 0, 1, 0, -1, 0, 0], QZ = [0, -1, 0, 1, 0, 0, 0, 0, 1];
+
+// sample: chess pawn lying on its side (body of revolution along X)
+function samplePawn() {
+  const pts = [[0, 0], [0.78, 0], [0.8, 0.1], [0.78, 0.22], [0.64, 0.3], [0.62, 0.42], [0.47, 0.56], [0.4, 0.8], [0.33, 1.25], [0.28, 1.68], [0.47, 1.76], [0.49, 1.86], [0.33, 1.95], [0.27, 2.04]];
+  const hc = 2.43, hr = 0.43; const a0 = Math.asin((2.04 - hc) / hr);
+  for (let s = 1; s <= 16; s++) { const a = a0 + (Math.PI / 2 - a0) * s / 16; pts.push([Math.max(0, hr * Math.cos(a)), hc + hr * Math.sin(a)]); }
+  const g = new THREE.LatheGeometry(pts.map(q => new THREE.Vector2(q[0], q[1])), 64).toNonIndexed();
+  const a = g.attributes.position.array, out = new Float32Array(a.length);
+  for (let i = 0; i < a.length; i += 3) { out[i] = a[i + 1]; out[i + 1] = a[i]; out[i + 2] = a[i + 2]; }
+  return out;
+}
+function loadSample() {
+  P = baseProject(); P.name = 'Sample pawn'; P.stock = { w: 6, h: 3.5, t: 1.75 }; P.flip = 'fb';
+  setModel(samplePawn(), 'pawn (sample)', 'in');
+  P.model.scale = 1; P.model.x = 3; P.model.y = 1.75; P.model.zAuto = true;
+  sideUp = 'A'; viewMode = 'carve';
+  changed(); viewer.fitView(); toast('Sample loaded: a chess pawn, carved from both sides.');
+}
+async function importFile(file) {
+  try {
+    const name = file.name; let raw;
+    if (/\.obj$/i.test(name)) raw = parseOBJ(await file.text());
+    else if (/\.stl$/i.test(name)) raw = parseSTL(await file.arrayBuffer());
+    else { toast('Use an STL or OBJ file.'); return; }
+    setModel(raw, name);
+    if (P.name === 'Untitled carve' || P.name === 'Sample pawn') P.name = name.replace(/\.(stl|obj)$/i, '');
+    sideUp = 'A'; viewMode = 'setup';
+    changed(); viewer.fitView();
+    const d = modelDims();
+    toast(`Imported ${name} (${(MODEL.raw.length / 9).toLocaleString()} triangles). Check the units: ${fmtN(d[0], 2)} × ${fmtN(d[1], 2)} × ${fmtN(d[2], 2)} in.`);
+  } catch (err) { toast('Could not read that file: ' + err.message); }
+}
+
+// ---------- project files ----------
+function b64FromF32(f) { const u = new Uint8Array(f.buffer, f.byteOffset, f.byteLength); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); }
+function f32FromB64(b) { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new Float32Array(u.buffer); }
+function safeName() { return (P.name || 'carve').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_') || 'carve'; }
+async function saveFile(name, text) {
+  if (window.claude && typeof window.claude.use === 'function') {
+    let dl = null;
+    try { dl = await window.claude.use('downloads'); } catch (e) { dl = null; }
+    if (dl) {
+      try { await dl.save({ filename: name, data: text }); toast('Saved ' + name); return; }
+      catch (err) {
+        if (err && err.code === 'declined') return;
+        if (err && err.code === 'rejected_extension') {
+          try { await dl.save({ filename: name + '.txt', data: text }); toast(`Saved as ${name}.txt. Remove ".txt" from the name before loading it on the ShopBot.`); } catch (e2) { /* ignore */ }
+          return;
+        }
+      }
+    }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast('Downloaded ' + name);
+}
+function projectJSON() {
+  return JSON.stringify({ app: 'CarveReady', version: 1, project: P, model: MODEL ? { name: MODEL.name, data: b64FromF32(MODEL.raw) } : null });
+}
+function openProjectText(txt) {
+  const j = JSON.parse(txt);
+  const pr = normalize(j.project || j);
+  P = pr;
+  if (j.model && j.model.data) { MODEL = null; setModel(f32FromB64(j.model.data), j.model.name, null, true); }
+  else MODEL = null;
+  if (!MODEL) P.model = null;
+  sideUp = 'A'; changed(); viewer.fitView();
+}
+let saveT = 0;
+function persist() {
+  clearTimeout(saveT);
+  saveT = setTimeout(() => {
+    try { localStorage.setItem(STORE, JSON.stringify(P)); } catch (e) { /* storage off */ }
+    try {
+      if (MODEL && MODEL.raw.length * 4 < 3.2e6) { const key = MODEL.name + ':' + MODEL.raw.length; if (persist.key !== key) { localStorage.setItem(MSTORE, JSON.stringify({ name: MODEL.name, data: b64FromF32(MODEL.raw) })); persist.key = key; } }
+      else if (!MODEL) { localStorage.removeItem(MSTORE); persist.key = null; }
+    } catch (e) { /* too big for storage: the model must be re-imported next time */ }
+  }, 400);
+}
+function restore() {
+  try {
+    const s = localStorage.getItem(STORE); if (!s) return false;
+    P = normalize(JSON.parse(s));
+    const m = localStorage.getItem(MSTORE);
+    if (m && P.model) { const j = JSON.parse(m); setModel(f32FromB64(j.data), j.name, null, true); persist.key = j.name + ':' + MODEL.raw.length; }
+    else P.model = null;
+    return true;
+  } catch (e) { P = baseProject(); MODEL = null; return false; }
+}
+
+// ---------- worker ----------
+let worker = null, jobId = 0, busy = false, runT = 0;
+function makeWorker() {
+  const src = $('#workerSrc').textContent;
+  return new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+}
+function schedule(delay) {
+  clearTimeout(runT);
+  if (!MODEL || !P.model) { R = null; afterResult(); return; }
+  runT = setTimeout(compute, delay == null ? 450 : delay);
+}
+function params() {
+  const d = DETAIL[P.detail] || DETAIL.normal;
+  return {
+    w: P.stock.w, h: P.stock.h, t: P.stock.t, two: P.sides === 2, flip: P.flip,
+    partAuto: P.partAuto, parting: P.parting, over: P.over, margin: P.margin,
+    tabs: P.tabs, pin: P.pin, rough: P.rough, fin: P.fin, safeZ: P.safeZ,
+    cellCap: d.cap, resFloor: d.floor, rapidXY: 150, rapidZ: 60
+  };
+}
+function compute() {
+  if (!MODEL || !P.model) return;
+  if (busy && worker) { worker.terminate(); worker = null; }
+  if (!worker) {
+    worker = makeWorker();
+    worker.onmessage = e => {
+      const m = e.data; if (m.id !== jobId) return;
+      if (m.progress != null) { $('#busyBar').style.width = Math.round(m.progress * 100) + '%'; if (m.label) $('#busyLbl').textContent = m.label + '…'; return; }
+      busy = false; $('#busy').hidden = true;
+      if (m.error) { R = null; afterResult(m.error); return; }
+      R = m.out; afterResult();
+    };
+    worker.onerror = e => { busy = false; $('#busy').hidden = true; R = null; afterResult('The calculation crashed (' + (e.message || 'unknown error') + '). Try Draft detail.'); };
+  }
+  const tris = modelTris();
+  viewer.setModelMesh(tris);
+  jobId++; busy = true;
+  $('#busy').hidden = false; $('#busyBar').style.width = '0%'; $('#busyLbl').textContent = 'Calculating toolpaths…';
+  worker.postMessage({ id: jobId, tris, p: params() });
+}
+
+// ---------- G-code ----------
+const OPS_META = {
+  holes: { title: 'Drill dowel holes', short: 'dowel_holes' },
+  roughA: { title: 'Side A roughing', short: 'A1_rough' },
+  finA: { title: 'Side A finishing', short: 'A2_finish' },
+  roughB: { title: 'Side B roughing', short: 'B1_rough' },
+  finB: { title: 'Side B finishing', short: 'B2_finish' }
+};
+function bitOf(op) { return op.bit === 'rough' ? P.rough : P.fin; }
+function bitName(op) { return fracIn(bitOf(op).dia) + ' in ' + (op.bit === 'rough' ? 'flat end mill' : 'ball nose'); }
+function fileName(op, n) { return safeName() + '_' + n + '_' + OPS_META[op.key].short + '.sbp'; }
+function opGcode(op) {
+  const w = P.stock.w, h = P.stock.h, sideB = op.side === 'B';
+  const sx = sideB && P.flip === 'lr' ? -1 : 1, sy = sideB && P.flip === 'fb' ? -1 : 1;
+  const bit = bitOf(op), f5 = v => { let r = Math.round(v * 1e5) / 1e5; if (Object.is(r, -0)) r = 0; return r.toFixed(5); };
+  const L = [];
+  L.push(`' CarveReady: ${OPS_META[op.key].title} - ${P.name}`);
+  L.push(`' Bit: ${bitName(op)}`);
+  L.push(`' Zero: X/Y = center of the stock (never moves), Z = top of the stock with side ${op.side} facing up`);
+  for (const l of P.machine.header.split(/\r?\n/)) if (l.trim()) L.push(l.replace(/\{rpm\}/g, String(bit.rpm)));
+  L.push('G20', 'G90');
+  const m = op.moves; let px = null, py = null, pz = null;
+  for (let k = 0; k < m.length; k += 5) {
+    const g = m[k], x = m[k + 1], y = m[k + 2], z = m[k + 3], f = m[k + 4];
+    let s = g === 0 ? 'G0' : 'G1';
+    let xy = false;
+    if (x === x) { const X = f5(sx * (x - w / 2)), Y = f5(sy * (y - h / 2)); if (X !== px || Y !== py) { s += ' X' + X + ' Y' + Y; px = X; py = Y; xy = true; } }
+    const Z = f5(z); const zc = Z !== pz; if (zc) { s += ' Z' + Z; pz = Z; }
+    if (!xy && !zc) continue;
+    if (g === 1) s += ' F' + (Math.round(f * 10) / 10).toFixed(1);
+    L.push(s);
+  }
+  if (pz !== f5(P.safeZ)) L.push('G0 Z' + f5(P.safeZ));
+  L.push('G0 X0.00000 Y0.00000', 'G4 P0.1');
+  for (const l of (P.machine.footer || '').split(/\r?\n/)) if (l.trim()) L.push(l.replace(/\{rpm\}/g, String(bit.rpm)));
+  return L.join('\n') + '\n';
+}
+function orderedOps() {
+  if (!R) return [];
+  const order = ['holes', 'roughA', 'finA', 'roughB', 'finB'];
+  return order.map(k => R.ops.find(o => o.key === k)).filter(o => o && o.moves.length > 10);
+}
+
+// ---------- UI binding ----------
+const side = $('#side');
+function cond(name) {
+  switch (name) {
+    case 'two': return P.sides === 2;
+    case 'one': return P.sides === 1;
+    case 'model': return !!(MODEL && P.model);
+    case 'nomodel': return !(MODEL && P.model);
+    case 'partManual': return !P.partAuto;
+    case 'tabsOn': return P.tabs.count > 0;
+    case 'tabsOff': return P.tabs.count === 0;
+    case 'pinsOn': return P.pin.on;
+    case 'pinsOff': return !P.pin.on;
+  }
+  return true;
+}
+function syncUI() {
+  $('#projName').value = P.name;
+  for (const el of $$('[data-show]')) el.hidden = !cond(el.dataset.show);
+  for (const el of $$('#side [data-k]')) {
+    const k = el.dataset.k; if (k.startsWith('model.') && !P.model) continue;
+    const v = getPath(P, k);
+    if (el.classList.contains('seg') || el.classList.contains('choice')) {
+      for (const b of el.querySelectorAll('[data-v]')) b.setAttribute('aria-pressed', String(String(v) === b.dataset.v || (el.hasAttribute('data-num') && Math.abs(+b.dataset.v - v) < 1e-6)));
+    } else if (el.type === 'checkbox') el.checked = !!v;
+    else if (el.tagName === 'SELECT') el.value = el.hasAttribute('data-num') ? String(+v) : String(v);
+    else if (el.tagName === 'TEXTAREA') { if (document.activeElement !== el) el.value = v || ''; }
+    else if (document.activeElement !== el) el.value = typeof v === 'number' ? (/\.dia$/.test(k) ? fracIn(v) : fmtN(v)) : (v || '');
+  }
+  $('#boxRough').classList.toggle('off', !P.rough.on);
+  $('#boxFin').classList.toggle('off', !P.fin.on);
+  if (MODEL && P.model) {
+    const d = modelDims(), m = P.model;
+    $('#mName').textContent = MODEL.name;
+    $('#mInfo').textContent = (MODEL.raw.length / 9).toLocaleString() + ' triangles · ' + fmtN(m.scale * 100, 1) + '% scale';
+    const set = (act, v) => { const el = $(`[data-act="${act}"]`); if (el && document.activeElement !== el) el.value = fmtN(v); };
+    set('sizex', d[0]); set('sizey', d[1]); set('sizez', d[2]);
+    set('posx', m.x - P.stock.w / 2); set('posy', m.y - P.stock.h / 2); set('mtop', modelTop());
+    $('#btnTopAuto').setAttribute('aria-pressed', String(!!m.zAuto));
+    $('#btnTopAuto').textContent = m.zAuto ? (P.sides === 2 ? 'Centered ✓' : 'At top ✓') : (P.sides === 2 ? 'Center it' : 'Move to top');
+  }
+  // parting slider
+  const sl = $('#partSlider'); sl.max = String(P.stock.t); sl.value = String(P.parting);
+  for (const b of $$('#vmode [data-v]')) b.setAttribute('aria-pressed', String(b.dataset.v === viewMode));
+  for (const b of $$('#vside [data-v]')) b.setAttribute('aria-pressed', String(b.dataset.v === sideUp));
+  for (const b of $$('#vcam [data-v]')) b.setAttribute('aria-pressed', String(b.dataset.v === camView));
+  $('#emptyView').hidden = !!(MODEL && P.model);
+}
+function changed(noRun) {
+  if (P.sides !== 2) sideUp = 'A';
+  syncUI(); persist();
+  viewer.rebuildStatic();
+  if (!noRun) schedule();
+}
+function afterSet(k) {
+  // a new roughing bit gets a matching depth per pass (half its width, max 1/8 in); still editable after
+  const doc = Math.max(0.01, Math.round(Math.min(0.125, P.rough.dia * 0.5) * 1000) / 1000);
+  if (k === 'rough.dia' && Math.abs(P.rough.doc - doc) > 1e-6) {
+    P.rough.doc = doc;
+    toast(`Depth per pass set to ${fmtN(P.rough.doc)} in for the ${fracIn(P.rough.dia)} in bit.`);
+  }
+}
+function commitInput(el) {
+  const k = el.dataset.k; if (!k) return;
+  if (el.type === 'checkbox') { setPath(P, k, el.checked); changed(); return; }
+  if (el.tagName === 'SELECT') { setPath(P, k, el.hasAttribute('data-num') ? +el.value : el.value); if (k === 'model.units') P.model.zAuto = true; changed(); return; }
+  if (el.tagName === 'TEXTAREA') { setPath(P, k, el.value); changed(true); renderSteps(); return; }
+  const isLen = !/feed|plunge|rpm|\.so$/.test(k);
+  let v = isLen ? parseLen(el.value) : parseFloat(el.value);
+  if (!isFinite(v)) { syncUI(); return; }
+  const lim = {
+    'stock.w': [0.5, 96], 'stock.h': [0.5, 60], 'stock.t': [0.1, 6], 'parting': [0.01, P.stock.t - 0.01], 'over': [0, 0.25], 'margin': [0.05, 6],
+    'tabs.width': [0.05, 2], 'tabs.thick': [0.02, 1], 'pin.spoil': [0, 1], 'pin.dia': [0.0625, 1.5], 'pin.fit': [0, 0.06], 'safeZ': [0.05, 2],
+    'rough.dia': [0.01, 1], 'fin.dia': [0.01, 1],
+    'rough.feed': [1, 600], 'rough.plunge': [1, 300], 'rough.doc': [0.01, 1], 'rough.so': [5, 90], 'rough.leave': [0, 0.25], 'rough.rpm': [1000, 30000],
+    'fin.feed': [1, 600], 'fin.plunge': [1, 300], 'fin.so': [2, 50], 'fin.rpm': [1000, 30000]
+  }[k];
+  if (lim) v = clamp(v, lim[0], lim[1]);
+  setPath(P, k, v);
+  if (k.startsWith('stock.') && P.model && P.model.zAuto) { /* keep centered automatically */ }
+  if (k === 'parting') P.partAuto = false;
+  afterSet(k);
+  changed();
+}
+side.addEventListener('change', e => { const el = e.target; if (el.dataset.k) commitInput(el); else if (el.dataset.act) modelField(el); });
+side.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') e.target.blur(); });
+$('#projName').addEventListener('change', e => { P.name = e.target.value.trim() || 'Untitled carve'; changed(true); renderSteps(); });
+$('#partSlider').addEventListener('input', e => { P.parting = +e.target.value; P.partAuto = false; syncUI(); viewer.rebuildStatic(); schedule(300); persist(); });
+
+document.addEventListener('click', e => {
+  const segBtn = e.target.closest('[data-k] > [data-v]');
+  if (segBtn && side.contains(segBtn)) {
+    const g = segBtn.parentElement, k = g.dataset.k; let v = segBtn.dataset.v;
+    if (g.hasAttribute('data-num')) v = +v; else if (g.hasAttribute('data-bool')) v = v === 'true';
+    setPath(P, k, v);
+    if (k === 'sides' && P.model) P.model.zAuto = true;
+    afterSet(k);
+    if (k === 'partAuto' && v === false && R && R.zP != null) P.parting = Math.round(-R.zP * 1000) / 1000;
+    changed(); return;
+  }
+  const act = e.target.closest('[data-act]');
+  if (act && act.tagName === 'BUTTON') doAct(act.dataset.act);
+});
+function doAct(a) {
+  const m = P.model;
+  if (a === 'import') { $('#fileModel').click(); return; }
+  if (a === 'sample') { loadSample(); return; }
+  if (!m) return;
+  if (a === 'rotx' || a === 'roty' || a === 'rotz') { m.rot = mul3(a === 'rotx' ? QX : a === 'roty' ? QY : QZ, m.rot); m.zAuto = true; if (!modelFits()) fitModel(); }
+  else if (a === 'rotreset') { m.rot = ID3.slice(); m.zAuto = true; }
+  else if (a === 'fit') fitModel();
+  else if (a === 'stockfit') stockToModel();
+  else if (a === 'mtopauto') m.zAuto = true;
+  changed();
+}
+function modelField(el) {
+  const m = P.model; if (!m) return;
+  const v = parseLen(el.value); if (!isFinite(v)) { syncUI(); return; }
+  const d = modelDims(), a = el.dataset.act;
+  if (a === 'sizex' || a === 'sizey' || a === 'sizez') { const i = { sizex: 0, sizey: 1, sizez: 2 }[a]; if (v > 0.01 && d[i] > 0) m.scale *= v / d[i]; m.zAuto = true; }
+  else if (a === 'posx') m.x = P.stock.w / 2 + v;
+  else if (a === 'posy') m.y = P.stock.h / 2 + v;
+  else if (a === 'mtop') { m.top = clamp(v, 0, P.stock.t); m.zAuto = false; }
+  changed();
+}
+
+$('#btnImport').addEventListener('click', () => $('#fileModel').click());
+$('#fileModel').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) importFile(f); });
+$('#btnOpen').addEventListener('click', () => $('#fileProject').click());
+$('#fileProject').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { openProjectText(await f.text()); toast('Opened ' + f.name); } catch (err) { toast('Could not open: ' + err.message); }
+});
+$('#btnSave').addEventListener('click', () => saveFile(safeName() + '.carveready.json', projectJSON()));
+$('#btnPrint').addEventListener('click', () => { $('#printHead').textContent = 'CarveReady job sheet: ' + P.name; window.print(); });
+$('#btnAll').addEventListener('click', async () => {
+  const ops = orderedOps(); if (!ops.length) return;
+  for (let i = 0; i < ops.length; i++) { await saveFile(fileName(ops[i], i + 1), opGcode(ops[i])); await new Promise(r => setTimeout(r, 450)); }
+  toast(`Downloaded ${ops.length} files. Run them in number order.`);
+});
+$('#steps').addEventListener('click', e => {
+  const b = e.target.closest('[data-dl]'); if (b) { const ops = orderedOps(), i = +b.dataset.dl; saveFile(fileName(ops[i], i + 1), opGcode(ops[i])); return; }
+  const s = e.target.closest('[data-show-side]'); if (s) { setSideUp(s.dataset.showSide); viewMode = 'carve'; syncUI(); viewer.refresh(); }
+});
+// drag and drop
+const viewEl = $('#view'); let dragN = 0;
+document.addEventListener('dragenter', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) { dragN++; $('#dropHint').hidden = false; } });
+document.addEventListener('dragleave', () => { dragN = Math.max(0, dragN - 1); if (!dragN) $('#dropHint').hidden = true; });
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => {
+  e.preventDefault(); dragN = 0; $('#dropHint').hidden = true;
+  const f = e.dataTransfer.files[0]; if (!f) return;
+  if (/\.(json|carveready)$/i.test(f.name)) f.text().then(openProjectText).catch(err => toast('Could not open: ' + err.message));
+  else importFile(f);
+});
+
+// view controls
+$('#vmode').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; viewMode = b.dataset.v; syncUI(); viewer.refresh(); });
+$('#vside').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; setSideUp(b.dataset.v); });
+$('#vcam').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; camView = b.dataset.v; viewer.setCam(camView); syncUI(); });
+$('#chkPaths').addEventListener('change', () => viewer.refresh());
+function setSideUp(s) { if (P.sides !== 2) s = 'A'; if (s === sideUp) return; sideUp = s; viewer.flipTo(s); syncUI(); }
+
+// ---------- results → UI ----------
+function afterResult(err) {
+  viewer.setResult(R);
+  renderParting();
+  renderWarnings(err);
+  renderSteps();
+  $('#btnAll').disabled = !orderedOps().length;
+}
+function renderParting() {
+  const el = $('#reach');
+  if (!R || P.sides !== 2) { el.className = 'reach'; el.textContent = MODEL ? 'Calculating…' : 'Import a model to see how much each side can reach.'; return; }
+  const depth = -R.zP, pct = R.unreach * 100;
+  const where = `Parting line is ${fmtN(depth)} in below the top of side A` + (P.partAuto ? ' (auto).' : '.');
+  if (pct < 0.5) { el.className = 'reach good'; el.textContent = where + ' Both sides can reach every part of the model.'; }
+  else {
+    el.className = 'reach bad';
+    el.textContent = where + ` About ${fmtN(pct, 1)}% of the model is hidden from both sides at this height, so some wood will be left there.` + (P.partAuto ? ' Try turning the model so its widest part lies flat.' : ` Auto would use ${fmtN(-R.best)} in.`);
+  }
+}
+const WARN_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></svg>';
+function renderWarnings(err) {
+  const ws = [];
+  if (err) ws.push(err);
+  if (R) ws.push(...R.warnings);
+  if (R) for (const s of ['A', 'B']) {
+    const d = R.reach[s]; if (d == null) continue;
+    const bits = [...new Set([P.rough, P.fin].filter(b => b.on && d > (b.dia >= 0.25 ? 1.0 : b.dia * 4)).map(b => fracIn(b.dia) + ' in'))];
+    if (bits.length) ws.push(`Side ${s} goes ${fmtN(d, 2)} in deep. Check that your ${bits.join(' and ')} bit${bits.length > 1 ? 's have' : ' has'} flutes at least that long, with enough reach past the collet.`);
+  }
+  if (!P.rough.on && !P.fin.on) ws.push('Turn on at least one bit (roughing or finishing).');
+  $('#warns').innerHTML = ws.map(w => `<div class="warn">${WARN_ICON}<span>${esc(w)}</span></div>`).join('');
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+const FLIP_FIG = {
+  lr: `<svg class="flipfig" viewBox="0 0 260 92" aria-hidden="true"><rect x="10" y="30" width="96" height="52" rx="3" fill="var(--wood)" stroke="var(--wood-cut)"/><text x="18" y="76" font-family="Barlow Semi Condensed,Arial" font-weight="700" font-size="15" fill="var(--wood-deep)">A</text><path d="M58 24v64" stroke="var(--zero)" stroke-width="2" stroke-dasharray="5 4"/><circle cx="58" cy="38" r="4" fill="var(--pin)" stroke="var(--wood-deep)"/><circle cx="58" cy="74" r="4" fill="var(--pin)" stroke="var(--wood-deep)"/><path d="M26 22C40 2 76 2 90 22" fill="none" stroke="var(--ink)" stroke-width="2.2"/><path d="m84 14 6 8-9 2" fill="none" stroke="var(--ink)" stroke-width="2.2" stroke-linejoin="round"/><path d="M118 56h22" stroke="var(--muted)" stroke-width="2"/><path d="m134 50 7 6-7 6" fill="none" stroke="var(--muted)" stroke-width="2"/><rect x="152" y="30" width="96" height="52" rx="3" fill="var(--wood)" stroke="var(--wood-cut)"/><text x="230" y="76" font-family="Barlow Semi Condensed,Arial" font-weight="700" font-size="15" fill="var(--wood-deep)">B</text><path d="M200 24v64" stroke="var(--zero)" stroke-width="2" stroke-dasharray="5 4"/><circle cx="200" cy="38" r="4" fill="var(--pin)" stroke="var(--wood-deep)"/><circle cx="200" cy="74" r="4" fill="var(--pin)" stroke="var(--wood-deep)"/><text x="130" y="90" text-anchor="middle" font-family="IBM Plex Sans,Arial" font-size="9" fill="var(--muted)">front</text></svg>`,
+  fb: `<svg class="flipfig" viewBox="0 0 260 92" aria-hidden="true"><rect x="10" y="22" width="96" height="52" rx="3" fill="var(--wood)" stroke="var(--wood-cut)"/><text x="18" y="68" font-family="Barlow Semi Condensed,Arial" font-weight="700" font-size="15" fill="var(--wood-deep)">A</text><path d="M4 48h108" stroke="var(--zero)" stroke-width="2" stroke-dasharray="5 4"/><circle cx="22" cy="48" r="4" fill="var(--pin)" stroke="var(--wood-deep)"/><circle cx="94" cy="48" r="4" fill="var(--pin)" stroke="var(--wood-deep)"/><path d="M112 26c10 8 10 36 0 44" fill="none" stroke="var(--ink)" stroke-width="2.2"/><path d="m106 66 6 5 2-8" fill="none" stroke="var(--ink)" stroke-width="2.2" stroke-linejoin="round"/><path d="M124 48h22" stroke="var(--muted)" stroke-width="2"/><path d="m140 42 7 6-7 6" fill="none" stroke="var(--muted)" stroke-width="2"/><rect x="154" y="22" width="96" height="52" rx="3" fill="var(--wood)" stroke="var(--wood-cut)"/><text x="162" y="36" font-family="Barlow Semi Condensed,Arial" font-weight="700" font-size="15" fill="var(--wood-deep)">B</text><path d="M148 48h108" stroke="var(--zero)" stroke-width="2" stroke-dasharray="5 4"/><circle cx="166" cy="48" r="4" fill="var(--pin)" stroke="var(--wood-deep)"/><circle cx="238" cy="48" r="4" fill="var(--pin)" stroke="var(--wood-deep)"/><text x="130" y="90" text-anchor="middle" font-family="IBM Plex Sans,Arial" font-size="9" fill="var(--muted)">front</text></svg>`
+};
+function renderSteps() {
+  const el = $('#steps');
+  if (!MODEL || !P.model) { el.innerHTML = '<li class="empty-steps">Import a model and the step-by-step job shows up here.</li>'; $('#jobTime').textContent = ''; return; }
+  if (!R) { el.innerHTML = '<li class="empty-steps">Calculating…</li>'; return; }
+  const ops = orderedOps(), two = P.sides === 2, out = [];
+  let total = 0; for (const o of ops) total += o.time;
+  $('#jobTime').textContent = ops.length ? 'about ' + fmtTime(total) + ' of cutting' : '';
+  const firstBit = ops[0] ? bitName(ops[0]) : '';
+  const scr = two ? 'Screw it down near the corners, outside the dashed carve area and away from the flip line.' : 'Screw or clamp it down outside the carve area.';
+  const fence = two && !P.pin.on ? ['Screw two straight strips to the spoilboard touching the <b>left and front edges</b> of the board (or trace around it). This is how side B lines up.'] : [];
+  out.push(step('set', 'Set up the stock', null, [
+    `Board: ${fmtN(P.stock.w)} × ${fmtN(P.stock.h)} in, ${fmtN(P.stock.t)} in thick${two ? ' (measure it!)' : ''}. Mark the top face <b>A</b> and the front edge.`,
+    ...fence,
+    scr,
+    `Install the <b>${esc(firstBit)}</b>.`,
+    `Zero <b>X and Y at the center</b> of the board. Zero <b>Z on the top</b> of the board.`
+  ]));
+  let n = 0, curBit = ops[0] ? ops[0].bit : null;
+  const fileStep = (op, extra) => {
+    const i = ops.indexOf(op); n++;
+    const meta = `${fileName(op, i + 1)} · ${bitName(op)} · ${fmtTime(op.time)}`;
+    const items = [];
+    if (op.bit !== curBit) { items.push(`Change to the <b>${esc(bitName(op))}</b>. Re-zero <b>Z only</b>, on the uncut frame around the carve. Do not touch X/Y.`); curBit = op.bit; }
+    items.push(...(extra || []));
+    return step('file', OPS_META[op.key].title, meta, items, i, op.side);
+  };
+  const holes = ops.find(o => o.key === 'holes');
+  if (holes) out.push(fileStep(holes, [
+    `Drills two ${fracIn(P.pin.dia)} in holes on the flip line, ${fmtN(P.pin.spoil)} in into the spoilboard.`,
+    `Tap a ${fracIn(P.pin.dia)} in dowel into each hole so it goes through the board into the spoilboard. They hold the board in place now and line it up for side B.`
+  ]));
+  for (const k of ['roughA', 'finA']) { const o = ops.find(q => q.key === k); if (o) out.push(fileStep(o, k === 'roughA' ? [`${o.passes || ''} layers down to ${fmtN(o.depth, 2)} in. Leaves ${fmtN(P.rough.leave)} in for the finishing bit.`] : ['Smooths the whole surface with the ball nose.'])); }
+  if (two) {
+    const dir = P.flip === 'lr' ? 'left to right (like turning a page)' : 'front to back (roll it toward you)';
+    out.push(`<li class="step flip"><div class="num"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/></svg></div><div class="bd"><b>Flip the board</b>
+      <ul>${P.pin.on ? `<li>Vacuum the chips. Take out the screws (leave the dowels in the spoilboard).</li>
+      <li>Lift the board off the pins and flip it <b>${dir}</b>, so <b>B</b> faces up.</li>
+      <li>Push it back down over the same dowels and screw it down again, outside the carve area.</li>
+      <li><b>Do not re-zero X or Y.</b> The pins put the board exactly where it was. Re-zero <b>Z</b> on the new top face (on the frame).</li>`
+      : `<li>Vacuum the chips. Take out the screws.</li>
+      <li>Flip the board <b>${dir}</b>, so <b>B</b> faces up.</li>
+      <li>Push it tight against the same strips (or back into the traced outline) and screw it down again, outside the carve area.</li>
+      <li><b>Do not re-zero X or Y.</b> Re-zero <b>Z</b> on the new top face (on the frame).</li>`}</ul>
+      ${P.pin.on ? FLIP_FIG[P.flip] : FLIP_FIG[P.flip].replace(/<circle[^>]*var\(--pin\)[^>]*\/>/g, '')}
+      <div class="act"><button class="btn" data-show-side="B">Show the flip</button></div></div></li>`);
+    for (const k of ['roughB', 'finB']) { const o = ops.find(q => q.key === k); if (o) out.push(fileStep(o, k === 'roughB' ? [`${o.passes || ''} layers down to ${fmtN(o.depth, 2)} in.`] : [P.tabs.count ? `Cuts through around the part. ${P.tabs.count} tabs keep it attached to the frame.` : 'Cuts through around the part. With no tabs, the part comes loose near the end. Stay ready to hit stop.'])); }
+  }
+  out.push(step('done', 'Finish', null, two
+    ? [P.tabs.count ? 'Cut the tabs with a flush-cut saw or a chisel, then sand the tab spots and the parting line.' : 'Sand the parting line.', ...(P.pin.on ? ['Pull the dowels out of the spoilboard (or leave them for the next board with the same setup).'] : [])]
+    : ['Unscrew the board and sand. Cut the part out of the frame on the bandsaw or with a RouteReady profile cut.']));
+  el.innerHTML = out.join('');
+}
+function step(kind, title, meta, items, dlIndex, sideName) {
+  const num = kind === 'set' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="3"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></svg>'
+    : kind === 'done' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="m5 12 5 5 9-10"/></svg>' : String(dlIndex + 1);
+  const act = dlIndex != null ? `<div class="act"><button class="btn go" data-dl="${dlIndex}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Download .sbp</button>${P.sides === 2 && sideName ? `<button class="btn" data-show-side="${sideName}">Show side ${sideName}</button>` : ''}</div>` : '';
+  return `<li class="step ${kind}"><div class="num">${num}</div><div class="bd"><b>${esc(title)}${sideName && P.sides === 2 ? `<span class="badge">Side ${sideName} up</span>` : ''}</b>${meta ? `<span class="meta">${esc(meta)}</span>` : ''}<ul>${items.map(x => `<li>${x}</li>`).join('')}</ul>${act}</div></li>`;
+}
+
+// ===================== 3D viewer =====================
+const viewer = (function () {
+  const cv = $('#cv');
+  let renderer = null;
+  try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true }); }
+  catch (e) { toast('3D preview is not available in this browser. The files still work.'); }
+  const scene = new THREE.Scene();
+  const cam = new THREE.PerspectiveCamera(32, 1, 0.05, 500); cam.up.set(0, 0, 1);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x6b7280, 0.75));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(-4, -6, 10); scene.add(sun);
+  const sun2 = new THREE.DirectionalLight(0xffffff, 0.25); sun2.position.set(6, 4, -3); scene.add(sun2);
+  const world = new THREE.Group(); scene.add(world);
+  const block = new THREE.Group(); world.add(block);          // stock, flips for side B
+  const setupG = new THREE.Group(), carveG = new THREE.Group(), pathG = new THREE.Group(), decalG = new THREE.Group();
+  block.add(setupG, carveG, pathG, decalG);
+  const fixedG = new THREE.Group(); world.add(fixedG);         // spoilboard, pins, zero, flip line
+  let modelMesh = null;
+  const orbit = { theta: -Math.PI / 2 - 0.55, phi: 0.62, dist: 14, target: new THREE.Vector3() };
+  let need = true, anim = null, flipAngle = 0;
+
+  const col = n => new THREE.Color(css(n) || '#888');
+  function disposeGroup(g) { while (g.children.length) { const c = g.children.pop(); c.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } }); } }
+  function label(text, sizeIn, color, opts) {
+    opts = opts || {};
+    const c = document.createElement('canvas'), H = 128; const ctx = c.getContext('2d');
+    ctx.font = `700 ${H * 0.78}px "Barlow Semi Condensed", Arial, sans-serif`;
+    const tw = Math.ceil(ctx.measureText(text).width) + (opts.box ? 40 : 12); c.width = tw; c.height = H;
+    const g = c.getContext('2d');
+    if (opts.box) { g.fillStyle = opts.box; g.beginPath(); if (g.roundRect) g.roundRect(2, 2, tw - 4, H - 4, 18); else g.rect(2, 2, tw - 4, H - 4); g.fill(); }
+    g.font = `700 ${H * 0.78}px "Barlow Semi Condensed", Arial, sans-serif`; g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, tw / 2, H * 0.54);
+    const tex = new THREE.CanvasTexture(c); tex.anisotropy = 4;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(sizeIn * tw / H, sizeIn), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    return m;
+  }
+  function line(pts, color, opts) {
+    opts = opts || {};
+    const g = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p[0], p[1], p[2])));
+    const mat = opts.dash ? new THREE.LineDashedMaterial({ color, dashSize: opts.dash, gapSize: opts.dash * 0.7, transparent: true, opacity: opts.opacity || 1 }) : new THREE.LineBasicMaterial({ color, transparent: true, opacity: opts.opacity || 1 });
+    const l = new THREE.Line(g, mat); if (opts.dash) l.computeLineDistances(); return l;
+  }
+
+  // stock-local coordinates: block centered on origin, top of side A at +t/2
+  const L = (x, y, z) => [x - P.stock.w / 2, y - P.stock.h / 2, z + P.stock.t / 2];
+
+  function rebuildStatic() {
+    if (modelMesh) setupG.remove(modelMesh);
+    disposeGroup(fixedG); disposeGroup(decalG); disposeGroup(setupG);
+    const w = P.stock.w, h = P.stock.h, t = P.stock.t;
+    // spoilboard
+    const sb = new THREE.Mesh(new THREE.BoxGeometry(w + 5, h + 5, 0.75), new THREE.MeshStandardMaterial({ color: col('--tray'), roughness: 1 }));
+    sb.position.z = -t / 2 - 0.375; fixedG.add(sb);
+    const fr = label('FRONT', 0.45, css('--muted')); fr.position.set(0, -h / 2 - 1.3, -t / 2 + 0.002); fixedG.add(fr);
+    // machine zero marker (center of the top face, does not move when flipping)
+    const zc = col('--zero'), zl = Math.min(w, h) * 0.18 + 0.4;
+    const zg = new THREE.Group();
+    zg.add(line([[0, 0, 0], [zl, 0, 0]], zc), line([[0, 0, 0], [0, zl, 0]], zc));
+    const sph = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 12), new THREE.MeshBasicMaterial({ color: zc })); zg.add(sph);
+    const lx = label('X', 0.28, css('--zero')); lx.position.set(zl + 0.18, 0, 0); zg.add(lx);
+    const ly = label('Y', 0.28, css('--zero')); ly.position.set(0, zl + 0.18, 0); zg.add(ly);
+    zg.position.z = t / 2 + 0.03; zg.renderOrder = 5; zg.traverse(o => { if (o.material) { o.material.depthTest = false; } }); fixedG.add(zg);
+    if (P.sides === 2) {
+      // flip line
+      const ext = 1.4, fl = P.flip === 'lr' ? line([[0, -h / 2 - ext, t / 2 + 0.02], [0, h / 2 + ext, t / 2 + 0.02]], zc, { dash: 0.18 }) : line([[-w / 2 - ext, 0, t / 2 + 0.02], [w / 2 + ext, 0, t / 2 + 0.02]], zc, { dash: 0.18 });
+      fixedG.add(fl);
+      const fll = label('FLIP LINE', 0.26, css('--zero'));
+      if (P.flip === 'lr') { fll.position.set(0, h / 2 + ext + 0.3, t / 2 + 0.02); } else { fll.position.set(w / 2 + ext + 0.8, 0, t / 2 + 0.02); }
+      fixedG.add(fll);
+    }
+    // A / B decals (flip with the block)
+    const s = Math.min(0.9, Math.min(w, h) * 0.16);
+    const la = label('A', s, css('--wood-deep')); la.position.set(...L(s * 0.6, s * 0.65, 0.004)); decalG.add(la);
+    if (P.sides === 2) {
+      const lb = label('B', s, css('--wood-deep'));
+      if (P.flip === 'lr') { lb.rotation.y = Math.PI; lb.position.set(...L(w - s * 0.6, s * 0.65, -t - 0.004)); }
+      else { lb.rotation.x = Math.PI; lb.position.set(...L(s * 0.6, h - s * 0.65, -t - 0.004)); }
+      decalG.add(lb);
+    }
+    // stock ghost for setup view
+    const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, t), new THREE.MeshStandardMaterial({ color: col('--wood'), transparent: true, opacity: 0.2, depthWrite: false }));
+    setupG.add(box);
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, t)), new THREE.LineBasicMaterial({ color: col('--wood-cut') }));
+    setupG.add(edges);
+    if (modelMesh) setupG.add(modelMesh);
+    buildSetupExtras();
+    buildPins();
+    applyFlip(true);
+    refresh();
+  }
+  function buildSetupExtras() {
+    if (!R) return;
+    const w = P.stock.w, h = P.stock.h, t = P.stock.t, b = R.boundary;
+    const acc = col('--accent');
+    const rect = z => line([L(b.x0, b.y0, z), L(b.x1, b.y0, z), L(b.x1, b.y1, z), L(b.x0, b.y1, z), L(b.x0, b.y0, z)], acc, { dash: 0.12 });
+    setupG.add(rect(0.003)); if (P.sides === 2) setupG.add(rect(-t - 0.003));
+    if (P.sides === 2) {
+      const pg = new THREE.Mesh(new THREE.PlaneGeometry(b.x1 - b.x0, b.y1 - b.y0), new THREE.MeshBasicMaterial({ color: acc, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }));
+      pg.position.set(...L((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, R.zP)); setupG.add(pg);
+      setupG.add(line([L(b.x0, b.y0, R.zP), L(b.x1, b.y0, R.zP), L(b.x1, b.y1, R.zP), L(b.x0, b.y1, R.zP), L(b.x0, b.y0, R.zP)], acc, { opacity: 0.8 }));
+      const tm = new THREE.MeshStandardMaterial({ color: col('--tab') });
+      for (const r of R.tabs) {
+        const x0 = Math.max(r.x0, b.x0), x1 = Math.min(r.x1, b.x1), y0 = Math.max(r.y0, b.y0), y1 = Math.min(r.y1, b.y1);
+        const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, P.tabs.thick), tm);
+        m.position.set(...L((x0 + x1) / 2, (y0 + y1) / 2, R.zP)); setupG.add(m);
+      }
+    }
+  }
+  function buildPins() {
+    // pins stay on the spoilboard (world); hole outlines ride with the block
+    if (!R || P.sides !== 2) return;
+    const t = P.stock.t;
+    for (const hc of R.holes) {
+      const hl = new THREE.Mesh(new THREE.CylinderGeometry(P.pin.dia / 2, P.pin.dia / 2, t, 24, 1, true), new THREE.MeshBasicMaterial({ color: col('--wood-deep'), transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false }));
+      hl.rotation.x = Math.PI / 2; hl.position.set(...L(hc.x, hc.y, -t / 2)); setupG.add(hl);
+      const pinLen = P.pin.spoil + t * 0.8;
+      const pin = new THREE.Mesh(new THREE.CylinderGeometry(P.pin.dia / 2 * 0.97, P.pin.dia / 2 * 0.97, pinLen, 20), new THREE.MeshStandardMaterial({ color: col('--pin'), roughness: 0.7 }));
+      pin.rotation.x = Math.PI / 2; pin.position.set(hc.x - P.stock.w / 2, hc.y - P.stock.h / 2, -t / 2 - P.pin.spoil + pinLen / 2); fixedG.add(pin);
+    }
+  }
+  function buildHoleDiscs() {
+    if (!R || P.sides !== 2) return;
+    const t = P.stock.t, dark = new THREE.MeshBasicMaterial({ color: 0x2a2018, side: THREE.DoubleSide });
+    for (const hc of R.holes) for (const z of [0.006, -t - 0.006]) { const d = new THREE.Mesh(new THREE.CircleGeometry(P.pin.dia / 2, 28), dark); d.position.set(...L(hc.x, hc.y, z)); carveG.add(d); }
+  }
+  function setModelMesh(tris) {
+    if (modelMesh) { setupG.remove(modelMesh); modelMesh.geometry.dispose(); modelMesh.material.dispose(); modelMesh = null; }
+    if (!tris) { refresh(); return; }
+    const a = new Float32Array(tris.length), w = P.stock.w, h = P.stock.h, t = P.stock.t;
+    for (let i = 0; i < tris.length; i += 3) { a[i] = tris[i] - w / 2; a[i + 1] = tris[i + 1] - h / 2; a[i + 2] = tris[i + 2] + t / 2; }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(a, 3)); g.computeVertexNormals();
+    modelMesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: col('--shape'), roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide }));
+    setupG.add(modelMesh); refresh();
+  }
+  function setResult(res) {
+    disposeGroup(carveG); disposeGroup(pathG);
+    // rebuild everything that depends on R
+    rebuildStatic();
+    if (!res) { refresh(); return; }
+    buildCarve(res);
+    buildHoleDiscs();
+    buildPaths(res);
+    refresh();
+  }
+  function buildCarve(res) {
+    const { nx, ny } = res, rs = res.res, w = P.stock.w, h = P.stock.h, t = P.stock.t, two = P.sides === 2;
+    const st = Math.max(1, Math.ceil(Math.max(nx, ny) / 460));
+    const ix = []; for (let i = 0; i < nx; i += st) ix.push(i); if (ix[ix.length - 1] !== nx - 1) ix.push(nx - 1);
+    const iy = []; for (let j = 0; j < ny; j += st) iy.push(j); if (iy[iy.length - 1] !== ny - 1) iy.push(ny - 1);
+    const gx = ix.length, gy = iy.length, G = gx * gy;
+    const pos = new Float32Array(G * 2 * 3), colr = new Float32Array(G * 2 * 3), thru = new Uint8Array(G);
+    const cw = col('--wood'), cd = col('--wood-deep'), cc = new THREE.Color();
+    for (let b = 0; b < gy; b++) for (let a = 0; a < gx; a++) {
+      const k = b * gx + a, id = iy[b] * nx + ix[a];
+      const x = ix[a] * rs - w / 2, y = iy[b] * rs - h / 2;
+      let zt = res.SA[id], zb = two ? -t - res.SB[id] : -t;
+      // cut all the way through: pinch both surfaces together so hole edges close cleanly
+      if (zt <= zb + 0.004) { thru[k] = 1; zt = zb = (zt + zb) / 2; }
+      pos.set([x, y, zt + t / 2], k * 3); pos.set([x, y, zb + t / 2], (G + k) * 3);
+      cc.copy(cw).lerp(cd, clamp(-zt / t * 1.25, 0, 0.85)); colr.set([cc.r, cc.g, cc.b], k * 3);
+      cc.copy(cw).lerp(cd, clamp((zb + t) / t * 1.25, 0, 0.85)); colr.set([cc.r, cc.g, cc.b], (G + k) * 3);
+    }
+    const idx = [];
+    for (let b = 0; b + 1 < gy; b++) for (let a = 0; a + 1 < gx; a++) {
+      const k0 = b * gx + a, k1 = k0 + 1, k2 = k0 + gx, k3 = k2 + 1;
+      if (thru[k0] + thru[k1] + thru[k2] + thru[k3] >= 3) continue;
+      idx.push(k0, k1, k3, k0, k3, k2);
+      idx.push(G + k0, G + k3, G + k1, G + k0, G + k2, G + k3);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(colr, 3));
+    g.setIndex(idx); g.computeVertexNormals();
+    carveG.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide })));
+    // side walls of the board
+    const wall = new THREE.MeshStandardMaterial({ color: cw, roughness: 0.9, side: THREE.DoubleSide });
+    const sides = [[0, 1, gx, 0], [0, 1, gx, gy - 1], [1, 0, gy, 0], [1, 0, gy, gx - 1]];
+    for (const [isY, , n, fixed] of sides) {
+      const wp = [], wi = [];
+      for (let s = 0; s < n; s++) { const k = isY ? s * gx + fixed : fixed * gx + s; wp.push(pos[k * 3], pos[k * 3 + 1], pos[k * 3 + 2], pos[(G + k) * 3], pos[(G + k) * 3 + 1], pos[(G + k) * 3 + 2]); if (s) wi.push(2 * s - 2, 2 * s - 1, 2 * s, 2 * s - 1, 2 * s + 1, 2 * s); }
+      const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.Float32BufferAttribute(wp, 3)); wg.setIndex(wi); wg.computeVertexNormals();
+      carveG.add(new THREE.Mesh(wg, wall));
+    }
+  }
+  function buildPaths(res) {
+    const t = P.stock.t;
+    for (const op of res.ops) {
+      if (op.key === 'holes') continue;
+      const m = op.moves, seg = [];
+      for (let k = 5; k < m.length; k += 5) {
+        if (m[k] !== 1) continue;
+        const za = op.side === 'A' ? m[k - 2] : -t - m[k - 2], zb = op.side === 'A' ? m[k + 3] : -t - m[k + 3];
+        if (m[k - 4] !== m[k - 4]) continue;
+        const off = op.side === 'A' ? 0.004 : -0.004;
+        seg.push(...L(m[k - 4], m[k - 3], za + off), ...L(m[k + 1], m[k + 2], zb + off));
+      }
+      if (!seg.length) continue;
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(seg, 3));
+      const ls = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: op.bit === 'rough' ? col('--shape') : col('--zero'), transparent: true, opacity: op.bit === 'rough' ? 0.55 : 0.75 }));
+      ls.userData = { side: op.side, bit: op.bit }; pathG.add(ls);
+    }
+  }
+  function refresh() {
+    setupG.visible = viewMode === 'setup';
+    carveG.visible = viewMode === 'carve' && !!R;
+    if (viewMode === 'carve' && !R) setupG.visible = true;
+    const showP = $('#chkPaths').checked;
+    for (const c of pathG.children) c.visible = showP && c.userData.side === sideUp;
+    if (modelMesh) modelMesh.visible = true;
+    // legend
+    const items = [];
+    if (viewMode === 'setup') {
+      items.push(['--shape', 'model']);
+      if (P.sides === 2) { items.push(['--accent', 'parting line'], ['--tab', 'tabs']); if (P.pin.on) items.push(['--pin', 'dowel pins']); }
+    } else items.push(['--wood', 'carved result']);
+    if (showP && R) { if (P.rough.on) items.push(['--shape', 'roughing path']); if (P.fin.on) items.push(['--zero', 'finishing path']); }
+    items.push(['--zero', 'zero (X/Y center, Z top)']);
+    const seen = new Set();
+    $('#legend').innerHTML = items.filter(i => { const k = i[1]; if (seen.has(k)) return false; seen.add(k); return true; }).map(([c, n]) => `<span><i style="background:var(${c})"></i>${n}</span>`).join('');
+    need = true;
+  }
+  function applyFlip(snap) {
+    const target = sideUp === 'B' ? Math.PI : 0;
+    if (snap) { flipAngle = target; anim = null; }
+    block.rotation.set(0, 0, 0); block.position.z = 0;
+    if (P.flip === 'lr') block.rotation.y = flipAngle; else block.rotation.x = flipAngle;
+    need = true;
+  }
+  function flipTo(s) {
+    const from = flipAngle, to = s === 'B' ? Math.PI : 0;
+    anim = { from, to, t0: performance.now(), dur: 1500 };
+    need = true; refresh();
+  }
+  function setCam(v) {
+    const t = { iso: [-Math.PI / 2 - 0.55, 0.62], top: [-Math.PI / 2, 1.56], front: [-Math.PI / 2, 0.06] }[v];
+    orbit.theta = t[0]; orbit.phi = t[1]; orbit.target.set(0, 0, 0); fitDist(); need = true;
+  }
+  function fitDist() {
+    const s = Math.max(P.stock.w + 3.5, P.stock.h * 1.25 + 3, 5);
+    const r = cv.clientWidth / Math.max(1, cv.clientHeight);
+    orbit.dist = s / (2 * Math.tan(THREE.MathUtils.degToRad(16))) / Math.min(1, r * 0.95);
+  }
+  function fitView() { setCam(camView); }
+  function resize() {
+    if (!renderer) return;
+    const w = cv.clientWidth, h = cv.clientHeight; if (!w || !h) return;
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); renderer.setSize(w, h, false);
+    cam.aspect = w / h; cam.updateProjectionMatrix(); need = true;
+  }
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (anim) {
+      const k = clamp((now - anim.t0) / anim.dur, 0, 1), e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+      flipAngle = anim.from + (anim.to - anim.from) * e;
+      applyFlip(false);
+      block.position.z = Math.sin(Math.PI * k) * (P.stock.t * 1.1 + 0.8);
+      if (k >= 1) { anim = null; block.position.z = 0; }
+      need = true;
+    }
+    if (!need || !renderer) return;
+    need = false;
+    const o = orbit, cp = Math.cos(o.phi);
+    cam.position.set(o.target.x + o.dist * cp * Math.cos(o.theta), o.target.y + o.dist * cp * Math.sin(o.theta), o.target.z + o.dist * Math.sin(o.phi));
+    cam.lookAt(o.target);
+    renderer.render(scene, cam);
+  }
+  // orbit controls (mouse + touch)
+  const ptrs = new Map(); let pinch = null;
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.button === 1 || e.shiftKey }); pinch = null; });
+  const endPtr = e => { ptrs.delete(e.pointerId); pinch = null; };
+  cv.addEventListener('pointerup', endPtr); cv.addEventListener('pointercancel', endPtr);
+  function pan(dx, dy) {
+    const k = orbit.dist * 0.0016, th = orbit.theta;
+    const rx = -Math.sin(th), ry = Math.cos(th); // camera right
+    const up = new THREE.Vector3().copy(cam.up).applyQuaternion(cam.quaternion);
+    orbit.target.x += (-dx * rx) * k + dy * up.x * k; orbit.target.y += (-dx * ry) * k + dy * up.y * k; orbit.target.z += dy * up.z * k;
+  }
+  cv.addEventListener('pointermove', e => {
+    const p = ptrs.get(e.pointerId); if (!p) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+    if (ptrs.size === 1) {
+      if (p.pan) pan(dx, dy);
+      else { orbit.theta -= dx * 0.008; orbit.phi = clamp(orbit.phi + dy * 0.008, -0.2, 1.56); camView = ''; for (const b of $$('#vcam [data-v]')) b.setAttribute('aria-pressed', 'false'); }
+    } else if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y), cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+      if (pinch) { orbit.dist = clamp(orbit.dist * pinch.d / Math.max(10, d), 1, 300); pan(cx - pinch.cx, cy - pinch.cy); }
+      pinch = { d, cx, cy };
+    }
+    need = true;
+  });
+  cv.addEventListener('wheel', e => { e.preventDefault(); orbit.dist = clamp(orbit.dist * Math.exp(e.deltaY * 0.0012), 1, 300); need = true; }, { passive: false });
+  new ResizeObserver(resize).observe(cv);
+  requestAnimationFrame(frame);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { setResult(R); });
+  return { rebuildStatic, setModelMesh, setResult, refresh, flipTo, setCam, fitView, resize };
+})();
+
+// handy for debugging from the browser console
+window.CarveReady = { state: () => ({ P, R }), tris: () => (MODEL && P.model ? modelTris() : null), files: () => orderedOps().map((o, i) => ({ name: fileName(o, i + 1), text: opGcode(o) })) };
+
+// ---------- start ----------
+if (!restore()) { P = baseProject(); }
+syncUI();
+viewer.rebuildStatic();
+setTimeout(() => { viewer.resize(); viewer.fitView(); if (MODEL && P.model) schedule(50); else afterResult(); }, 30);
+})();
+</script>
+</body>
+</html>

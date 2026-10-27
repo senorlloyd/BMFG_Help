@@ -269,8 +269,9 @@ details.adv[open] { display: grid; gap: 10px; }
             </div>
           </div>
           <div class="row">
+            <button class="btn" data-act="center" title="Put the model in the middle of the stock (X, Y and thickness)">Center</button>
             <button class="btn" data-act="fit">Fit to stock</button>
-            <button class="btn" data-act="stockfit">Size stock to model</button>
+            <button class="btn" data-act="stockfit" title="Make the stock just big enough for the model">Stock to model</button>
           </div>
           <div class="grid2">
             <label class="fld"><span>Move X (from center)</span><span class="unit"><input data-act="posx" inputmode="decimal"><i>in</i></span></label>
@@ -410,6 +411,9 @@ details.adv[open] { display: grid; gap: 10px; }
           </div>
           <div class="fld"><span style="font-size:12px;color:var(--muted)">Passes run</span>
             <div class="seg" data-k="fin.dir"><button data-v="x">Left ↔ right</button><button data-v="y">Front ↔ back</button><button data-v="spiral" title="Rings around the carve area, starting in the middle and working outward">Spiral out</button></div>
+          </div>
+          <div class="fld"><span style="font-size:12px;color:var(--muted)">Smooth</span>
+            <div class="seg" data-k="fin.all" data-bool><button data-v="false" title="Skips the waste walls and floor around the part">Just the part (faster)</button><button data-v="true" title="Also smooths the pocket walls and floor around the part">Whole pocket</button></div>
           </div>
         </div>
         <div class="fld"><span style="font-size:12px;color:var(--muted)">Detail (higher is slower to calculate)</span>
@@ -705,7 +709,7 @@ function run(tris, p, prog) {
   // ---- raster toolpath over the pocket, layer by layer ----
   // ---- spiral toolpath: rectangles around the carve area, innermost first, working outward ----
   function spiral(o) {
-    const { comp, layers, rowStep, B, feed, plunge, sweep, stride, mergeCells, rideCells, pa, pb } = o;
+    const { comp, layers, rowStep, B, feed, plunge, sweep, stride, mergeCells, rideCells, pa, pb, mask } = o;
     const ringCells = (a0, a1, b0, b1) => {
       const c = [];
       if (a0 === a1) { for (let j = b0; j <= b1; j++) c.push([a0, j]); return c; }
@@ -735,7 +739,7 @@ function run(tris, p, prog) {
         const ring = rings[r], runs = [];
         let a = -1, last = -1;
         for (let k = 0; k < ring.length; k++) {
-          if (zAt(ring[k][0], ring[k][1]) < Pz - 1e-4) {
+          if ((!mask || mask[ring[k][1] * nx + ring[k][0]]) && zAt(ring[k][0], ring[k][1]) < Pz - 1e-4) {
             if (a < 0) a = k; else if (k - last - 1 > mergeCells) { runs.push([a, last]); a = k; }
             last = k;
           }
@@ -763,7 +767,7 @@ function run(tris, p, prog) {
   // ---- raster toolpath over the pocket, layer by layer ----
   function raster(o) {
     if (o.pattern === 'spiral') return spiral(o);
-    const { comp, layers, rowStep, alongX, B, feed, plunge, sweep, stride, mergeCells, rideCells, pa, pb } = o;
+    const { comp, layers, rowStep, alongX, B, feed, plunge, sweep, stride, mergeCells, rideCells, pa, pb, mask } = o;
     const u0 = alongX ? ib0 : jb0, u1 = alongX ? ib1 : jb1, v0 = alongX ? jb0 : ib0, v1 = alongX ? jb1 : ib1;
     const rows = []; for (let v = v0; v <= v1; v += rowStep) rows.push(v); if (rows[rows.length - 1] !== v1) rows.push(v1);
     const C = alongX ? (u, v) => comp(u, v) : (u, v) => comp(v, u);
@@ -781,7 +785,7 @@ function run(tris, p, prog) {
         const v = rows[k], segs = [];
         let a = -1, last = -1;
         for (let u = u0; u <= u1; u++) {
-          if (zAt(u, v) < Pz - 1e-4) {
+          if ((!mask || mask[alongX ? v * nx + u : u * nx + v]) && zAt(u, v) < Pz - 1e-4) {
             if (a < 0) a = u; else if (u - last - 1 > mergeCells) { segs.push([a, last]); a = u; }
             last = u;
           }
@@ -819,6 +823,20 @@ function run(tris, p, prog) {
   const nOps = sides.length * ((p.rough.on ? 1 : 0) + (p.fin.on ? 1 : 0)) || 1;
   let opi = 0;
   const KR = p.rough.on ? kernel(p.rough.dia, false) : null, KF = p.fin.on ? kernel(p.fin.dia, true) : null;
+  let finMask = null;
+  if (p.fin.on && !p.fin.all) {
+    finMask = new Uint8Array(N);
+    const r = Math.ceil((p.fin.dia / 2 + 0.06) / res), disk = [];
+    for (let b = -r; b <= r; b++) for (let a = -r; a <= r; a++) if (a * a + b * b <= r * r) disk.push(a, b);
+    const isM = id => top[id] > -Infinity;
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const id = j * nx + i; if (!isM(id)) continue;
+      finMask[id] = 1;
+      const edge = i === 0 || j === 0 || i === nx - 1 || j === ny - 1 || !isM(id - 1) || !isM(id + 1) || !isM(id - nx) || !isM(id + nx);
+      if (!edge) continue;
+      for (let k = 0; k < disk.length; k += 2) { const ii = i + disk[k], jj = j + disk[k + 1]; if (ii >= 0 && jj >= 0 && ii < nx && jj < ny) finMask[jj * nx + ii] = 1; }
+    }
+  }
 
   // dowel holes (drilled from side A, same bit as roughing)
   if (two && holes.length) {
@@ -874,7 +892,7 @@ function run(tris, p, prog) {
       const comp = makeComp(T, KF, 0);
       const rowStep = Math.max(1, Math.round(p.fin.dia * p.fin.so / 100 / res));
       const B = new Builder(0.0005);
-      raster({ comp, layers: [[-Infinity, 0]], rowStep, alongX: p.fin.dir !== 'y', pattern: p.fin.dir, B, feed: p.fin.feed, plunge: p.fin.plunge, sweep: makeSweep(S, KF), stride: Math.max(1, Math.floor(KF.n / 5)), mergeCells: Math.ceil(0.5 / res), rideCells: Math.ceil(0.75 / res), pa, pb });
+      raster({ comp, layers: [[-Infinity, 0]], rowStep, alongX: p.fin.dir !== 'y', pattern: p.fin.dir, mask: finMask, B, feed: p.fin.feed, plunge: p.fin.plunge, sweep: makeSweep(S, KF), stride: Math.max(1, Math.floor(KF.n / 5)), mergeCells: Math.ceil(0.5 / res), rideCells: Math.ceil(0.75 / res), pa, pb });
       ops.push({ key: 'fin' + side, side, bit: 'fin', moves: B.done(), time: B.time, depth: reach[side] });
     }
   }
@@ -905,7 +923,7 @@ function baseProject() {
     tabs: { count: 2, width: 0.375, thick: 0.125 },
     pin: { on: true, dia: 0.25, fit: 0.005, spoil: 0.25 },
     rough: { on: true, dia: 0.25, feed: 40, plunge: 12, doc: 0.125, so: 40, leave: 0.02, rpm: 12000, dir: 'x' },
-    fin: { on: true, dia: 0.125, feed: 60, plunge: 15, so: 10, dir: 'x', rpm: 12000 },
+    fin: { on: true, dia: 0.125, feed: 60, plunge: 15, so: 10, dir: 'x', rpm: 12000, all: false },
     detail: 'normal', safeZ: 0.25,
     machine: { header: DEFAULT_HEADER, footer: '' },
     model: null
@@ -938,7 +956,7 @@ function parseLen(s) {
   let k = 1;
   if (/mm$/.test(s)) { k = 1 / 25.4; s = s.replace(/mm$/, ''); } else if (/cm$/.test(s)) { k = 1 / 2.54; s = s.replace(/cm$/, ''); } else s = s.replace(/(in|"|')$/, '');
   s = s.trim();
-  const m = s.match(/^(-?\d+(?:\.\d+)?)?\s*(?:(\d+)\s*\/\s*(\d+))?$/);
+  const m = s.match(/^(-?(?:\d+(?:\.\d*)?|\.\d+))?\s*(?:(\d+)\s*\/\s*(\d+))?$/);
   if (!m || (!m[1] && !m[2])) return NaN;
   let v = m[1] ? parseFloat(m[1]) : 0;
   if (m[2]) { const f = parseInt(m[2], 10) / parseInt(m[3], 10); v = v < 0 ? v - f : v + f; }
@@ -1032,6 +1050,7 @@ function fitModel() {
   if (s > 0 && isFinite(s)) m.scale = Math.round(m.scale * s * 1e4) / 1e4 * 0.999;
   m.x = P.stock.w / 2; m.y = P.stock.h / 2; m.zAuto = true;
 }
+function centerModel() { const m = P.model; m.x = P.stock.w / 2; m.y = P.stock.h / 2; m.zAuto = true; }
 function stockToModel() {
   const d = modelDims(), m = P.model;
   P.stock.w = Math.ceil((d[0] + 2 * P.margin + (P.sides === 2 && P.flip === 'fb' ? pinRoom() : 0) + 0.5) * 4) / 4;
@@ -1340,8 +1359,9 @@ function doAct(a) {
   if (a === 'import') { $('#fileModel').click(); return; }
   if (a === 'sample') { loadSample(); return; }
   if (!m) return;
-  if (a === 'rotx' || a === 'roty' || a === 'rotz') { m.rot = mul3(a === 'rotx' ? QX : a === 'roty' ? QY : QZ, m.rot); m.zAuto = true; if (!modelFits()) fitModel(); }
-  else if (a === 'rotreset') { m.rot = ID3.slice(); m.zAuto = true; }
+  if (a === 'rotx' || a === 'roty' || a === 'rotz') { m.rot = mul3(a === 'rotx' ? QX : a === 'roty' ? QY : QZ, m.rot); centerModel(); if (!modelFits()) fitModel(); }
+  else if (a === 'rotreset') { m.rot = ID3.slice(); centerModel(); }
+  else if (a === 'center') centerModel();
   else if (a === 'fit') fitModel();
   else if (a === 'stockfit') stockToModel();
   else if (a === 'mtopauto') m.zAuto = true;
@@ -1463,7 +1483,7 @@ function renderSteps() {
     `Drills two ${fracIn(P.pin.dia)} in holes on the flip line, ${fmtN(P.pin.spoil)} in into the spoilboard.`,
     `Tap a ${fracIn(P.pin.dia)} in dowel into each hole so it goes through the board into the spoilboard. They hold the board in place now and line it up for side B.`
   ]));
-  for (const k of ['roughA', 'finA']) { const o = ops.find(q => q.key === k); if (o) out.push(fileStep(o, k === 'roughA' ? [`${o.passes || ''} layers down to ${fmtN(o.depth, 2)} in. Leaves ${fmtN(P.rough.leave)} in for the finishing bit.`] : ['Smooths the whole surface with the ball nose.'])); }
+  for (const k of ['roughA', 'finA']) { const o = ops.find(q => q.key === k); if (o) out.push(fileStep(o, k === 'roughA' ? [`${o.passes || ''} layers down to ${fmtN(o.depth, 2)} in. Leaves ${fmtN(P.rough.leave)} in for the finishing bit.`] : [(P.fin.all ? 'Smooths the part and the pocket around it with the ball nose.' : 'Smooths the part with the ball nose. The waste walls and floor around it stay rough.')])); }
   if (two) {
     const dir = P.flip === 'lr' ? 'left to right (like turning a page)' : 'front to back (roll it toward you)';
     out.push(`<li class="step flip"><div class="num"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/></svg></div><div class="bd"><b>Flip the board</b>

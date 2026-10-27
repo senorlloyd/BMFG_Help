@@ -1,99 +1,78 @@
-# ⛳ GolfSim
+# CAD Mini Golf
 
-**Design a mini golf hole in Onshape. Play it in your browser.**
+Students model a mini golf hole in Onshape, export it as GLB, and play it in the browser.
+Teachers can string student holes into a course with a scorecard and a class leaderboard.
 
-GolfSim is a browser-based mini golf game built for CAD classes. Students model a mini golf hole in Onshape, export it, drop the file into GolfSim, and putt their own design with real physics. It runs on Chromebooks with nothing to install.
+## Student quick start
 
-> Built for the high school CAD students in the Westview High School manufacturing program ([Beaverton MFG](https://beavertonmfg.com)).
+[![CAD Mini Golf quick start: build in Onshape, export GLB, load, play](quickstart.png)](quickstart.pdf)
 
----
+Click the image for a printable one-page PDF ([quickstart.pdf](quickstart.pdf)).
 
-## ✨ Features
+## What's in this repo
 
-- **Drop-in CAD import**: load an exported Onshape model of your hole and play it right away
-- **Real physics**: ball rolling, bouncing and collisions powered by [Rapier](https://rapier.rs)
-- **3D rendering**: built on [three.js](https://threejs.org) and runs in any modern browser
-- **Chromebook-friendly**: no installs, plugins or accounts
-- **Forgiving import**: GolfSim tries to handle imperfect student models, so students only have to focus on the CAD
-- **Course Builder (teacher only)**: combine multiple student holes into one playable multi-hole course
-- **Class high score**: a running leaderboard for the course
-
-## 🚀 Quick Start (Students)
-
-1. **Model your hole in Onshape.** Include a green, walls/bumpers, a tee area, and a cup.
-2. **Export your model** from Onshape. <!-- update with the exact format and settings, e.g. STL or GLTF, units in inches -->
-3. **Open GolfSim**: **https://senorlloyd.github.io/golfsim** <!-- update if hosted elsewhere -->
-4. **Drop your file** onto the page.
-5. **Play your hole!** Aim, set your power, and putt.
-
-## 📐 Hole Design Guidelines
-
-To make sure your hole plays well:
-
-| Guideline | Why it matters |
-|-----------|----------------|
-| Keep walls tall enough to contain the ball | Low walls let the ball fly off the course |
-| Make sure the cup is a real hole the ball can drop into | The game needs to detect when you sink the putt |
-| Avoid tiny gaps and paper-thin parts | Small gaps can trap the ball or cause physics glitches |
-| Keep the playing surface mostly smooth | Sharp bumps and seams make the ball bounce unpredictably |
-| Build the hole as one connected model | Loose floating parts may not import correctly |
-
-<!-- Add exact size limits, cup diameter, and tee/cup markers once finalized -->
-
-## 🧑‍🏫 Teacher Tools
-
-### Course Builder
-Collect student hole files and arrange them into a multi-hole course. Students then play the full course as one round.
-
-### Class High Score
-GolfSim keeps a running high score for the class course so students can compete across periods.
-
-> Course Builder is available only to teachers.
-
-## 🛠️ Tech Stack
-
-| Part | Tool |
-|------|------|
-| Rendering | [three.js](https://threejs.org) |
-| Physics | [Rapier](https://rapier.rs) |
-| Hosting | GitHub Pages |
-
-## 💻 Running Locally
-
-```bash
-git clone https://github.com/senorlloyd/golfsim.git
-cd golfsim
-python3 -m http.server 8000
+```
+index.html            the game (students use this)
+builder.html          the course builder (teacher only, not linked from the game)
+courses/
+  index.json          the list of published courses (starts as [])
+  *.golfcourse        one file per published course
+quickstart.png        the one-page student guide (image)
+quickstart.pdf        the same guide, ready to print
+leaderboard/
+  Code.gs             Google Apps Script for the class leaderboard (not used by the site directly)
 ```
 
-Then visit `http://localhost:8000`.
+## 1. Update the site
 
-## 🧯 Troubleshooting
+Upload `index.html`, `builder.html`, `quickstart.png`, `quickstart.pdf`, and the `courses` folder to the repo, replacing the old `index.html`.
+GitHub Pages republishes in a minute or two.
 
-| Problem | Fix |
-|---------|-----|
-| Model looks huge or tiny | Check the units you exported with in Onshape. |
-| Ball falls through the floor | Look for gaps or missing faces in your model and re-export. |
-| Ball gets stuck | Widen narrow channels and remove tiny ledges or seams. |
-| Ball won't go in the cup | Make sure the cup is deep and wide enough for the ball. |
-| Nothing happens when I drop the file | Make sure it's the correct export file type. |
+## 2. Set up the class leaderboard (once)
 
-## 🗺️ Roadmap
+1. Create a new Google Sheet, for example "CAD Mini Golf Scores".
+2. Choose **Extensions → Apps Script**. Delete what's there and paste in all of `leaderboard/Code.gs`.
+3. Change `CLASS_CODE` at the top to a word of your choosing, then click **Save**.
+4. Click **Deploy → New deployment**. Click the gear next to "Select type" and choose **Web app**.
+   - Execute as: **Me**
+   - Who has access: **Anyone**
+5. Click **Deploy**, approve the permissions Google asks for, and copy the **Web app URL** (it ends in `/exec`).
 
-- [x] Browser-based play with three.js + Rapier
-- [x] Hosted on GitHub Pages
-- [ ] Teacher Course Builder
-- [ ] Class high score leaderboard
-- [ ] Sharing with other CAD teachers
+Scores appear in a **Scores** tab in the sheet: date, course, initials, strokes, par, seconds.
+Delete any row to remove a score.
 
-## 🔗 Related Projects
+If "Anyone" isn't offered in step 4, your district has limited who web apps can be shared with.
+You can host the sheet in a personal Google account instead; it stores only initials and scores.
 
-- **[RouteReady](https://github.com/senorlloyd/routeready)**: 2D design and ShopBot toolpaths
-- **[LaserReady](https://github.com/senorlloyd/laserready)**: Illustrator-ready SVGs for laser cutters
-- **[ArcRight](https://github.com/senorlloyd/arcright)**: DXF files for CNC plasma
-- **[KissCut](https://github.com/senorlloyd/kisscut)**: print-and-cut EPS for the Roland BN-40
+If you ever change the script, use **Deploy → Manage deployments → Edit → Version: New version** so the URL stays the same.
 
-## 📄 License
+## 3. Build and publish a course
 
-<!-- Choose a license. If you plan to sell GolfSim to other teachers, consider a more restrictive license than MIT. -->
-© Beaverton MFG. All rights reserved.
+1. Go to `https://<your-site>/builder.html`. It isn't linked from the game, so bookmark it.
+2. Drop in student `.golfhole` files. Plain `.glb` exports work too.
+3. Put the holes in order, rename them if you like, set par for each, and use **Test** to check one in the game.
+4. Name the course. Paste the leaderboard Web app URL and your class code. The builder remembers them for next time.
+5. Click **Download course file**, then **Download updated course list**.
+6. On GitHub, open the `courses` folder, choose **Add file → Upload files**, drop in both files, and commit.
+
+The course appears under **Play a course** in the game after a minute or two.
+
+To change a course, drop its `.golfcourse` file back into the builder, edit it, and publish again with the same name.
+Tick **Start a fresh leaderboard** if the holes changed enough that old scores aren't comparable.
+To take a course off the menu, click **Remove** next to it in the builder, download the updated course list, and upload it.
+
+## How scoring works
+
+- Each hole is scored against its par. The course total is strokes and strokes over or under par.
+- The clock runs only while a hole is in play; the course time is the sum of the hole times.
+- At the end, players enter three initials. Two boards are kept per course: **fewest strokes** (time breaks ties) and **fastest**.
+  Each set of initials appears once per board, with its best score.
+- Without a leaderboard URL, scores are kept on each Chromebook instead.
+
+## Good to know
+
+- The builder page isn't secret, but only people with write access to this repo can publish a course. Students can't.
+- The class code is included in each course file, so it stops casual spam rather than a determined student.
+  Since you own the sheet, removing a bad entry takes a second.
+- A small list of rude three-letter combinations is turned into `???` before it's saved. Add to `BLOCKED` in the script as needed.
+- Nothing about students is stored except the three initials they type.

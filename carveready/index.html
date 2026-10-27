@@ -109,6 +109,17 @@ textarea.ta { font: 12px/1.4 var(--f-mono); min-height: 70px; resize: vertical; 
 .modelcard b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .modelcard small { color: var(--muted); font-size: 12px; }
 .modelcard select { width: auto; }
+.modelcard select:disabled { opacity: .6; cursor: not-allowed; }
+.sizehead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.lockbtn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 11px 4px 9px; font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.lockbtn svg { width: 14px; height: 14px; }
+.lockbtn:hover { background: var(--panel-2); }
+.lockbtn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+.lockbtn[aria-pressed="false"] .shackle { transform: translate(5px, -1px) rotate(18deg); transform-origin: 16px 11px; }
+.locked .unit { background: var(--panel-2); }
+.locked .unit input { cursor: not-allowed; color: var(--muted); }
+.fitmsg { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fitmsg .btn { padding: 3px 9px; font-size: 12.5px; margin-left: auto; }
 
 .choice { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .card { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 10px 8px 9px; display: grid; justify-items: center; gap: 4px; text-align: center; }
@@ -251,13 +262,17 @@ details.adv[open] { display: grid; gap: 10px; }
             <div style="min-width:0"><b id="mName">model.stl</b><small id="mInfo">0 triangles</small></div>
             <label title="Units the file was drawn in"><select class="sel" data-k="model.units"><option value="mm">mm</option><option value="in">inches</option><option value="cm">cm</option></select></label>
           </div>
-          <div>
-            <div class="eyebrow" style="margin-bottom:6px">Size <span style="text-transform:none;letter-spacing:0;font-weight:500">(stays in proportion)</span></div>
+          <div id="sizeBox">
+            <div class="sizehead">
+              <div class="eyebrow">Size <span style="text-transform:none;letter-spacing:0;font-weight:500">(stays in proportion)</span></div>
+              <button class="lockbtn" data-act="lock" id="btnLock" title="Locked so the model can't be resized by accident. Click to unlock."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path class="shackle" d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span id="lockLbl">Size locked</span></button>
+            </div>
             <div class="grid3">
               <label class="fld"><span>X width</span><span class="unit"><input data-act="sizex" inputmode="decimal"><i>in</i></span></label>
               <label class="fld"><span>Y length</span><span class="unit"><input data-act="sizey" inputmode="decimal"><i>in</i></span></label>
               <label class="fld"><span>Z height</span><span class="unit"><input data-act="sizez" inputmode="decimal"><i>in</i></span></label>
             </div>
+            <div class="reach fitmsg" id="fitMsg" style="margin-top:8px"></div>
           </div>
           <div>
             <div class="eyebrow" style="margin-bottom:6px">Turn the model</div>
@@ -271,7 +286,7 @@ details.adv[open] { display: grid; gap: 10px; }
           <div class="row">
             <button class="btn" data-act="center" title="Put the model in the middle of the stock (X, Y and thickness)">Center</button>
             <button class="btn" data-act="fit">Fit to stock</button>
-            <button class="btn" data-act="stockfit" title="Make the stock just big enough for the model">Stock to model</button>
+            <button class="btn" data-act="stockfit" title="Make the stock just big enough for the model">Size stock</button>
           </div>
           <div class="grid2">
             <label class="fld"><span>Move X (from center)</span><span class="unit"><input data-act="posx" inputmode="decimal"><i>in</i></span></label>
@@ -934,7 +949,7 @@ function normalize(pr) {
   const d = baseProject();
   const out = Object.assign(d, pr);
   for (const k of ['stock', 'tabs', 'pin', 'rough', 'fin', 'machine']) out[k] = Object.assign(baseProject()[k], pr[k] || {});
-  if (out.model) out.model = Object.assign({ units: 'mm', rot: ID3.slice(), scale: 1, x: out.stock.w / 2, y: out.stock.h / 2, top: 0, zAuto: true }, out.model);
+  if (out.model) out.model = Object.assign({ units: 'mm', rot: ID3.slice(), scale: 1, x: out.stock.w / 2, y: out.stock.h / 2, top: 0, zAuto: true, locked: true }, out.model);
   return out;
 }
 
@@ -1020,8 +1035,7 @@ function setModel(raw, name, units, keepPlacement) {
   MODEL = { raw, bb: rawBox(raw), name };
   const b = MODEL.bb, big = Math.max(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0);
   if (!keepPlacement || !P.model) {
-    P.model = { name, units: units || (big > 20 ? 'mm' : 'in'), rot: ID3.slice(), scale: 1, x: P.stock.w / 2, y: P.stock.h / 2, top: 0, zAuto: true };
-    if (!modelFits()) fitModel();
+    P.model = { name, units: units || (big > 20 ? 'mm' : 'in'), rot: ID3.slice(), scale: 1, x: P.stock.w / 2, y: P.stock.h / 2, top: 0, zAuto: true, locked: true };
   } else P.model.name = name;
 }
 function modelDims() {
@@ -1049,6 +1063,24 @@ function fitModel() {
   const s = Math.min(a[0] / d[0], a[1] / d[1], (P.stock.t - (P.sides === 2 ? 0.04 : 0)) / d[2]);
   if (s > 0 && isFinite(s)) m.scale = Math.round(m.scale * s * 1e4) / 1e4 * 0.999;
   m.x = P.stock.w / 2; m.y = P.stock.h / 2; m.zAuto = true;
+}
+function fitReport() {
+  const d = modelDims(), w = P.stock.w, h = P.stock.h, t = P.stock.t, a = availXY();
+  const over = [d[0] - w, d[1] - h, d[2] - t];
+  const tight = [d[0] - a[0], d[1] - a[1]];
+  const f = v => fmtN(v, 2);
+  if (over[0] > 1e-6 || over[1] > 1e-6 || over[2] > 1e-6) {
+    const bits = [];
+    if (over[0] > 1e-6) bits.push(`${f(over[0])} in too wide`);
+    if (over[1] > 1e-6) bits.push(`${f(over[1])} in too long`);
+    if (over[2] > 1e-6) bits.push(`${f(over[2])} in too thick`);
+    return { ok: false, text: 'Bigger than the stock: ' + bits.join(', ') + '.' };
+  }
+  if (tight[0] > 1e-6 || tight[1] > 1e-6) {
+    const pins = P.sides === 2 && P.pin.on;
+    return { ok: false, text: `Fits the board, but not with ${fmtN(P.margin)} in of room around it for the bit${pins ? ' and space for the dowel pins' : ''}.` };
+  }
+  return { ok: true, text: 'Fits the stock.' };
 }
 function centerModel() { const m = P.model; m.x = P.stock.w / 2; m.y = P.stock.h / 2; m.zAuto = true; }
 function stockToModel() {
@@ -1104,7 +1136,7 @@ async function importFile(file) {
     sideUp = 'A'; viewMode = 'setup';
     changed(); viewer.fitView();
     const d = modelDims();
-    toast(`Imported ${name} (${(MODEL.raw.length / 9).toLocaleString()} triangles). Check the units: ${fmtN(d[0], 2)} × ${fmtN(d[1], 2)} × ${fmtN(d[2], 2)} in.`);
+    toast(`Imported ${name} at its real size: ${fmtN(d[0], 2)} × ${fmtN(d[1], 2)} × ${fmtN(d[2], 2)} in. If that's wrong, unlock the size and check the units.`);
   } catch (err) { toast('Could not read that file: ' + err.message); }
 }
 
@@ -1286,6 +1318,18 @@ function syncUI() {
     const d = modelDims(), m = P.model;
     $('#mName').textContent = MODEL.name;
     $('#mInfo').textContent = (MODEL.raw.length / 9).toLocaleString() + ' triangles · ' + fmtN(m.scale * 100, 1) + '% scale';
+    const lk = !!m.locked;
+    $('#btnLock').setAttribute('aria-pressed', String(lk));
+    $('#btnLock').title = lk ? "Locked so the model can't be resized by accident. Click to unlock." : 'Click to lock the size again.';
+    $('#lockLbl').textContent = lk ? 'Size locked' : 'Unlocked';
+    $('#sizeBox').classList.toggle('locked', lk);
+    for (const act of ['sizex', 'sizey', 'sizez']) $(`[data-act="${act}"]`).readOnly = lk;
+    $('[data-k="model.units"]').disabled = lk;
+    $('[data-act="fit"]').disabled = lk;
+    $('[data-act="fit"]').title = lk ? 'Unlock the size to scale the model to the stock' : 'Scale the model to fit the stock';
+    const fr = fitReport(), fm = $('#fitMsg');
+    fm.className = 'reach fitmsg ' + (fr.ok ? 'good' : 'bad');
+    fm.innerHTML = `<span>${esc(fr.text)}</span>` + (fr.ok ? '' : '<button class="btn" data-act="stockfit">Make stock fit</button>');
     const set = (act, v) => { const el = $(`[data-act="${act}"]`); if (el && document.activeElement !== el) el.value = fmtN(v); };
     set('sizex', d[0]); set('sizey', d[1]); set('sizez', d[2]);
     set('posx', m.x - P.stock.w / 2); set('posy', m.y - P.stock.h / 2); set('mtop', modelTop());
@@ -1316,6 +1360,7 @@ function afterSet(k) {
 function commitInput(el) {
   const k = el.dataset.k; if (!k) return;
   if (el.type === 'checkbox') { setPath(P, k, el.checked); changed(); return; }
+  if (k === 'model.units' && P.model && P.model.locked) { syncUI(); return; }
   if (el.tagName === 'SELECT') { setPath(P, k, el.hasAttribute('data-num') ? +el.value : el.value); if (k === 'model.units') P.model.zAuto = true; changed(); return; }
   if (el.tagName === 'TEXTAREA') { setPath(P, k, el.value); changed(true); renderSteps(); return; }
   const isLen = !/feed|plunge|rpm|\.so$/.test(k);
@@ -1329,6 +1374,9 @@ function commitInput(el) {
     'fin.feed': [1, 600], 'fin.plunge': [1, 300], 'fin.so': [2, 50], 'fin.rpm': [1000, 30000]
   }[k];
   if (lim) v = clamp(v, lim[0], lim[1]);
+  // the model's position is measured from the stock's center, so keep it there when the stock changes size
+  if (P.model && k === 'stock.w') P.model.x += (v - P.stock.w) / 2;
+  if (P.model && k === 'stock.h') P.model.y += (v - P.stock.h) / 2;
   setPath(P, k, v);
   if (k.startsWith('stock.') && P.model && P.model.zAuto) { /* keep centered automatically */ }
   if (k === 'parting') P.partAuto = false;
@@ -1359,10 +1407,11 @@ function doAct(a) {
   if (a === 'import') { $('#fileModel').click(); return; }
   if (a === 'sample') { loadSample(); return; }
   if (!m) return;
-  if (a === 'rotx' || a === 'roty' || a === 'rotz') { m.rot = mul3(a === 'rotx' ? QX : a === 'roty' ? QY : QZ, m.rot); centerModel(); if (!modelFits()) fitModel(); }
+  if (a === 'rotx' || a === 'roty' || a === 'rotz') { m.rot = mul3(a === 'rotx' ? QX : a === 'roty' ? QY : QZ, m.rot); centerModel(); }
   else if (a === 'rotreset') { m.rot = ID3.slice(); centerModel(); }
   else if (a === 'center') centerModel();
-  else if (a === 'fit') fitModel();
+  else if (a === 'fit') { if (m.locked) { toast('Unlock the size first.'); return; } fitModel(); }
+  else if (a === 'lock') m.locked = !m.locked;
   else if (a === 'stockfit') stockToModel();
   else if (a === 'mtopauto') m.zAuto = true;
   changed();
@@ -1371,6 +1420,7 @@ function modelField(el) {
   const m = P.model; if (!m) return;
   const v = parseLen(el.value); if (!isFinite(v)) { syncUI(); return; }
   const d = modelDims(), a = el.dataset.act;
+  if ((a === 'sizex' || a === 'sizey' || a === 'sizez') && m.locked) { syncUI(); return; }
   if (a === 'sizex' || a === 'sizey' || a === 'sizez') { const i = { sizex: 0, sizey: 1, sizez: 2 }[a]; if (v > 0.01 && d[i] > 0) m.scale *= v / d[i]; m.zAuto = true; }
   else if (a === 'posx') m.x = P.stock.w / 2 + v;
   else if (a === 'posy') m.y = P.stock.h / 2 + v;
@@ -1591,7 +1641,7 @@ const viewer = (function () {
     // stock ghost for setup view
     const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, t), new THREE.MeshStandardMaterial({ color: col('--wood'), transparent: true, opacity: 0.2, depthWrite: false }));
     setupG.add(box);
-    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, t)), new THREE.LineBasicMaterial({ color: col('--wood-cut') }));
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, t)), new THREE.LineBasicMaterial({ color: col(MODEL && P.model && !fitReport().ok ? '--zero' : '--wood-cut') }));
     setupG.add(edges);
     if (modelMesh) setupG.add(modelMesh);
     buildSetupExtras();
@@ -1640,7 +1690,7 @@ const viewer = (function () {
     const a = new Float32Array(tris.length), w = P.stock.w, h = P.stock.h, t = P.stock.t;
     for (let i = 0; i < tris.length; i += 3) { a[i] = tris[i] - w / 2; a[i + 1] = tris[i + 1] - h / 2; a[i + 2] = tris[i + 2] + t / 2; }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(a, 3)); g.computeVertexNormals();
-    modelMesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: col('--shape'), roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide }));
+    modelMesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: col(fitReport().ok ? '--shape' : '--zero'), roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide }));
     setupG.add(modelMesh); refresh();
   }
   function setResult(res) {

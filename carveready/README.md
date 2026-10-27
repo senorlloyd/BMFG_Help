@@ -10,7 +10,7 @@ CarveReady is RouteReady's 3D sibling. Students import an STL or OBJ, place it i
 
 ## ✨ Features
 
-- **STL / OBJ import** with mm/inch units, uniform resizing, 90° turns (the model re-centers after each turn), "Center", "Fit to stock" and "Stock to model"
+- **STL / OBJ import** with mm/inch units, uniform resizing, 90° turns (the model re-centers after each turn), "Center", "Fit to stock" and "Size stock". The model comes in at its real size with the size **locked**, and nothing rescales it until you unlock it. If it doesn't fit the stock, the model turns red and the app says by how much
 - **One side or two sides** (flip left↔right or front↔back). One-sided jobs have no flip and no dowel holes.
 - **Auto parting line**: finds the height where both sides can reach the most of the model, and tells you how much (if any) is hidden from both sides
 - **Dowel pin registration**: two holes on the flip line, drilled through the stock into the spoilboard. Any dowel size, plus an "extra for fit" allowance

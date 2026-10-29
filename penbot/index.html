@@ -1363,8 +1363,9 @@ const STEPS = [
       return loop((t, reset) => {
         if (t > P.T) { reset(); t = 0; }
         const s = P.at(t);
-        gan.setAttribute('transform', `translate(0 ${Y(s.y).toFixed(1)})`);
-        setHead(g, X(s.x), Y(s.y), clamp(s.z / 0.15, 0, 1), s.vx, -s.vy);
+        // the head's body rides on the gantry bar; the pen tip hangs below it on the paper
+        gan.setAttribute('transform', `translate(0 ${(Y(s.y) - 21.5).toFixed(1)})`);
+        setHead(g, X(s.x), Y(s.y), clamp(s.z / 0.15, 0, 1) * 0.6, s.vx, -s.vy);
         ink.setAttribute('d', P.ink(t, X, Y));
         rx.textContent = s.x.toFixed(2); ry.textContent = s.y.toFixed(2); rz.textContent = s.z.toFixed(2);
       });

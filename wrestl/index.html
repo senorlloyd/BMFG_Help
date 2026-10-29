@@ -133,6 +133,10 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 0
 .lock[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
 .apply { width: 100%; padding: 10px; font-size: 16px; }
 .toolbody[hidden] { display: none !important; }
+.roundbox { background: var(--panel-2); border-radius: var(--r); padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+.roundopts { display: flex; flex-direction: column; gap: 10px; }
+.roundopts .field { grid-template-columns: 70px minmax(0, 1fr) 84px; }
+.roundopts .field .hint { text-align: right; font-family: var(--f-mono); font-size: 12px; }
 .foot { margin-top: auto; }
 .exportname { width: 100%; text-align: left; }
 
@@ -281,7 +285,21 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 0
         <div class="field"><label for="crCX">Move X</label><input type="range" id="crCXr" step="0.1"><input class="num" id="crCX" type="number" step="0.5"></div>
         <div class="field"><label for="crCY">Move Y</label><input type="range" id="crCYr" step="0.1"><input class="num" id="crCY" type="number" step="0.5"></div>
         <div class="field"><label for="crCZ">Move Z</label><input type="range" id="crCZr" step="0.1"><input class="num" id="crCZ" type="number" step="0.5"></div>
-        <p class="hint">Drag the arrows in the view to move the box and the pink squares to resize a side. Everything outside the box is thrown away; gold faces show the new filled walls.</p>
+        <div class="roundbox">
+          <label class="check"><input type="checkbox" id="crRound"> Round the 4 upright corners</label>
+          <div class="roundopts" id="crRoundOpts" hidden>
+            <div class="field"><label for="crRad">Radius</label><span class="hint" id="crRadIn">0.063 in</span><input class="num" id="crRad" type="number" step="0.05" min="0.1" value="1.59"></div>
+            <div class="row">
+              <span class="hint" style="margin-right:2px">Endmill:</span>
+              <button class="btn small" data-bit="3.175">1/8"</button>
+              <button class="btn small" data-bit="6.35">1/4"</button>
+              <button class="btn small" data-bit="9.525">3/8"</button>
+              <button class="btn small" data-bit="12.7">1/2"</button>
+            </div>
+            <p class="hint">For an inlay that drops into a CNC pocket. A round bit can't cut sharp inside corners, so the pocket's corners are curved with a radius of half the bit width. Pick your bit and WreSTL rounds the part's corners to match. Add a little extra (about 0.2 mm) if you want an easier fit.</p>
+          </div>
+        </div>
+        <p class="hint">Drag the arrows in the view to move the box and the red squares to resize a side. Everything outside the box is thrown away; gold faces show the new filled walls.</p>
         <button class="btn primary apply" id="cropApply">Crop model</button>
       </section>
 
@@ -335,7 +353,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 0
         <input class="num exportname" id="outName" type="text" value="sample-knot_wrestl.stl" aria-label="File name">
         <button class="btn primary apply" id="exportBtn">Download STL</button>
         <p class="hint" id="exportHint">Binary STL, millimeters.</p>
-        <p class="hint" style="font-size:11px">WreSTL v2.0</p>
+        <p class="hint" style="font-size:11px">WreSTL v2.1</p>
       </section>
     </aside>
   </main>
@@ -590,13 +608,14 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 0
       const g = groups.find((g) => pointInPoly(h.pts[0], g.o.pts));
       if (g) g.h.push(h); else orphan++;
     }
-    let capTris = 0;
+    let capTris = 0, needPatch = false, patched = 0;
     for (const g of groups) {
       const contour = g.o.pts.map((p) => ({ x: p[0], y: p[1] }));
       const hs = g.h.map((h) => h.pts.map((p) => ({ x: p[0], y: p[1] })));
       const allIds = g.o.ids.concat(...g.h.map((h) => h.ids));
       const allPts = g.o.pts.concat(...g.h.map((h) => h.pts));
       const faces = triangulate(contour, hs);
+      if (faces.length !== allPts.length - 2 + 2 * hs.length) needPatch = true;
       // decide winding once per group from total signed area (degenerate slivers can't flip it)
       let tot = 0;
       for (const [i, j, k] of faces) {
@@ -609,9 +628,34 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 0
         outF.push(1); capTris++;
       }
     }
+    // Safety net: the triangulator can drop a triangle on near-degenerate slivers.
+    // Close any leftover gap whose corners all sit on the cut plane.
+    if (needPatch) {
+      const onCap = new Set(); for (const l of loops) for (const id of l) onCap.add(id);
+      const nO = outV.length / 3, dir = new Set();
+      for (let i = 0; i < outT.length; i += 3) for (let e = 0; e < 3; e++) dir.add(outT[i + e] * nO + outT[i + (e + 1) % 3]);
+      const next = new Map();
+      for (let i = 0; i < outT.length; i += 3) for (let e = 0; e < 3; e++) {
+        const a = outT[i + e], b = outT[i + (e + 1) % 3];
+        if (onCap.has(a) && onCap.has(b) && !dir.has(b * nO + a)) { const l = next.get(b); if (l) l.push(a); else next.set(b, [a]); }
+      }
+      for (const [start] of next) {
+        while ((next.get(start) || []).length) {
+          const loop = [start]; let cur = next.get(start).pop(), ok = false, guard = 0;
+          while (guard++ < 100000) {
+            if (cur === start) { ok = true; break; }
+            loop.push(cur);
+            const l = next.get(cur); if (!l || !l.length) break;
+            cur = l.pop();
+          }
+          if (!ok || loop.length < 3) continue;
+          for (let i = 1; i + 1 < loop.length; i++) { outT.push(loop[0], loop[i], loop[i + 1]); outF.push(1); capTris++; patched++; }
+        }
+      }
+    }
     return {
       mesh: { V: new Float64Array(outV), T: new Uint32Array(outT), F: new Uint8Array(outF) },
-      info: { loops: loops.length, openChains, orphanHoles: orphan, capTris, changed: cutAny },
+      info: { loops: loops.length, openChains, orphanHoles: orphan, capTris, patched, changed: cutAny },
     };
   }
 
@@ -829,7 +873,8 @@ let mesh = null, original = null, name = 'sample-knot.stl';
 const undo = [], redo = [];
 let tool = 'scale';
 const bed = { x: 200, y: 200, z: 200 };
-const crop = { s: [0, 0, 0], c: [0, 0, 0] };
+const crop = { s: [0, 0, 0], c: [0, 0, 0], round: false, r: 1.59 };
+const ARC_SEGS = 12; // flat facets per rounded corner (max error ~0.004 mm at r = 1.6 mm)
 const cutS = { axis: 2, pos: 0, ta: 0, tb: 0, keepAbove: false, range: [0, 1] };
 let wtToken = 0;
 
@@ -884,6 +929,29 @@ planeMesh.add(planeEdge); planeMesh.visible = false; scene.add(planeMesh);
 const boxEdge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: colors.accent }));
 const boxFill = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: colors.accent, transparent: true, opacity: 0.06, depthWrite: false }));
 const boxGroup = new THREE.Group(); boxGroup.add(boxEdge, boxFill); boxGroup.visible = false; scene.add(boxGroup);
+const roundLine = new THREE.LineSegments(new THREE.BufferGeometry(), boxEdge.material); roundLine.visible = false; scene.add(roundLine);
+function updateRoundOutline() {
+  const r = cropRadius();
+  boxEdge.visible = r <= 0; roundLine.visible = r > 0 && tool === 'crop';
+  if (r <= 0) return;
+  const { ctr } = modelBox();
+  const mx = ctr[0] + crop.c[0], my = ctr[1] + crop.c[1], mz = ctr[2] + crop.c[2];
+  const hx = crop.s[0] / 2, hy = crop.s[1] / 2, z0 = mz - crop.s[2] / 2, z1 = mz + crop.s[2] / 2;
+  const loop = [];
+  [[1, 1, 0], [-1, 1, 1], [-1, -1, 2], [1, -1, 3]].forEach(([sx, sy, q]) => {
+    const cx = mx + sx * (hx - r), cy = my + sy * (hy - r);
+    for (let k = 0; k <= ARC_SEGS; k++) { const t = (q + k / ARC_SEGS) * Math.PI / 2; loop.push([cx + r * Math.cos(t), cy + r * Math.sin(t)]); }
+  });
+  const p = [];
+  for (let i = 0; i < loop.length; i++) {
+    const a = loop[i], b = loop[(i + 1) % loop.length];
+    p.push(a[0], a[1], z0, b[0], b[1], z0, a[0], a[1], z1, b[0], b[1], z1);
+    if (i % (ARC_SEGS + 1) === 0 || i % (ARC_SEGS + 1) === ARC_SEGS) p.push(a[0], a[1], z0, a[0], a[1], z1);
+  }
+  roundLine.geometry.dispose();
+  roundLine.geometry = new THREE.BufferGeometry();
+  roundLine.geometry.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+}
 
 // --- mouse handles ---
 const tctl = new THREE.TransformControls(camera, canvas);
@@ -1260,6 +1328,29 @@ function cropPlanes() { // [n, c] keep n·p < c, in model coords
   }
   return out;
 }
+function cropRadius() { return crop.round ? Math.max(0, Math.min(crop.r, crop.s[0] / 2 - 0.01, crop.s[1] / 2 - 0.01)) : 0; }
+// Chords of a quarter circle at each upright corner. The polygon sits just inside the true arc, so the part never ends up bigger than the curve.
+function cornerPlanes() {
+  const r = cropRadius(); if (r <= 0) return [];
+  const { ctr } = modelBox(), out = [], d = Math.PI / 2 / ARC_SEGS, ch = r * Math.cos(d / 2);
+  const mx = ctr[0] + crop.c[0], my = ctr[1] + crop.c[1], hx = crop.s[0] / 2, hy = crop.s[1] / 2;
+  for (const sx of [1, -1]) for (const sy of [1, -1]) {
+    const cx = mx + sx * (hx - r), cy = my + sy * (hy - r);
+    for (let k = 0; k < ARC_SEGS; k++) {
+      const t = (k + 0.5) * d, n = [sx * Math.cos(t), sy * Math.sin(t), 0];
+      out.push([n, n[0] * cx + n[1] * cy + ch]);
+    }
+  }
+  return out;
+}
+function syncRoundUI() {
+  $('crRoundOpts').hidden = !crop.round;
+  $('crRad').value = crop.r;
+  $('crRadIn').textContent = (crop.r / 25.4).toFixed(3) + ' in';
+}
+$('crRound').addEventListener('change', (e) => { crop.round = e.target.checked; syncRoundUI(); updatePreview(); });
+$('crRad').addEventListener('input', (e) => { const v = parseFloat(e.target.value); if (v > 0) { crop.r = v; $('crRadIn').textContent = (v / 25.4).toFixed(3) + ' in'; updatePreview(); } });
+document.querySelectorAll('[data-bit]').forEach((b) => b.addEventListener('click', () => { crop.r = +(+b.dataset.bit / 2).toFixed(3); syncRoundUI(); updatePreview(); }));
 ['X', 'Y', 'Z'].forEach((k, i) => {
   $('crS' + k).addEventListener('input', (e) => { const v = parseFloat(e.target.value); if (v > 0) { crop.s[i] = v; syncCropUI(); updatePreview(); } });
   $('crC' + k + 'r').addEventListener('input', (e) => { crop.c[i] = +e.target.value; $('crC' + k).value = crop.c[i].toFixed(1); updatePreview(); });
@@ -1268,11 +1359,12 @@ function cropPlanes() { // [n, c] keep n·p < c, in model coords
 $('cropReset').addEventListener('click', () => { resetCrop(); updatePreview(); });
 $('cropApply').addEventListener('click', () => busy('Cropping…', () => {
   let m = mesh, open = 0, changed = false;
-  for (const [n, c] of cropPlanes()) { const r = C.cut(m, n, c, triangulate); m = r.mesh; open += r.info.openChains; changed = changed || r.info.changed; }
+  for (const [n, c] of cropPlanes().concat(cornerPlanes())) { const r = C.cut(m, n, c, triangulate); m = r.mesh; open += r.info.openChains; changed = changed || r.info.changed; }
   if (!changed) { toast('The box covers the whole model, so nothing was cut.'); return; }
   if (!m.T.length) { toast('The box doesn’t touch the model. Move it over the part you want to keep.'); return; }
   setMesh(m, { frame: true });
-  toast(open ? 'Cropped, but the mesh had gaps so some walls may be open.' : 'Cropped. New walls are filled and watertight.');
+  const rr = cropRadius();
+  toast(open ? 'Cropped, but the mesh had gaps so some walls may be open.' : rr ? `Cropped with ${fmt(rr, 2)} mm rounded corners. Watertight.` : 'Cropped. New walls are filled and watertight.');
 }));
 
 /* ---------- cut ---------- */
@@ -1341,14 +1433,15 @@ function toThreePlanes(list) { return list.map(([n, c]) => new THREE.Plane(new T
 function updatePreview() {
   if (!mesh) return;
   let planes = null;
-  planeMesh.visible = false; boxGroup.visible = false; cutHandle.visible = false;
+  planeMesh.visible = false; boxGroup.visible = false; cutHandle.visible = false; roundLine.visible = false;
   faceHandles.forEach((h) => (h.visible = false));
   if (tool !== 'crop' && tctl.object) tctl.detach();
   const { b, ctr } = modelBox();
   const diag = Math.max(Math.hypot(...b.size), 1);
   if (tool === 'crop') {
-    planes = toThreePlanes(cropPlanes());
+    planes = toThreePlanes(cropPlanes().concat(cornerPlanes()));
     boxGroup.visible = true;
+    updateRoundOutline();
     boxGroup.position.set(ctr[0] + crop.c[0], ctr[1] + crop.c[1], ctr[2] + crop.c[2]);
     boxGroup.scale.set(crop.s[0], crop.s[1], crop.s[2]);
     if (tctl.object !== boxGroup) tctl.attach(boxGroup);
@@ -1358,7 +1451,7 @@ function updatePreview() {
       h.position.setComponent(axis, boxGroup.position.getComponent(axis) + sign * crop.s[axis] / 2);
       h.visible = true;
     });
-    $('vpTip').textContent = 'Arrows move the box. Pink squares resize a side.';
+    $('vpTip').textContent = 'Arrows move the box. Red squares resize a side.';
   } else if (tool === 'cut') {
     const [n, c] = cutPlane();
     planes = toThreePlanes([[n, c]]);

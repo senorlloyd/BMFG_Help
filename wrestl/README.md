@@ -12,7 +12,8 @@ Part of the [BMFG Help](../) collection of shop tools for the Beaverton MFG prog
 | **Auto-repair** | Broken files get patched the moment you open them: holes are filled, backward and duplicate triangles are fixed, tiny cracks are closed, and inside-out models are flipped right side out. Press **Undo** to see the file as it came in. |
 | **Scale** | Type an exact size in millimeters (with or without locked proportions), use a percent, fix files saved in inches, or press **Fit to printer**. |
 | **Size check** | If a model is bigger than your printer (200 × 200 × 200 mm by default, editable under *Printer*), WreSTL offers to shrink it. If it's tiny, it asks whether the file was saved in inches or meters. |
-| **Crop box** | Set a box size (for example 20 × 20 mm) and keep only what's inside it. Drag the arrows in the 3D view to move the box and the red squares to resize a side, or type numbers. |
+| **Crop box** | Set a box size (for example 20 × 20 mm) and keep only what's inside it. Drag the arrows in the 3D view to move the box and the red squares to resize a side, or type numbers. Optionally round its upright corners (see below). |
+| **Rounded corners** | Under *Crop*, tick **Round the 4 upright corners** to curve the box's vertical corners. Made for 3D printed inlays: a round CNC bit can't cut sharp inside corners, so a pocket's corners have a radius of half the bit width. Pick 1/8", 1/4", 3/8" or 1/2" (or type a radius in mm) and the part drops in without sanding. Add about 0.2 mm for an easier fit. |
 | **Plane cut** | Slice the model across X, Y or Z at any height, tilt the plane up to 90°, and pick which side to keep. Drag the arrow in the 3D view or use the slider. |
 | **Orient** | Rotate 90° around any axis, or mirror. The model always drops back onto the bed, centered. |
 | **Export** | Download a binary STL in millimeters, ready for your slicer. |

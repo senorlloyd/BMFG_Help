@@ -1,0 +1,1645 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PenBot</title>
+<meta name="description" content="PenBot: a first look at CNC. Turn an SVG or DXF into G-code that draws on a sheet of paper.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b4bdb'/%3E%3Cpath d='M7 55c3.5-5.5 7.5-5.5 10.5-1.5s7 4.6 12.5 3.6' fill='none' stroke='%23ffffff' stroke-width='3.2' stroke-linecap='round'/%3E%3Cpath d='M24.5 43h15l-5.4 10.6h-4.2z' fill='%23f3e2c1' stroke='%231d1d2b' stroke-width='1.8' stroke-linejoin='round'/%3E%3Cpath d='M29.9 53.6h4.2L32 58z' fill='%231d1d2b'/%3E%3Crect x='19' y='8' width='26' height='36' rx='8' fill='%23ffd23f' stroke='%231d1d2b' stroke-width='2.2'/%3E%3Ccircle cx='25.5' cy='21' r='7.6' fill='%23ffffff' stroke='%231d1d2b' stroke-width='2'/%3E%3Ccircle cx='23.4' cy='18.6' r='3.4' fill='%231d1d2b'/%3E%3Ccircle cx='22.4' cy='17.6' r='1' fill='%23ffffff'/%3E%3Ccircle cx='39.5' cy='22' r='7.6' fill='%23ffffff' stroke='%231d1d2b' stroke-width='2'/%3E%3Ccircle cx='41.7' cy='24.6' r='3.4' fill='%231d1d2b'/%3E%3Ccircle cx='40.7' cy='23.6' r='1' fill='%23ffffff'/%3E%3Cpath d='M27.5 33.5q4.5 3.6 9 0' fill='none' stroke='%231d1d2b' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root {
+  --chrome: #1c2330; --chrome-2: #273041; --chrome-ink: #e9eef5; --chrome-muted: #9ba7b8;
+  --bg: #eef1f5; --panel: #ffffff; --panel-2: #f4f6f9; --ink: #1a2230; --muted: #5b6676; --line: #d6dce5;
+  --accent: #5b4bdb; --accent-ink: #ffffff; --accent-soft: #ebe8fd;
+  --workspace: #cddaea; --grid: #e4eaf2;
+  --zero: #dd4425; --x: #d23b3b; --y: #1b9149; --z: #2a6fdb; --f: #b4500e;
+  --k-setup: #6b7385; --k-travel: #b97700; --k-up: #2484c6; --k-down: #7a4fd6; --k-draw: #23308a; --k-home: #b97700;
+  --code-bg: #fbfcfe; --hl: #fff2b8; --sel: #ebe8fd;
+  --warn: #8a5a0e; --warn-soft: #fbf0db; --bad: #b42323; --bad-soft: #fde8e8; --good: #1b7a43; --good-soft: #e1f4e8;
+  --f-display: "Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --chrome: #10141b; --chrome-2: #1d2430; --chrome-ink: #e6ebf2; --chrome-muted: #8e9aab;
+    --bg: #161b23; --panel: #1d232d; --panel-2: #242b37; --ink: #e5eaf1; --muted: #98a3b3; --line: #333b49;
+    --accent: #9d92ff; --accent-ink: #120f2b; --accent-soft: #29264d;
+    --workspace: #18212d; --grid: #222b38;
+    --zero: #f0623f; --x: #ff6b6b; --y: #4cd17f; --z: #6ea8ff; --f: #f5a05e;
+    --k-setup: #98a3b3; --k-travel: #f0b13c; --k-up: #6cbcf5; --k-down: #b49cff; --k-draw: #c9d3ff; --k-home: #f0b13c;
+    --code-bg: #171c25; --hl: #3b3520; --sel: #29264d;
+    --warn: #e3b25c; --warn-soft: #33291a; --bad: #ff8a80; --bad-soft: #3a1f22; --good: #6fd69a; --good-soft: #17301f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --chrome: #10141b; --chrome-2: #1d2430; --chrome-ink: #e6ebf2; --chrome-muted: #8e9aab;
+  --bg: #161b23; --panel: #1d232d; --panel-2: #242b37; --ink: #e5eaf1; --muted: #98a3b3; --line: #333b49;
+  --accent: #9d92ff; --accent-ink: #120f2b; --accent-soft: #29264d;
+  --workspace: #18212d; --grid: #222b38;
+  --zero: #f0623f; --x: #ff6b6b; --y: #4cd17f; --z: #6ea8ff; --f: #f5a05e;
+  --k-setup: #98a3b3; --k-travel: #f0b13c; --k-up: #6cbcf5; --k-down: #b49cff; --k-draw: #c9d3ff; --k-home: #f0b13c;
+  --code-bg: #171c25; --hl: #3b3520; --sel: #29264d;
+  --warn: #e3b25c; --warn-soft: #33291a; --bad: #ff8a80; --bad-soft: #3a1f22; --good: #6fd69a; --good-soft: #17301f;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-body); overflow: hidden; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.app { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+
+/* top bar */
+.top { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; background: var(--chrome); color: var(--chrome-ink);
+  padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.brand { display: flex; align-items: center; gap: 9px; font: 700 21px/1 var(--f-display); letter-spacing: .02em; text-transform: uppercase; }
+.brand svg { width: 30px; height: 30px; flex: none; }
+.fname { color: var(--chrome-muted); font-size: 13px; min-width: 0; max-width: 34vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.menu button { background: none; border: 0; color: var(--chrome-muted); padding: 6px 9px; border-radius: var(--r); display: inline-flex; align-items: center; gap: 6px; }
+.menu button:hover { background: var(--chrome-2); color: var(--chrome-ink); }
+.menu svg { width: 16px; height: 16px; flex: none; }
+.top-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: var(--r); padding: 8px 16px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+.btn-primary svg { width: 16px; height: 16px; }
+.btn { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 11px; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.btn:hover { border-color: var(--accent); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* workbench: side | paper | g-code (1/4) */
+.work { display: grid; grid-template-columns: minmax(240px, 270px) minmax(0, 1fr) minmax(320px, 25vw); min-height: 0; }
+.side { background: var(--panel); border-right: 1px solid var(--line); overflow: auto; padding: 14px; display: grid; align-content: start; gap: 16px; }
+.sec h3 { margin: 0 0 8px; font: 600 12px/1 var(--f-mono); text-transform: uppercase; letter-spacing: .09em; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.sec h3 svg { width: 13px; height: 13px; }
+.card { border: 1px solid var(--line); border-radius: 8px; padding: 11px 12px; background: var(--panel-2); }
+.big-size { font: 600 26px/1.05 var(--f-display); letter-spacing: .01em; }
+.big-size small { font: 500 13px var(--f-body); color: var(--muted); margin-left: 4px; }
+.muted { color: var(--muted); }
+.small { font-size: 12.5px; }
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 5px 10px; font-size: 13px; align-items: center; }
+.kv b { font: 600 13px var(--f-mono); text-align: right; }
+.kv .q { border: 0; background: none; color: var(--accent); font-size: 12px; padding: 0 0 0 4px; text-decoration: underline; text-underline-offset: 2px; }
+.lock { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.lock svg { width: 13px; height: 13px; flex: none; }
+.fld { display: grid; gap: 3px; font-size: 12px; color: var(--muted); }
+.unit { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); }
+.unit input { border: 0; background: none; padding: 6px 7px; width: 100%; min-width: 0; font: 500 14px var(--f-mono); outline: none; }
+.unit i { font-style: normal; color: var(--muted); padding-right: 8px; font-size: 12px; }
+.unit:focus-within { border-color: var(--accent); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.btnrow { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+select.sel { border: 1px solid var(--line); border-radius: 5px; background: var(--panel); padding: 5px 6px; width: 100%; font-size: 13px; }
+.msg { border-radius: 7px; padding: 8px 10px; font-size: 12.5px; line-height: 1.4; display: flex; gap: 8px; }
+.msg svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
+.msg.bad { background: var(--bad-soft); color: var(--bad); }
+.msg.warn { background: var(--warn-soft); color: var(--warn); }
+.msg.good { background: var(--good-soft); color: var(--good); }
+.msgs { display: grid; gap: 6px; margin-top: 8px; }
+.check { margin: 0; padding: 0 0 0 18px; font-size: 12.5px; color: var(--muted); display: grid; gap: 4px; }
+.check b { color: var(--ink); font-weight: 600; }
+.empty-card { border: 2px dashed var(--line); border-radius: 10px; padding: 16px 12px; text-align: center; display: grid; gap: 8px; justify-items: center; }
+.empty-card svg { width: 38px; height: 38px; color: var(--muted); }
+
+/* paper stage */
+.stage { position: relative; min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto;
+  background-color: var(--workspace);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 28px 28px; }
+.canvas-wrap { position: relative; min-height: 0; }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.bar { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; padding: 8px 12px; background: var(--panel); border-top: 1px solid var(--line); }
+.dro { display: flex; gap: 10px; font: 600 15px/1 var(--f-mono); background: var(--chrome); color: var(--chrome-ink); padding: 8px 11px; border-radius: 7px; white-space: nowrap; }
+.dro span i { font-style: normal; margin-right: 3px; }
+.dro .ax { color: #ff7b7b; } .dro .ay { color: #5fe08f; } .dro .az { color: #7fb2ff; }
+.status { font-size: 12.5px; color: var(--muted); min-width: 9.5em; }
+.status b { color: var(--ink); font-weight: 600; display: block; font-size: 13px; }
+.ctl { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 240px; }
+.ib { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); display: grid; place-items: center; flex: none; }
+.ib svg { width: 16px; height: 16px; }
+.ib.play { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); width: 42px; height: 42px; }
+.ib:disabled { opacity: .4; cursor: not-allowed; }
+.scrub { flex: 1; min-width: 80px; accent-color: var(--accent); }
+.time { font: 500 12.5px var(--f-mono); color: var(--muted); white-space: nowrap; margin-right: 6px; }
+.opt { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.opt select { border: 1px solid var(--line); border-radius: 5px; background: var(--panel); padding: 4px 5px; font-size: 12.5px; }
+.drop-hint { position: fixed; inset: 12px; z-index: 80; border: 3px dashed var(--accent); border-radius: 14px; display: grid; place-items: center; background: color-mix(in srgb, var(--panel) 80%, transparent); font: 700 26px var(--f-display); letter-spacing: .03em; color: var(--accent); text-transform: uppercase; pointer-events: none; }
+
+/* g-code panel */
+.code { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; background: var(--code-bg); border-left: 1px solid var(--line); min-height: 0; min-width: 0; }
+.code-h { display: flex; align-items: baseline; gap: 8px; padding: 12px 14px 6px; }
+.code-h h2 { margin: 0; font: 700 20px/1 var(--f-display); text-transform: uppercase; letter-spacing: .03em; }
+.code-h .n { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 2px 14px 10px; border-bottom: 1px solid var(--line); font-size: 11.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.cscroll { overflow: auto; position: relative; min-height: 0; font: 13px/22px var(--f-mono); }
+.csizer { position: relative; }
+.row { position: absolute; left: 0; right: 0; height: 22px; display: flex; white-space: pre; cursor: pointer; border-left: 4px solid transparent; }
+.row:hover { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.row .no { width: 4.2em; flex: none; text-align: right; padding-right: 12px; color: var(--muted); opacity: .65; user-select: none; }
+.row .tx { padding-right: 10px; }
+.row.cur { background: var(--hl); }
+.row.sel { background: var(--sel); box-shadow: inset 0 0 0 1px var(--accent); }
+.k-setup { border-left-color: var(--k-setup); } .k-travel { border-left-color: var(--k-travel); } .k-up { border-left-color: var(--k-up); }
+.k-down { border-left-color: var(--k-down); } .k-draw { border-left-color: var(--k-draw); } .k-home, .k-end { border-left-color: var(--k-home); }
+.c { font-weight: 600; }
+.c.k-setup, i.k-setup { color: var(--k-setup); } .c.k-travel, .c.k-home, .c.k-end { color: var(--k-travel); } .c.k-up { color: var(--k-up); }
+.c.k-down { color: var(--k-down); } .c.k-draw { color: var(--k-draw); }
+.legend i.k-setup { background: var(--k-setup); } .legend i.k-travel { background: var(--k-travel); } .legend i.k-up { background: var(--k-up); }
+.legend i.k-down { background: var(--k-down); } .legend i.k-draw { background: var(--k-draw); }
+.t { margin-left: .6em; }
+.ax b, .ay b, .az b, .af b, .ap b { font-weight: 600; }
+.ax b { color: var(--x); } .ay b { color: var(--y); } .az b { color: var(--z); } .af b { color: var(--f); } .ap b { color: var(--muted); }
+.explain { border-top: 1px solid var(--line); padding: 10px 14px 14px; background: var(--panel); min-height: 118px; font-size: 13.5px; }
+.explain .el { font: 600 14px var(--f-mono); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.explain .tag { font: 600 10.5px/1 var(--f-mono); text-transform: uppercase; letter-spacing: .08em; padding: 4px 6px; border-radius: 4px; color: #fff; }
+.explain p { margin: 0; color: var(--muted); line-height: 1.45; }
+.explain p b { color: var(--ink); }
+.tag.k-setup { background: var(--k-setup); } .tag.k-travel, .tag.k-home, .tag.k-end { background: var(--k-travel); } .tag.k-up { background: var(--k-up); }
+.tag.k-down { background: var(--k-down); } .tag.k-draw { background: var(--k-draw); }
+:root[data-theme="dark"] .explain .tag { color: #10141b; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .explain .tag { color: #10141b; } }
+
+.toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--ink); color: var(--panel); padding: 10px 15px; border-radius: 8px; font-size: 13.5px; z-index: 90; max-width: calc(100vw - 32px); box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+
+/* ---------- learning splash screens ---------- */
+.wiz { position: fixed; inset: 0; z-index: 60; overflow: auto; display: flex; flex-direction: column;
+  background-color: var(--workspace);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 32px 32px;
+  padding-block: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wiz-card { margin: auto; width: min(1000px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 24px 60px rgba(15, 25, 45, .2); overflow: hidden; }
+.wz-head { display: flex; align-items: center; gap: 10px 18px; flex-wrap: wrap; padding: 12px 18px; background: var(--chrome); color: var(--chrome-ink); }
+.wz-prog { list-style: none; margin: 0; padding: 0; display: flex; gap: 2px; flex: 1; justify-content: center; flex-wrap: wrap; }
+.wz-prog button { background: none; border: 0; color: var(--chrome-muted); display: flex; align-items: center; gap: 7px; padding: 5px 8px; border-radius: 6px; font: 500 13px var(--f-body); }
+.wz-prog button:hover { background: var(--chrome-2); color: var(--chrome-ink); }
+.wz-prog b { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 600 11.5px var(--f-mono); border: 1.5px solid currentColor; }
+.wz-prog .cur button { color: var(--chrome-ink); }
+.wz-prog .cur b { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.wz-prog .done b { background: var(--chrome-2); border-color: var(--chrome-2); color: var(--chrome-ink); }
+.wz-skip { background: none; border: 1px solid var(--chrome-2); color: var(--chrome-ink); border-radius: 6px; padding: 6px 10px; font-size: 13px; }
+.wz-skip:hover { background: var(--chrome-2); }
+.wz-body { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); min-height: 460px; }
+.wz-vis { margin: 0; background: var(--panel-2); border-right: 1px solid var(--line); display: grid; grid-template-rows: 1fr auto; align-items: center; padding: 18px; gap: 8px; }
+.wz-vis svg.mv { display: block; width: 100%; height: auto; max-height: 420px; }
+.wz-vis figcaption { font-size: 12.5px; color: var(--muted); text-align: center; min-height: 1.4em; }
+.wz-q { padding: 24px 28px; display: grid; align-content: start; gap: 12px; min-width: 0; }
+.wz-q .kick { font: 600 12px var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.wz-q h2 { margin: 0; font: 600 34px/1.05 var(--f-display); letter-spacing: .005em; text-wrap: balance; }
+.wz-q p { margin: 0; color: var(--muted); line-height: 1.55; max-width: 52ch; }
+.wz-q p b, .wz-q li b { color: var(--ink); }
+.wz-q ol, .wz-q ul { margin: 0; padding-left: 20px; color: var(--muted); display: grid; gap: 6px; line-height: 1.45; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; background: var(--panel-2); color: var(--muted); }
+.chip.on { border-color: var(--accent); color: var(--ink); background: var(--accent-soft); font-weight: 600; }
+.wz-nav { display: flex; gap: 8px; justify-content: space-between; align-items: center; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.wz-nav .dots { font: 500 12px var(--f-mono); color: var(--muted); }
+.callout { border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 7px 7px 0; padding: 8px 11px; font-size: 13px; color: var(--ink); }
+.slide { display: grid; gap: 4px; }
+.slide label { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+.slide label b { font: 600 13px var(--f-mono); color: var(--ink); }
+.slide input { width: 100%; accent-color: var(--accent); }
+.formula { font: 500 13px/1.5 var(--f-mono); background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; }
+.formula b { color: var(--accent); }
+.mini-code { font: 12.5px/21px var(--f-mono); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--code-bg); }
+.mini-code div { display: flex; border-left: 4px solid transparent; padding-right: 8px; white-space: pre; transition: background .15s; }
+.mini-code .no { width: 2.6em; text-align: right; padding-right: 10px; color: var(--muted); opacity: .6; flex: none; }
+.mini-code .cur { background: var(--hl); }
+.mini-exp { font-size: 13px; color: var(--muted); min-height: 3.2em; line-height: 1.45; }
+.mini-exp b { color: var(--ink); }
+.dropzone { border: 3px dashed var(--line); border-radius: 14px; padding: 26px 18px; display: grid; justify-items: center; gap: 12px; text-align: center; background: var(--panel); transition: border-color .15s, background .15s; }
+.dropzone.hover { border-color: var(--accent); background: var(--accent-soft); }
+.dropzone svg.dz-ic { width: 92px; height: 92px; }
+.dropzone h3 { margin: 0; font: 600 24px var(--f-display); }
+.dropzone .row2 { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+
+/* wizard figure classes */
+.mv .frame { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+.mv .paper { fill: #ffffff; stroke: #b4bfd0; stroke-width: 1; }
+.mv .pgrid { stroke: #e7ecf4; stroke-width: 1; }
+.mv .ink { fill: none; stroke: #1f2a78; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.mv .plan { fill: none; stroke: #c0c8d6; stroke-width: 1.2; stroke-dasharray: 3 3; }
+.mv .trav { fill: none; stroke: var(--k-travel); stroke-width: 1.4; stroke-dasharray: 4 3; }
+.mv .rail { stroke: var(--muted); stroke-width: 3; stroke-linecap: round; opacity: .6; }
+.mv .gantry { fill: var(--chrome-2); }
+.mv .lbl { font: 600 12px var(--f-mono); fill: var(--ink); }
+.mv .lbl-m { font: 500 11px var(--f-mono); fill: var(--muted); }
+.mv .big { font: 700 15px var(--f-display); fill: var(--ink); letter-spacing: .02em; }
+.mv .ox { stroke: var(--x); fill: var(--x); } .mv .oy { stroke: var(--y); fill: var(--y); } .mv .oz { stroke: var(--z); fill: var(--z); }
+.mv .tx { fill: var(--x); } .mv .ty { fill: var(--y); } .mv .tz { fill: var(--z); }
+.mv .zero { fill: var(--zero); } .mv .zero-s { stroke: var(--zero); fill: none; }
+.mv .wood { fill: #e5cba4; } .mv .wood-g { stroke: #d0ae7e; stroke-width: 1; fill: none; }
+.mv .air { fill: var(--panel-2); }
+.mv .bit { fill: #9aa4b2; stroke: #4c5563; stroke-width: 1; }
+.mv .dash { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; fill: none; opacity: .7; }
+.mv .board { fill: #d9c3a0; }
+.mv .readout { fill: var(--chrome); }
+.mv .readout-t { font: 600 13px var(--f-mono); fill: var(--chrome-ink); }
+
+@media (max-width: 980px) {
+  body { overflow: auto; }
+  .app { height: auto; min-height: 100%; }
+  .work { grid-template-columns: minmax(0, 1fr); }
+  .stage { order: 1; height: 78vh; min-height: 480px; }
+  .code { order: 2; height: 62vh; min-height: 380px; border-left: 0; border-top: 1px solid var(--line); }
+  .side { order: 3; border-right: 0; border-top: 1px solid var(--line); }
+  .fname { max-width: 60vw; }
+}
+@media (max-width: 760px) {
+  .wz-body { grid-template-columns: minmax(0, 1fr); }
+  .wz-vis { border-right: 0; border-bottom: 1px solid var(--line); }
+  .wz-q { padding: 18px; }
+  .wz-q h2 { font-size: 28px; }
+  .wz-prog .lb { display: none; }
+  .menu .lbl { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#5b4bdb"/><path d="M7 55c3.5-5.5 7.5-5.5 10.5-1.5s7 4.6 12.5 3.6" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round"/><path d="M24.5 43h15l-5.4 10.6h-4.2z" fill="#f3e2c1" stroke="#1d1d2b" stroke-width="1.8" stroke-linejoin="round"/><path d="M29.9 53.6h4.2L32 58z" fill="#1d1d2b"/><rect x="19" y="8" width="26" height="36" rx="8" fill="#ffd23f" stroke="#1d1d2b" stroke-width="2.2"/><circle cx="25.5" cy="21" r="7.6" fill="#ffffff" stroke="#1d1d2b" stroke-width="2"/><circle cx="23.4" cy="18.6" r="3.4" fill="#1d1d2b"/><circle cx="22.4" cy="17.6" r="1" fill="#ffffff"/><circle cx="39.5" cy="22" r="7.6" fill="#ffffff" stroke="#1d1d2b" stroke-width="2"/><circle cx="41.7" cy="24.6" r="3.4" fill="#1d1d2b"/><circle cx="40.7" cy="23.6" r="1" fill="#ffffff"/><path d="M27.5 33.5q4.5 3.6 9 0" fill="none" stroke="#1d1d2b" stroke-width="2" stroke-linecap="round"/></svg><span>PenBot</span></div>
+    <span class="fname" id="fname">No drawing yet</span>
+    <nav class="menu">
+      <button id="btnLearn" title="Open the CNC lessons again"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8l10-5 10 5-10 5z"/><path d="M6 10v5c3 2.5 9 2.5 12 0v-5"/></svg><span class="lbl">Learn CNC</span></button>
+      <button id="btnOpen" title="Open an SVG or DXF file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="lbl">Open SVG / DXF</span></button>
+      <button id="btnSample" title="Load a sample drawing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6 .6-4.5 4 1.3 6-5.4-3.1-5.4 3.1 1.3-6-4.5-4 6-.6z"/></svg><span class="lbl">Sample</span></button>
+    </nav>
+    <div class="top-right">
+      <button class="btn-primary" id="btnDl" disabled title="Download the G-code file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Download .nc</button>
+    </div>
+  </header>
+
+  <main class="work">
+    <aside class="side" id="side">
+      <section class="sec">
+        <h3>Your drawing</h3>
+        <div id="fileBox"></div>
+      </section>
+
+      <section class="sec" id="posSec" hidden>
+        <h3>Place it on the paper</h3>
+        <div class="two">
+          <label class="fld">Left edge (X)<span class="unit"><input id="inX" inputmode="decimal"><i>in</i></span></label>
+          <label class="fld">Bottom edge (Y)<span class="unit"><input id="inY" inputmode="decimal"><i>in</i></span></label>
+        </div>
+        <div class="btnrow">
+          <button class="btn" id="btnCenter">Center</button>
+          <button class="btn" id="btnFileOrigin" title="Put your file's origin on the paper's bottom-left corner">File origin</button>
+          <button class="btn" id="btnRot" title="Turn the drawing a quarter turn">Turn 90°</button>
+        </div>
+        <p class="small muted" style="margin:8px 0 0">Or drag the drawing around on the paper.</p>
+      </section>
+
+      <section class="sec">
+        <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Machine settings</h3>
+        <div class="card">
+          <div class="kv">
+            <span>Feed rate <button class="q" data-learn="2">what?</button></span><b>70 in/min</b>
+            <span>Cut depth <button class="q" data-learn="3">what?</button></span><b>0.010 in</b>
+            <span>Depth per pass <button class="q" data-learn="3">what?</button></span><b>0.010 in</b>
+            <span>Passes</span><b>1</b>
+            <span>Pen-up height <button class="q" data-learn="1">what?</button></span><b>0.150 in</b>
+          </div>
+          <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Locked, so every PenBot job draws the same way.</div>
+        </div>
+      </section>
+
+      <section class="sec" id="jobSec" hidden>
+        <h3>This job</h3>
+        <div class="kv" id="jobKv"></div>
+      </section>
+
+      <section class="sec">
+        <h3>At the machine</h3>
+        <ol class="check">
+          <li>Tape the paper flat and <b>square</b> to the table.</li>
+          <li>Jog the pen to the paper's <b>bottom-left corner</b> and zero <b>X and Y</b>.</li>
+          <li>Lower the pen until it <b>just touches</b> the paper and zero <b>Z</b>.</li>
+          <li>Take the cap off the pen!</li>
+        </ol>
+      </section>
+    </aside>
+
+    <section class="stage">
+      <div class="canvas-wrap" id="cvWrap"><canvas id="cv" aria-label="Sheet of paper, 8.5 by 11 inches, with the drawing"></canvas></div>
+      <div class="bar">
+        <div class="dro" title="Where the pen is right now"><span class="ax"><i>X</i><span id="droX">0.0000</span></span><span class="ay"><i>Y</i><span id="droY">0.0000</span></span><span class="az"><i>Z</i><span id="droZ">0.1500</span></span></div>
+        <div class="status" id="status"><b>At the origin</b>Pen up</div>
+        <div class="ctl">
+          <button class="ib" id="btnRestart" title="Back to the start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5v14M20 5L9 12l11 7z"/></svg></button>
+          <button class="ib play" id="btnPlay" title="Watch PenBot draw"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg></button>
+          <input class="scrub" id="scrub" type="range" min="0" max="1000" value="0" aria-label="Simulation position">
+          <span class="time" id="time">0:00 / 0:00</span>
+        </div>
+        <label class="opt">Speed <select id="rate"><option value="1">Real speed</option><option value="2">2×</option><option value="5" selected>5×</option><option value="10">10×</option><option value="25">25×</option></select></label>
+        <label class="opt"><input type="checkbox" id="showTravel" checked> Pen-up moves</label>
+      </div>
+    </section>
+
+    <aside class="code" aria-label="G-code">
+      <div class="code-h"><h2>G-code</h2><span class="n" id="codeN"></span></div>
+      <div class="legend">
+        <span><i class="k-setup"></i>Setup</span><span><i class="k-up"></i>Pen up</span><span><i class="k-travel"></i>Move (pen up)</span><span><i class="k-down"></i>Pen down</span><span><i class="k-draw"></i>Draw</span>
+      </div>
+      <div class="cscroll" id="cscroll"><div class="csizer" id="csizer"></div></div>
+      <div class="explain" id="explain" aria-live="polite"></div>
+    </aside>
+  </main>
+</div>
+
+<div class="wiz" id="wiz" hidden role="dialog" aria-modal="true" aria-label="Learn CNC with PenBot">
+  <div class="wiz-card">
+    <div class="wz-head">
+      <div class="brand"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#5b4bdb"/><path d="M7 55c3.5-5.5 7.5-5.5 10.5-1.5s7 4.6 12.5 3.6" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round"/><path d="M24.5 43h15l-5.4 10.6h-4.2z" fill="#f3e2c1" stroke="#1d1d2b" stroke-width="1.8" stroke-linejoin="round"/><path d="M29.9 53.6h4.2L32 58z" fill="#1d1d2b"/><rect x="19" y="8" width="26" height="36" rx="8" fill="#ffd23f" stroke="#1d1d2b" stroke-width="2.2"/><circle cx="25.5" cy="21" r="7.6" fill="#ffffff" stroke="#1d1d2b" stroke-width="2"/><circle cx="23.4" cy="18.6" r="3.4" fill="#1d1d2b"/><circle cx="22.4" cy="17.6" r="1" fill="#ffffff"/><circle cx="39.5" cy="22" r="7.6" fill="#ffffff" stroke="#1d1d2b" stroke-width="2"/><circle cx="41.7" cy="24.6" r="3.4" fill="#1d1d2b"/><circle cx="40.7" cy="23.6" r="1" fill="#ffffff"/><path d="M27.5 33.5q4.5 3.6 9 0" fill="none" stroke="#1d1d2b" stroke-width="2" stroke-linecap="round"/></svg><span>PenBot</span></div>
+      <ol class="wz-prog" id="wzProg"></ol>
+      <button class="wz-skip" id="wzSkip">Skip to PenBot</button>
+    </div>
+    <div class="wz-body" id="wzBody"></div>
+  </div>
+</div>
+
+<div class="drop-hint" id="dropHint" hidden>Drop your SVG or DXF</div>
+<div class="toast" id="toast" hidden></div>
+<input type="file" id="file" accept=".svg,.dxf,image/svg+xml" hidden>
+
+<script>
+'use strict';
+(() => {
+// ================= settings (locked for students) =================
+const PEN = Object.freeze({
+  feed: 70,        // in/min while drawing
+  plunge: 70,      // in/min when lowering the pen
+  depth: 0.01,     // cut depth (in below Z0)
+  perPass: 0.01,   // depth per pass
+  safeZ: 0.15,     // pen-up height
+  rapid: 240       // estimated G0 speed, only for the time estimate
+});
+const PAPER = { w: 8.5, h: 11 };
+const TOL = 0.0015;            // curve accuracy (in)
+const JOIN = 0.002;            // join line ends closer than this (in)
+const PASSES = Math.max(1, Math.ceil(PEN.depth / PEN.perPass - 1e-9));
+const INK = '#1f2a78', PREVIEW = '#9ba6bd', BAD = '#d23b3b';
+
+// ================= little helpers =================
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const f4 = v => { let r = Math.round(v * 1e4) / 1e4; if (Math.abs(r) < 5e-5) r = 0; return r.toFixed(4); };
+const nd = v => { let r = Math.round(v * 1000) / 1000; if (Math.abs(r) < 5e-4) r = 0; return String(r); };
+const d2 = v => (Math.round(v * 100) / 100).toFixed(2);
+const mmss = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let toastT = 0;
+function toast(msg, ms) {
+  const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, ms || 4200);
+}
+
+// ================= 2D matrix [a b c d e f] =================
+const I6 = [1, 0, 0, 1, 0, 0];
+const mul = (A, B) => [A[0] * B[0] + A[2] * B[1], A[1] * B[0] + A[3] * B[1], A[0] * B[2] + A[2] * B[3], A[1] * B[2] + A[3] * B[3], A[0] * B[4] + A[2] * B[5] + A[4], A[1] * B[4] + A[3] * B[5] + A[5]];
+const ap = (M, x, y) => [M[0] * x + M[2] * y + M[4], M[1] * x + M[3] * y + M[5]];
+const mscale = M => Math.sqrt(Math.abs(M[0] * M[3] - M[1] * M[2])) || 1;
+function parseTransform(s) {
+  let M = I6.slice(); if (!s) return M;
+  const re = /(matrix|translate|scale|rotate|skewX|skewY)\s*\(([^)]*)\)/g; let m;
+  while ((m = re.exec(s))) {
+    const a = m[2].trim().split(/[\s,]+/).filter(Boolean).map(Number); let T = I6;
+    if (m[1] === 'matrix' && a.length >= 6) T = a.slice(0, 6);
+    else if (m[1] === 'translate') T = [1, 0, 0, 1, a[0] || 0, a[1] || 0];
+    else if (m[1] === 'scale') T = [a[0] ?? 1, 0, 0, a.length > 1 ? a[1] : (a[0] ?? 1), 0, 0];
+    else if (m[1] === 'rotate') {
+      const r = (a[0] || 0) * Math.PI / 180, c = Math.cos(r), s2 = Math.sin(r);
+      T = [c, s2, -s2, c, 0, 0];
+      if (a.length > 2) T = mul(mul([1, 0, 0, 1, a[1], a[2]], T), [1, 0, 0, 1, -a[1], -a[2]]);
+    } else if (m[1] === 'skewX') T = [1, 0, Math.tan((a[0] || 0) * Math.PI / 180), 1, 0, 0];
+    else if (m[1] === 'skewY') T = [1, Math.tan((a[0] || 0) * Math.PI / 180), 0, 1, 0, 0];
+    M = mul(M, T);
+  }
+  return M;
+}
+
+// Douglas-Peucker: drop points that don't change the shape
+function simplify(pts, tol) {
+  if (pts.length < 3) return pts;
+  const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1;
+  const st = [[0, pts.length - 1]];
+  while (st.length) {
+    const [a, b] = st.pop(); const ax = pts[a][0], ay = pts[a][1], dx = pts[b][0] - ax, dy = pts[b][1] - ay, L = Math.hypot(dx, dy);
+    let md = -1, mi = -1;
+    for (let i = a + 1; i < b; i++) {
+      const px = pts[i][0], py = pts[i][1];
+      const dd = L < 1e-12 ? Math.hypot(px - ax, py - ay) : Math.abs(dx * (ay - py) - dy * (ax - px)) / L;
+      if (dd > md) { md = dd; mi = i; }
+    }
+    if (md > tol) { keep[mi] = 1; st.push([a, mi], [mi, b]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+
+// ================= SVG path parser → polylines =================
+function arcPts(x1, y1, rx, ry, phi, fa, fs, x2, y2, step) {
+  if (!rx || !ry) return [[x2, y2]];
+  rx = Math.abs(rx); ry = Math.abs(ry);
+  const p = phi * Math.PI / 180, cp = Math.cos(p), sp = Math.sin(p);
+  const dx = (x1 - x2) / 2, dy = (y1 - y2) / 2, x1p = cp * dx + sp * dy, y1p = -sp * dx + cp * dy;
+  const lam = x1p * x1p / (rx * rx) + y1p * y1p / (ry * ry);
+  if (lam > 1) { const s = Math.sqrt(lam); rx *= s; ry *= s; }
+  const num = rx * rx * ry * ry - rx * rx * y1p * y1p - ry * ry * x1p * x1p, den = rx * rx * y1p * y1p + ry * ry * x1p * x1p;
+  let co = den === 0 ? 0 : Math.sqrt(Math.max(0, num / den)); if (fa === fs) co = -co;
+  const cxp = co * rx * y1p / ry, cyp = -co * ry * x1p / rx;
+  const cx = cp * cxp - sp * cyp + (x1 + x2) / 2, cy = sp * cxp + cp * cyp + (y1 + y2) / 2;
+  const ang = (ux, uy, vx, vy) => Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy);
+  const t1 = ang(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry);
+  let dt = ang((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry);
+  if (!fs && dt > 0) dt -= 2 * Math.PI; else if (fs && dt < 0) dt += 2 * Math.PI;
+  const n = clamp(Math.ceil(Math.abs(dt) * Math.max(rx, ry) / step), 2, 720), out = [];
+  for (let k = 1; k <= n; k++) {
+    if (k === n) { out.push([x2, y2]); break; }
+    const t = t1 + dt * k / n, ex = rx * Math.cos(t), ey = ry * Math.sin(t);
+    out.push([cp * ex - sp * ey + cx, sp * ex + cp * ey + cy]);
+  }
+  return out;
+}
+function parsePathD(d, step) {
+  const out = []; let cur = null, x = 0, y = 0, sx = 0, sy = 0, lc = null, lq = null, cmd = '';
+  const n = d.length; let i = 0;
+  const NUM = /[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/y;
+  const ws = () => { while (i < n) { const c = d.charCodeAt(i); if (c === 32 || c === 9 || c === 10 || c === 13 || c === 44 || c === 12) i++; else break; } };
+  const num = () => { ws(); NUM.lastIndex = i; const m = NUM.exec(d); if (!m) throw new Error('path'); i = NUM.lastIndex; return parseFloat(m[0]); };
+  const flag = () => { ws(); const c = d[i]; if (c === '0' || c === '1') { i++; return c === '1'; } throw new Error('path'); };
+  const flush = () => { if (cur && cur.pts.length > 1) out.push(cur); cur = null; };
+  const to = (px, py) => { if (!cur) { cur = { pts: [[x, y]], closed: false }; sx = x; sy = y; } cur.pts.push([px, py]); x = px; y = py; };
+  const cubic = (x1, y1, x2, y2, px, py) => {
+    const x0 = x, y0 = y, L = Math.hypot(x1 - x0, y1 - y0) + Math.hypot(x2 - x1, y2 - y1) + Math.hypot(px - x2, py - y2);
+    const m = clamp(Math.ceil(L / step), 2, 500);
+    for (let k = 1; k <= m; k++) {
+      const t = k / m, u = 1 - t;
+      to(u * u * u * x0 + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * px, u * u * u * y0 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * py);
+    }
+  };
+  const quad = (x1, y1, px, py) => {
+    const x0 = x, y0 = y, L = Math.hypot(x1 - x0, y1 - y0) + Math.hypot(px - x1, py - y1);
+    const m = clamp(Math.ceil(L / step), 2, 500);
+    for (let k = 1; k <= m; k++) { const t = k / m, u = 1 - t; to(u * u * x0 + 2 * u * t * x1 + t * t * px, u * u * y0 + 2 * u * t * y1 + t * t * py); }
+  };
+  try {
+    for (;;) {
+      ws(); if (i >= n) break;
+      const c = d[i];
+      if (/[A-Za-z]/.test(c)) { cmd = c; i++; } else if (!cmd) break;
+      const rel = cmd === cmd.toLowerCase(), C = cmd.toUpperCase();
+      const ox = rel ? x : 0, oy = rel ? y : 0;
+      if (C === 'Z') {
+        if (cur) { const f = cur.pts[0], l = cur.pts[cur.pts.length - 1]; if (Math.hypot(f[0] - l[0], f[1] - l[1]) > 1e-9) cur.pts.push([f[0], f[1]]); cur.closed = true; flush(); }
+        x = sx; y = sy; lc = lq = null; cmd = ''; continue;
+      }
+      if (C === 'M') { const px = num() + ox, py = num() + oy; flush(); cur = { pts: [[px, py]], closed: false }; x = sx = px; y = sy = py; cmd = rel ? 'l' : 'L'; lc = lq = null; continue; }
+      if (C === 'L') { const px = num() + ox, py = num() + oy; to(px, py); lc = lq = null; continue; }
+      if (C === 'H') { to(num() + ox, y); lc = lq = null; continue; }
+      if (C === 'V') { to(x, num() + oy); lc = lq = null; continue; }
+      if (C === 'C') { const x1 = num() + ox, y1 = num() + oy, x2 = num() + ox, y2 = num() + oy, px = num() + ox, py = num() + oy; cubic(x1, y1, x2, y2, px, py); lc = [x2, y2]; lq = null; continue; }
+      if (C === 'S') { const x1 = lc ? 2 * x - lc[0] : x, y1 = lc ? 2 * y - lc[1] : y; const x2 = num() + ox, y2 = num() + oy, px = num() + ox, py = num() + oy; cubic(x1, y1, x2, y2, px, py); lc = [x2, y2]; lq = null; continue; }
+      if (C === 'Q') { const x1 = num() + ox, y1 = num() + oy, px = num() + ox, py = num() + oy; quad(x1, y1, px, py); lq = [x1, y1]; lc = null; continue; }
+      if (C === 'T') { const x1 = lq ? 2 * x - lq[0] : x, y1 = lq ? 2 * y - lq[1] : y; const px = num() + ox, py = num() + oy; quad(x1, y1, px, py); lq = [x1, y1]; lc = null; continue; }
+      if (C === 'A') {
+        const rx = num(), ry = num(), rot = num(), fa = flag(), fs = flag(), px = num() + ox, py = num() + oy;
+        for (const q of arcPts(x, y, rx, ry, rot, fa, fs, px, py, step)) to(q[0], q[1]);
+        lc = lq = null; continue;
+      }
+      break; // unknown command
+    }
+  } catch (e) { /* keep whatever parsed before the error */ }
+  flush();
+  return out;
+}
+
+// ================= SVG import =================
+function importSVG(text) {
+  const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+  const root = doc.documentElement;
+  if (!root || root.nodeName.toLowerCase() !== 'svg' || doc.getElementsByTagName('parsererror').length) throw new Error("That SVG file couldn't be read.");
+  const warn = new Set();
+  const len = v => {
+    const m = /^\s*([-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)\s*([a-z%]*)\s*$/i.exec(v || ''); if (!m) return null;
+    const per = { in: 1, mm: 1 / 25.4, cm: 1 / 2.54, pt: 1 / 72, pc: 1 / 6, px: 0, '': 0 }[m[2].toLowerCase()];
+    return per === undefined ? null : { v: +m[1], per };
+  };
+  const vbA = (root.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+  const vb = vbA.length === 4 && vbA.every(isFinite) && vbA[2] > 0 && vbA[3] > 0 ? vbA : null;
+  const W = len(root.getAttribute('width')), H = len(root.getAttribute('height'));
+  let opts, idx = 0;
+  if (vb && W && W.per) opts = [{ label: 'Size from the SVG', scale: W.v * W.per / vb[2] }];
+  else if (vb && H && H.per) opts = [{ label: 'Size from the SVG', scale: H.v * H.per / vb[3] }];
+  else {
+    const pxPerUnit = vb && W && W.v > 0 ? W.v / vb[2] : 1;
+    opts = [{ label: '96 px per inch (Inkscape, web)', scale: pxPerUnit / 96 }, { label: '72 px per inch (Illustrator)', scale: pxPerUnit / 72 }];
+    if (/Adobe Illustrator/i.test(text)) idx = 1;
+  }
+  const maxScale = Math.max(...opts.map(o => o.scale));
+  const raw = [];
+  const SKIP = new Set(['defs', 'clippath', 'mask', 'symbol', 'marker', 'pattern', 'style', 'script', 'title', 'desc', 'metadata', 'lineargradient', 'radialgradient', 'filter', 'foreignobject', 'namedview', 'sodipodi:namedview']);
+  const hidden = el => el.getAttribute('display') === 'none' || /display\s*:\s*none/i.test(el.getAttribute('style') || '');
+  const A = (el, k) => parseFloat(el.getAttribute(k)) || 0;
+  const shapeD = el => {
+    const t = el.localName;
+    if (t === 'path') return el.getAttribute('d') || '';
+    if (t === 'line') return `M${A(el, 'x1')} ${A(el, 'y1')}L${A(el, 'x2')} ${A(el, 'y2')}`;
+    if (t === 'polyline' || t === 'polygon') {
+      const p = (el.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number).filter(isFinite);
+      if (p.length < 4) return '';
+      let s = 'M' + p[0] + ' ' + p[1]; for (let k = 2; k + 1 < p.length; k += 2) s += 'L' + p[k] + ' ' + p[k + 1];
+      return t === 'polygon' ? s + 'Z' : s;
+    }
+    if (t === 'rect') {
+      const x = A(el, 'x'), y = A(el, 'y'), w = A(el, 'width'), h = A(el, 'height'); if (w <= 0 || h <= 0) return '';
+      let rx = el.hasAttribute('rx') ? A(el, 'rx') : A(el, 'ry'), ry = el.hasAttribute('ry') ? A(el, 'ry') : rx;
+      rx = clamp(rx, 0, w / 2); ry = clamp(ry, 0, h / 2);
+      if (!rx || !ry) return `M${x} ${y}H${x + w}V${y + h}H${x}Z`;
+      return `M${x + rx} ${y}H${x + w - rx}A${rx} ${ry} 0 0 1 ${x + w} ${y + ry}V${y + h - ry}A${rx} ${ry} 0 0 1 ${x + w - rx} ${y + h}H${x + rx}A${rx} ${ry} 0 0 1 ${x} ${y + h - ry}V${y + ry}A${rx} ${ry} 0 0 1 ${x + rx} ${y}Z`;
+    }
+    if (t === 'circle' || t === 'ellipse') {
+      const cx = A(el, 'cx'), cy = A(el, 'cy'); const rx = t === 'circle' ? A(el, 'r') : A(el, 'rx'), ry = t === 'circle' ? rx : A(el, 'ry');
+      if (rx <= 0 || ry <= 0) return '';
+      return `M${cx - rx} ${cy}A${rx} ${ry} 0 1 0 ${cx + rx} ${cy}A${rx} ${ry} 0 1 0 ${cx - rx} ${cy}Z`;
+    }
+    return '';
+  };
+  const byId = id => { try { return doc.querySelector('[id="' + id.replace(/"/g, '') + '"]'); } catch (e) { return null; } };
+  const walk = (el, M, depth) => {
+    if (depth > 40) return;
+    for (const ch of el.children) {
+      const t = ch.localName.toLowerCase();
+      if (SKIP.has(t) || hidden(ch)) continue;
+      if (t === 'text') { warn.add('text'); continue; }
+      if (t === 'image') { warn.add('image'); continue; }
+      let Mc = mul(M, parseTransform(ch.getAttribute('transform')));
+      if (t === 'g' || t === 'a' || t === 'switch') { walk(ch, Mc, depth + 1); continue; }
+      if (t === 'svg') { walk(ch, mul(Mc, [1, 0, 0, 1, A(ch, 'x'), A(ch, 'y')]), depth + 1); continue; }
+      if (t === 'use') {
+        const href = ch.getAttribute('href') || ch.getAttributeNS('http://www.w3.org/1999/xlink', 'href') || '';
+        const ref = href.startsWith('#') ? byId(href.slice(1)) : null;
+        if (ref) {
+          const Mu = mul(Mc, [1, 0, 0, 1, A(ch, 'x'), A(ch, 'y')]);
+          if (ref.localName === 'symbol' || ref.localName === 'g') walk(ref, Mu, depth + 1);
+          else { const wrap = { children: [ref] }; walk(wrap, Mu, depth + 1); }
+        }
+        continue;
+      }
+      const d = shapeD(ch); if (!d) continue;
+      const step = 0.02 / (maxScale * mscale(Mc));
+      for (const sp of parsePathD(d, step)) raw.push({ pts: sp.pts.map(p => ap(Mc, p[0], p[1])), closed: sp.closed });
+    }
+  };
+  walk(root, I6, 0);
+  // Flip Y: SVG y points down, the paper's Y points up. Bottom of the SVG page becomes Y = 0.
+  let x0 = vb ? vb[0] : 0, yb = vb ? vb[1] + vb[3] : null;
+  if (yb === null && H && H.v > 0) yb = H.per ? H.v * H.per / opts[idx].scale : H.v;
+  if (yb === null) { yb = -Infinity; for (const p of raw) for (const q of p.pts) yb = Math.max(yb, q[1]); if (!isFinite(yb)) yb = 0; }
+  for (const p of raw) for (const q of p.pts) { q[0] = q[0] - x0; q[1] = yb - q[1]; }
+  const notes = [];
+  if (warn.has('text')) notes.push(['warn', 'This SVG has text in it. PenBot skips text, so turn text into outlines (paths) before you export.']);
+  if (warn.has('image')) notes.push(['warn', 'Pictures inside the SVG are skipped. PenBot only draws lines and shapes.']);
+  return { kind: 'svg', raw, opts, idx, notes, unitsKnown: opts.length === 1 };
+}
+
+// ================= DXF import =================
+function importDXF(text) {
+  if (/^AutoCAD Binary DXF/.test(text)) throw new Error('That DXF is saved in binary format. Export it again as a regular (ASCII) DXF.');
+  const L = text.split(/\r\n|\n|\r/), P = [];
+  for (let i = 0; i + 1 < L.length; i += 2) { const c = parseInt(L[i], 10); if (isNaN(c)) { i--; continue; } P.push([c, L[i + 1].trim()]); }
+  let ins = null, i = 0, ents = [];
+  const blocks = {};
+  const readRecs = () => {
+    const recs = []; let r = null;
+    while (i < P.length) { const [c, v] = P[i]; if (c === 0) { if (v === 'ENDSEC') break; r = { t: v, d: [] }; recs.push(r); } else if (r) r.d.push([c, v]); i++; }
+    return recs;
+  };
+  while (i < P.length) {
+    if (P[i][0] === 0 && P[i][1] === 'SECTION') {
+      const nm = (P[i + 1] || [])[1]; i += 2;
+      if (nm === 'HEADER') { for (; i < P.length && !(P[i][0] === 0 && P[i][1] === 'ENDSEC'); i++) if (P[i][0] === 9 && P[i][1] === '$INSUNITS' && P[i + 1]) ins = parseInt(P[i + 1][1], 10); }
+      else if (nm === 'BLOCKS') {
+        let b = null;
+        for (const r of readRecs()) {
+          if (r.t === 'BLOCK') { b = { name: gs(r, 2), bx: gn(r, 10), by: gn(r, 20), recs: [] }; blocks[b.name] = b; }
+          else if (r.t === 'ENDBLK') b = null; else if (b) b.recs.push(r);
+        }
+      } else if (nm === 'ENTITIES') ents = readRecs();
+      else while (i < P.length && !(P[i][0] === 0 && P[i][1] === 'ENDSEC')) i++;
+      continue;
+    }
+    i++;
+  }
+  function gs(r, c) { const p = r.d.find(q => q[0] === c); return p ? p[1] : ''; }
+  function gn(r, c, def) { const p = r.d.find(q => q[0] === c); const v = p ? parseFloat(p[1]) : NaN; return isFinite(v) ? v : (def === undefined ? 0 : def); }
+  const unitTol = ins === 4 ? TOL * 25.4 : ins === 5 ? TOL * 2.54 : TOL;
+  const segsFor = (r, sweep) => clamp(Math.ceil(Math.abs(sweep) / (2 * Math.acos(clamp(1 - unitTol / Math.max(r, 1e-9), -1, 1)))), 2, 720);
+  const raw = [], warn = new Set();
+  const bulge = (p1, p2, b, out) => {
+    if (Math.abs(b) < 1e-9) { out.push([p2[0], p2[1]]); return; }
+    const th = 4 * Math.atan(b), dx = p2[0] - p1[0], dy = p2[1] - p1[1], c = Math.hypot(dx, dy);
+    if (c < 1e-12) return;
+    const h = (c / 2) / Math.tan(th / 2), cx = (p1[0] + p2[0]) / 2 - dy / c * h, cy = (p1[1] + p2[1]) / 2 + dx / c * h;
+    const r = Math.hypot(p1[0] - cx, p1[1] - cy), a1 = Math.atan2(p1[1] - cy, p1[0] - cx), n = segsFor(r, th);
+    for (let k = 1; k < n; k++) { const a = a1 + th * k / n; out.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); }
+    out.push([p2[0], p2[1]]);
+  };
+  const arc = (cx, cy, r, a0, a1) => { const n = segsFor(r, a1 - a0), out = []; for (let k = 0; k <= n; k++) { const a = a0 + (a1 - a0) * k / n; out.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } return out; };
+  const deBoor = (deg, U, C, Wt, t) => {
+    const n = C.length; let k = deg;
+    while (k < n - 1 && !(t >= U[k] && t < U[k + 1])) k++;
+    const dd = [];
+    for (let j = 0; j <= deg; j++) { const p = C[j + k - deg], w = Wt[j + k - deg] || 1; dd.push([p[0] * w, p[1] * w, w]); }
+    for (let r = 1; r <= deg; r++) for (let j = deg; j >= r; j--) {
+      const den = U[j + 1 + k - r] - U[j + k - deg], al = den === 0 ? 0 : (t - U[j + k - deg]) / den;
+      dd[j] = [(1 - al) * dd[j - 1][0] + al * dd[j][0], (1 - al) * dd[j - 1][1] + al * dd[j][1], (1 - al) * dd[j - 1][2] + al * dd[j][2]];
+    }
+    return [dd[deg][0] / dd[deg][2], dd[deg][1] / dd[deg][2]];
+  };
+  const emit = (recs, M, depth) => {
+    if (depth > 8) return;
+    const push = (pts, closed, mirror) => {
+      if (pts.length < 2) return;
+      raw.push({ pts: pts.map(p => ap(M, mirror ? -p[0] : p[0], p[1])), closed });
+    };
+    for (let k = 0; k < recs.length; k++) {
+      const r = recs[k], t = r.t, mir = gn(r, 230, 1) < 0;
+      if (t === 'LINE') push([[gn(r, 10), gn(r, 20)], [gn(r, 11), gn(r, 21)]], false, false);
+      else if (t === 'CIRCLE') push(arc(gn(r, 10), gn(r, 20), gn(r, 40), 0, 2 * Math.PI), true, mir);
+      else if (t === 'ARC') {
+        const a0 = gn(r, 50) * Math.PI / 180; let a1 = gn(r, 51) * Math.PI / 180;
+        while (a1 <= a0 + 1e-12) a1 += 2 * Math.PI;
+        push(arc(gn(r, 10), gn(r, 20), gn(r, 40), a0, a1), false, mir);
+      } else if (t === 'LWPOLYLINE' || t === 'POLYLINE') {
+        const V = [];
+        if (t === 'LWPOLYLINE') { for (const [c, v] of r.d) { if (c === 10) V.push({ x: +v, y: 0, b: 0 }); else if (c === 20 && V.length) V[V.length - 1].y = +v; else if (c === 42 && V.length) V[V.length - 1].b = +v; } }
+        else { while (k + 1 < recs.length && recs[k + 1].t === 'VERTEX') { k++; V.push({ x: gn(recs[k], 10), y: gn(recs[k], 20), b: gn(recs[k], 42) }); } if (k + 1 < recs.length && recs[k + 1].t === 'SEQEND') k++; }
+        const flags = gn(r, 70) | 0; if (flags & (16 | 64)) continue;
+        const closed = !!(flags & 1);
+        if (V.length < 2) continue;
+        const out = [[V[0].x, V[0].y]];
+        for (let j = 1; j < V.length; j++) bulge([V[j - 1].x, V[j - 1].y], [V[j].x, V[j].y], V[j - 1].b, out);
+        if (closed) bulge([V[V.length - 1].x, V[V.length - 1].y], [V[0].x, V[0].y], V[V.length - 1].b, out);
+        push(out, closed, mir && t === 'LWPOLYLINE');
+      } else if (t === 'SPLINE') {
+        const deg = gn(r, 71, 3) | 0, U = [], C = [], Wt = [], F = [];
+        for (const [c, v] of r.d) {
+          if (c === 40) U.push(+v); else if (c === 41) Wt.push(+v);
+          else if (c === 10) C.push([+v, 0]); else if (c === 20 && C.length) C[C.length - 1][1] = +v;
+          else if (c === 11) F.push([+v, 0]); else if (c === 21 && F.length) F[F.length - 1][1] = +v;
+        }
+        let pts;
+        if (C.length > deg && U.length === C.length + deg + 1) {
+          const t0 = U[deg], t1 = U[C.length], m = clamp(C.length * 14, 24, 1500); pts = [];
+          for (let s = 0; s <= m; s++) pts.push(deBoor(deg, U, C, Wt, s === m ? t1 - 1e-12 * Math.max(1, Math.abs(t1)) : t0 + (t1 - t0) * s / m));
+          pts[pts.length - 1] = C[C.length - 1].slice();
+        } else pts = F.length > 1 ? F : C;
+        push(pts, !!(gn(r, 70) & 1), false);
+      } else if (t === 'ELLIPSE') {
+        const cx = gn(r, 10), cy = gn(r, 20), mx = gn(r, 11), my = gn(r, 21), ra = gn(r, 40, 1);
+        let s = gn(r, 41, 0), e = gn(r, 42, 2 * Math.PI); while (e <= s + 1e-12) e += 2 * Math.PI;
+        const R = Math.hypot(mx, my), n = segsFor(R, e - s), out = [];
+        for (let j = 0; j <= n; j++) { const a = s + (e - s) * j / n; out.push([cx + mx * Math.cos(a) - my * ra * Math.sin(a), cy + my * Math.cos(a) + mx * ra * Math.sin(a)]); }
+        push(out, Math.abs(e - s - 2 * Math.PI) < 1e-6, false);
+      } else if (t === 'INSERT') {
+        const b = blocks[gs(r, 2)]; if (!b) continue;
+        const rot = gn(r, 50) * Math.PI / 180, c = Math.cos(rot), s = Math.sin(rot), sx = gn(r, 41, 1), sy = gn(r, 42, 1);
+        const T = mul(mul(mul([1, 0, 0, 1, gn(r, 10), gn(r, 20)], [c, s, -s, c, 0, 0]), [sx, 0, 0, sy, 0, 0]), [1, 0, 0, 1, -b.bx, -b.by]);
+        emit(b.recs, mul(M, T), depth + 1);
+      } else if (t === 'TEXT' || t === 'MTEXT') warn.add('text');
+    }
+  };
+  emit(ents, I6, 0);
+  const notes = [];
+  if (warn.has('text')) notes.push(['warn', 'This DXF has text in it, and PenBot skips text. In Onshape, text in a sketch usually comes through as lines; if yours didn’t, try a different font or turn it into a sketch.']);
+  const opts = [{ label: 'Inches', scale: 1 }, { label: 'Millimeters', scale: 1 / 25.4 }, { label: 'Centimeters', scale: 1 / 2.54 }];
+  const idx = ins === 4 ? 1 : ins === 5 ? 2 : 0;
+  return { kind: 'dxf', raw, opts, idx, notes, ins, unitsKnown: ins === 1 || ins === 4 || ins === 5 };
+}
+
+// ================= chain, order and build the job =================
+function chain(polys) {
+  const done = [], open = [];
+  for (const p of polys) {
+    if (p.pts.length < 2) continue;
+    if (p.closed || (p.pts.length > 2 && dist(p.pts[0], p.pts[p.pts.length - 1]) < JOIN)) done.push({ pts: p.pts, closed: true });
+    else open.push(p.pts);
+  }
+  const used = new Uint8Array(open.length);
+  for (let i = 0; i < open.length; i++) {
+    if (used[i]) continue; used[i] = 1; let pts = open[i], grew = true;
+    while (grew) {
+      grew = false; const head = pts[0], tail = pts[pts.length - 1];
+      if (pts.length > 2 && dist(head, tail) < JOIN) break;
+      for (let j = 0; j < open.length; j++) {
+        if (used[j]) continue; const q = open[j], qa = q[0], qb = q[q.length - 1];
+        if (dist(tail, qa) < JOIN) pts = pts.concat(q.slice(1));
+        else if (dist(tail, qb) < JOIN) pts = pts.concat(q.slice(0, -1).reverse());
+        else if (dist(head, qb) < JOIN) pts = q.slice(0, -1).concat(pts);
+        else if (dist(head, qa) < JOIN) pts = q.slice(1).reverse().concat(pts);
+        else continue;
+        used[j] = 1; grew = true; break;
+      }
+    }
+    const closed = pts.length > 2 && dist(pts[0], pts[pts.length - 1]) < JOIN;
+    done.push({ pts, closed });
+  }
+  for (const p of done) if (p.closed) p.pts[p.pts.length - 1] = p.pts[0].slice();
+  return done;
+}
+function bboxOf(paths) {
+  const b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const p of paths) for (const q of p.pts) { if (q[0] < b.x0) b.x0 = q[0]; if (q[0] > b.x1) b.x1 = q[0]; if (q[1] < b.y0) b.y0 = q[1]; if (q[1] > b.y1) b.y1 = q[1]; }
+  b.w = b.x1 - b.x0; b.h = b.y1 - b.y0; return b;
+}
+// Draw the closest shape next, starting from wherever the pen is now.
+function order(paths) {
+  const left = paths.slice(), out = []; let cur = [0, 0];
+  while (left.length) {
+    let bk = 0, bi = 0, bd = Infinity, rev = false;
+    for (let k = 0; k < left.length; k++) {
+      const p = left[k], P = p.pts;
+      if (p.closed) {
+        const stepN = P.length > 400 ? Math.ceil(P.length / 200) : 1;
+        for (let j = 0; j < P.length - 1; j += stepN) { const dd = dist(cur, P[j]); if (dd < bd) { bd = dd; bk = k; bi = j; rev = false; } }
+      } else {
+        const a = dist(cur, P[0]), b = dist(cur, P[P.length - 1]);
+        if (a < bd) { bd = a; bk = k; bi = 0; rev = false; }
+        if (b < bd) { bd = b; bk = k; bi = 0; rev = true; }
+      }
+    }
+    const p = left.splice(bk, 1)[0]; let P = p.pts;
+    if (p.closed && bi) { const core = P.slice(0, -1); P = core.slice(bi).concat(core.slice(0, bi)); P.push(P[0]); }
+    else if (rev) P = P.slice().reverse();
+    out.push({ pts: P, closed: p.closed }); cur = P[P.length - 1];
+  }
+  return out;
+}
+function buildJob(paths) {
+  const lines = [], moves = []; let x = 0, y = 0, z = PEN.safeZ, t = 0;
+  let drawLen = 0, travLen = 0, lifts = 0;
+  const add = (text, kind, to, g, f, extra) => {
+    const from = [x, y, z], L = Object.assign({ text, kind, from, to: to || from }, extra || {});
+    lines.push(L);
+    if (to) {
+      const dd = Math.hypot(to[0] - x, to[1] - y, to[2] - z), dur = dd / (g === 0 ? PEN.rapid : f) * 60;
+      moves.push({ li: lines.length - 1, g, from, to, t0: t, dur, draw: g === 1 && to[2] <= 0 && from[2] <= 0 && Math.hypot(to[0] - x, to[1] - y) > 0 });
+      t += dur; if (g === 1 && to[2] <= 0 && from[2] <= 0) drawLen += Math.hypot(to[0] - x, to[1] - y); else if (g === 0) travLen += Math.hypot(to[0] - x, to[1] - y);
+      L.mi = moves.length - 1;
+      x = to[0]; y = to[1]; z = to[2];
+    }
+  };
+  const lift = () => { add('G0 Z' + f4(PEN.safeZ), 'up', [x, y, PEN.safeZ], 0); lifts++; };
+  add('G20', 'setup'); add('G90', 'setup');
+  add('G0 Z' + f4(PEN.safeZ), 'up', [x, y, PEN.safeZ], 0);
+  for (const p of paths) {
+    for (let pass = 1; pass <= PASSES; pass++) {
+      const zc = -Math.min(PEN.depth, pass * PEN.perPass), s = p.pts[0];
+      if (f4(s[0]) !== f4(x) || f4(s[1]) !== f4(y)) {
+        if (z < PEN.safeZ) lift();
+        add('G0 X' + f4(s[0]) + ' Y' + f4(s[1]), 'travel', [s[0], s[1], PEN.safeZ], 0);
+      }
+      add('G1 Z' + f4(zc) + ' F' + PEN.plunge.toFixed(1), 'down', [x, y, zc], 1, PEN.plunge, { pass });
+      for (let j = 1; j < p.pts.length; j++) {
+        const q = p.pts[j]; if (f4(q[0]) === f4(x) && f4(q[1]) === f4(y)) continue;
+        add('G1 X' + f4(q[0]) + ' Y' + f4(q[1]) + ' F' + PEN.feed.toFixed(1), 'draw', [q[0], q[1], zc], 1, PEN.feed);
+      }
+    }
+    lift();
+  }
+  if (z < PEN.safeZ) lift();
+  add('G0 X0.0000 Y0.0000', 'home', [0, 0, PEN.safeZ], 0);
+  add('G4 P0.1', 'end');
+  return { lines, moves, T: t, drawLen, travLen, lifts: Math.max(0, lifts), shapes: paths.length };
+}
+
+// ================= state =================
+const S = {
+  file: null,        // imported file
+  name: '',
+  base: [],          // paths in inches, file position
+  bb: null,
+  rot: 0,
+  off: [0, 0],
+  placed: [],        // paths on the paper (ordered)
+  job: buildJob([]),
+  fits: true,
+  sim: { t: 0, playing: false, last: 0 },
+  hover: -1, sel: -1, cur: -1,
+  view: { k: 40, ox: 0, oy: 0 },
+  showTravel: true
+};
+
+function applyUnits() {
+  const F = S.file, s = F.opts[F.idx].scale;
+  let polys = F.raw.map(p => ({ pts: p.pts.map(q => [q[0] * s, q[1] * s]), closed: p.closed }));
+  for (let r = 0; r < S.rot; r++) polys = polys.map(p => ({ pts: p.pts.map(q => [-q[1], q[0]]), closed: p.closed }));
+  polys = chain(polys).map(p => ({ pts: simplify(p.pts, TOL), closed: p.closed }))
+    .filter(p => { let L = 0; for (let i = 1; i < p.pts.length; i++) L += dist(p.pts[i - 1], p.pts[i]); return L > 0.002; });
+  S.base = polys; S.bb = polys.length ? bboxOf(polys) : null;
+}
+function fitsAt(off) {
+  const b = S.bb; if (!b) return true;
+  return b.x0 + off[0] >= -1e-6 && b.y0 + off[1] >= -1e-6 && b.x1 + off[0] <= PAPER.w + 1e-6 && b.y1 + off[1] <= PAPER.h + 1e-6;
+}
+const snap = v => Math.round(v * 1000) / 1000;
+function centerOff() { const b = S.bb; return [snap((PAPER.w - b.w) / 2 - b.x0), snap((PAPER.h - b.h) / 2 - b.y0)]; }
+function rebuild() {
+  S.placed = S.bb ? order(S.base.map(p => ({ pts: p.pts.map(q => [q[0] + S.off[0], q[1] + S.off[1]]), closed: p.closed }))) : [];
+  S.fits = fitsAt(S.off);
+  S.job = buildJob(S.placed);
+  S.sim.t = 0; S.sim.playing = false; S.sel = -1; S.cur = -1;
+  updateAll();
+}
+
+// ================= loading files =================
+function loadText(text, name, opts) {
+  opts = opts || {};
+  let F;
+  try {
+    const isSvg = /\.svg$/i.test(name) || /^\s*(<\?xml|<svg|<!--)/i.test(text) && /<svg/i.test(text);
+    F = isSvg ? importSVG(text) : importDXF(text);
+  } catch (e) { toast(e.message || "That file couldn't be read."); return false; }
+  if (!F.raw.length) { toast('No lines or shapes were found in ' + name + '. Is it an empty sketch?'); return false; }
+  S.file = F; S.name = name; S.rot = 0;
+  applyUnits();
+  if (!S.bb) { toast('No lines or shapes were found in ' + name + '.'); S.file = null; return false; }
+  // A DXF with no units that is way too big is probably millimeters.
+  if (F.kind === 'dxf' && !F.unitsKnown && F.idx === 0 && (S.bb.w > PAPER.h * 2 || S.bb.h > PAPER.h * 2)) {
+    const mm = { w: S.bb.w / 25.4, h: S.bb.h / 25.4 };
+    if (mm.w <= PAPER.w && mm.h <= PAPER.h) F.notes.push(['warn', 'This file doesn’t say what units it uses, and it’s huge in inches. It might be in millimeters — try the Units menu above.']);
+  }
+  S.off = opts.center || !fitsAt([0, 0]) ? centerOff() : [0, 0];
+  S.place = S.off[0] === 0 && S.off[1] === 0 ? 'file' : 'center';
+  closeWiz();
+  rebuild();
+  return true;
+}
+function readFile(file) {
+  if (!file) return;
+  if (!/\.(svg|dxf)$/i.test(file.name)) { toast('PenBot opens SVG or DXF files. That one is ' + (file.name.split('.').pop() || 'something else').toUpperCase() + '.'); return; }
+  const fr = new FileReader();
+  fr.onload = () => loadText(String(fr.result), file.name);
+  fr.onerror = () => toast("That file couldn't be opened.");
+  fr.readAsText(file);
+}
+const SAMPLE = `<svg xmlns="http://www.w3.org/2000/svg" width="6in" height="5in" viewBox="0 0 6 5">
+<rect x="0.6" y="0.9" width="4.8" height="3.7" rx="0.7"/>
+<line x1="3" y1="0.9" x2="3" y2="0.45"/><circle cx="3" cy="0.3" r="0.15"/>
+<circle cx="2" cy="2.3" r="0.62"/><circle cx="1.82" cy="2.12" r="0.24"/>
+<circle cx="4" cy="2.35" r="0.62"/><circle cx="4.2" cy="2.55" r="0.24"/>
+<path d="M2.1 3.55 Q3 4.25 3.9 3.55"/>
+<path d="M0.6 2.2 H0.25 V3.1 H0.6 M5.4 2.2 H5.75 V3.1 H5.4"/>
+</svg>`;
+
+// ================= view & drawing =================
+const cv = $('#cv'), ctx = cv.getContext('2d');
+let CW = 0, CH = 0, DPR = 1;
+const M_L = 82, M_B = 76, M_T = 34, M_R = 26;
+function fit() {
+  const r = $('#cvWrap').getBoundingClientRect();
+  DPR = Math.min(2.5, window.devicePixelRatio || 1);
+  CW = Math.max(10, r.width); CH = Math.max(10, r.height);
+  cv.width = Math.round(CW * DPR); cv.height = Math.round(CH * DPR);
+  const k = Math.max(4, Math.min((CW - M_L - M_R) / PAPER.w, (CH - M_T - M_B) / PAPER.h));
+  const pw = PAPER.w * k, ph = PAPER.h * k;
+  const ox = M_L + Math.max(0, (CW - M_L - M_R - pw) / 2), top = M_T + Math.max(0, (CH - M_T - M_B - ph) / 2);
+  S.view = { k, ox, oy: top + ph };
+  draw();
+}
+const SX = x => S.view.ox + x * S.view.k, SY = y => S.view.oy - y * S.view.k;
+function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+function arrowHead(c, x, y, ang, s) { c.beginPath(); c.moveTo(x, y); c.lineTo(x - s * Math.cos(ang - 0.42), y - s * Math.sin(ang - 0.42)); c.lineTo(x - s * Math.cos(ang + 0.42), y - s * Math.sin(ang + 0.42)); c.closePath(); c.fill(); }
+function pill(c, text, x, y, font, fg, bg, line, rot) {
+  c.save(); c.translate(x, y); if (rot) c.rotate(rot);
+  c.font = font; const w = c.measureText(text).width + 18, h = 28;
+  c.fillStyle = bg; rr(c, -w / 2, -h / 2, w, h, 7); c.fill();
+  if (line) { c.strokeStyle = line; c.lineWidth = 1.2; c.stroke(); }
+  c.fillStyle = fg; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, 0, 1);
+  c.restore();
+}
+function simState() {
+  const J = S.job, M = J.moves, t = S.sim.t;
+  if (!M.length) return { x: 0, y: 0, z: PEN.safeZ, mi: -1, vx: 0, vy: 0 };
+  let lo = 0, hi = M.length - 1;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (M[mid].t0 <= t) lo = mid; else hi = mid - 1; }
+  const m = M[lo], u = m.dur > 0 ? clamp((t - m.t0) / m.dur, 0, 1) : 1;
+  if (t <= 0) return { x: 0, y: 0, z: PEN.safeZ, mi: -1, vx: 0, vy: 0 };
+  return { x: m.from[0] + (m.to[0] - m.from[0]) * u, y: m.from[1] + (m.to[1] - m.from[1]) * u, z: m.from[2] + (m.to[2] - m.from[2]) * u, mi: lo, u, vx: m.to[0] - m.from[0], vy: m.to[1] - m.from[1] };
+}
+function drawHead(c, x, y, lift, vx, vy, s) {
+  // PenBot's head: pen tip sits exactly on (x, y). s ≈ pixel height of the head.
+  const k = s / 34; c.save(); c.translate(x, y);
+  c.fillStyle = `rgba(15,20,35,${0.26 - 0.1 * lift})`; c.beginPath(); c.ellipse(0, 0, (6 + lift * 3) * k, (2.4 + lift * 1.2) * k, 0, 0, Math.PI * 2); c.fill();
+  c.translate(0, -lift * 12 * k); c.scale(k, k);
+  c.lineJoin = 'round'; c.strokeStyle = '#1d1d2b';
+  c.fillStyle = '#f3e2c1'; c.lineWidth = 1.1; c.beginPath(); c.moveTo(-4.6, -10); c.lineTo(4.6, -10); c.lineTo(1.4, -1.8); c.lineTo(-1.4, -1.8); c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = '#1d1d2b'; c.beginPath(); c.moveTo(-1.4, -1.8); c.lineTo(1.4, -1.8); c.lineTo(0, 0.4); c.closePath(); c.fill();
+  c.fillStyle = '#ffd23f'; c.lineWidth = 1.5; rr(c, -11, -34, 22, 25, 6); c.fill(); c.stroke();
+  const L = Math.hypot(vx, vy), ux = L > 1e-9 ? vx / L : 0, uy = L > 1e-9 ? -vy / L : 0.8;
+  const eye = (ex, ey, r, wob) => {
+    c.fillStyle = '#fff'; c.lineWidth = 1.2; c.beginPath(); c.arc(ex, ey, r, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.fillStyle = '#1d1d2b'; c.beginPath(); c.arc(ex + ux * r * 0.42 + wob, ey + uy * r * 0.42, r * 0.46, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#fff'; c.beginPath(); c.arc(ex + ux * r * 0.42 + wob - r * 0.15, ey + uy * r * 0.42 - r * 0.15, r * 0.13, 0, Math.PI * 2); c.fill();
+  };
+  eye(-4.8, -25, 5.3, 0); eye(5.1, -24.2, 5.3, L > 1e-9 ? 0.4 : 0);
+  c.strokeStyle = '#1d1d2b'; c.lineWidth = 1.2; c.lineCap = 'round'; c.beginPath(); c.moveTo(-3.6, -15.8); c.quadraticCurveTo(0, -12.8, 3.6, -15.8); c.stroke();
+  c.restore();
+}
+function draw() {
+  if (!CW) return;
+  const c = ctx, k = S.view.k, J = S.job;
+  c.setTransform(DPR, 0, 0, DPR, 0, 0); c.clearRect(0, 0, CW, CH);
+  const ink = css('--ink'), muted = css('--muted'), panel = css('--panel'), line = css('--line'), zero = css('--zero');
+  const x0 = SX(0), y0 = SY(0), x1 = SX(PAPER.w), y1 = SY(PAPER.h);
+  // paper
+  c.save(); c.shadowColor = 'rgba(15,25,45,.28)'; c.shadowBlur = 20; c.shadowOffsetY = 5; c.fillStyle = '#fff'; c.fillRect(x0, y1, x1 - x0, y0 - y1); c.restore();
+  c.strokeStyle = '#e4e9f1'; c.lineWidth = 1; c.beginPath();
+  for (let i = 1; i < PAPER.w; i++) { const X = Math.round(SX(i)) + 0.5; c.moveTo(X, y1); c.lineTo(X, y0); }
+  for (let j = 1; j < PAPER.h; j++) { const Y = Math.round(SY(j)) + 0.5; c.moveTo(x0, Y); c.lineTo(x1, Y); }
+  c.stroke();
+  c.strokeStyle = '#aeb9cb'; c.lineWidth = 1.2; c.strokeRect(x0, y1, x1 - x0, y0 - y1);
+  // inch numbers
+  c.fillStyle = muted; c.font = '500 11.5px "IBM Plex Mono", monospace'; c.textAlign = 'center'; c.textBaseline = 'top';
+  for (let i = 1; i <= 8; i++) c.fillText(String(i), SX(i), y0 + 6);
+  c.textAlign = 'right'; c.textBaseline = 'middle';
+  for (let j = 1; j <= 10; j++) c.fillText(String(j), x0 - 7, SY(j));
+  // big dimensions: 8.5 in and 11 in
+  c.strokeStyle = ink; c.fillStyle = ink; c.lineWidth = 1.4;
+  const dy = y0 + 46, dx = x0 - 50;
+  c.globalAlpha = .55; c.beginPath(); c.moveTo(x0, y0 + 22); c.lineTo(x0, dy + 9); c.moveTo(x1, y0 + 4); c.lineTo(x1, dy + 9);
+  c.moveTo(x0 - 26, y0); c.lineTo(dx - 9, y0); c.moveTo(x0 - 4, y1); c.lineTo(dx - 9, y1); c.stroke(); c.globalAlpha = 1;
+  c.beginPath(); c.moveTo(x0 + 2, dy); c.lineTo(x1 - 2, dy); c.moveTo(dx, y0 - 2); c.lineTo(dx, y1 + 2); c.stroke();
+  arrowHead(c, x0 + 1, dy, Math.PI, 10); arrowHead(c, x1 - 1, dy, 0, 10); arrowHead(c, dx, y0 - 1, Math.PI / 2, 10); arrowHead(c, dx, y1 + 1, -Math.PI / 2, 10);
+  const dimFont = '700 21px "Barlow Semi Condensed", "Arial Narrow", sans-serif';
+  pill(c, '8.5 in', (x0 + x1) / 2, dy, dimFont, ink, panel, line);
+  pill(c, '11 in', dx, (y0 + y1) / 2, dimFont, ink, panel, line, -Math.PI / 2);
+  c.font = '600 11px "IBM Plex Mono", monospace'; c.fillStyle = muted; c.textAlign = 'right'; c.textBaseline = 'bottom';
+  c.fillText('LETTER PAPER · 8.5 × 11 IN', x1, y1 - 7);
+  // axes from the origin
+  const al = Math.min(1.25 * k, 70);
+  c.lineWidth = 3; c.lineCap = 'round';
+  c.strokeStyle = c.fillStyle = css('--x'); c.beginPath(); c.moveTo(x0 + 10, y0 - 1.5); c.lineTo(x0 + al, y0 - 1.5); c.stroke(); arrowHead(c, x0 + al + 6, y0 - 1.5, 0, 11);
+  c.font = '700 12px "IBM Plex Mono", monospace'; c.textAlign = 'left'; c.textBaseline = 'bottom'; c.fillText('X+', x0 + al + 12, y0 - 3);
+  c.strokeStyle = c.fillStyle = css('--y'); c.beginPath(); c.moveTo(x0 + 1.5, y0 - 10); c.lineTo(x0 + 1.5, y0 - al); c.stroke(); arrowHead(c, x0 + 1.5, y0 - al - 6, -Math.PI / 2, 11);
+  c.textAlign = 'left'; c.textBaseline = 'bottom'; c.fillText('Y+', x0 + 6, y0 - al - 10);
+  c.lineCap = 'butt';
+  // the drawing
+  const st = simState(), M = J.moves, bad = !S.fits;
+  if (S.showTravel && M.length) {
+    c.save(); c.setLineDash([5, 4]); c.lineWidth = 1.3; c.strokeStyle = css('--k-travel'); c.globalAlpha = .75; c.beginPath();
+    for (const m of M) if (m.g === 0 && (m.from[0] !== m.to[0] || m.from[1] !== m.to[1])) { c.moveTo(SX(m.from[0]), SY(m.from[1])); c.lineTo(SX(m.to[0]), SY(m.to[1])); }
+    c.stroke(); c.restore();
+  }
+  c.lineJoin = 'round'; c.lineCap = 'round';
+  c.strokeStyle = bad ? BAD : (S.sim.t > 0 ? '#c6cddb' : PREVIEW); c.lineWidth = bad ? 2 : 1.6; c.beginPath();
+  for (const m of M) if (m.draw) { c.moveTo(SX(m.from[0]), SY(m.from[1])); c.lineTo(SX(m.to[0]), SY(m.to[1])); }
+  c.stroke();
+  if (S.sim.t > 0 && st.mi >= 0) {
+    c.strokeStyle = INK; c.lineWidth = Math.max(1.8, Math.min(3, k * 0.035)); c.beginPath();
+    for (let i = 0; i < st.mi; i++) { const m = M[i]; if (m.draw) { c.moveTo(SX(m.from[0]), SY(m.from[1])); c.lineTo(SX(m.to[0]), SY(m.to[1])); } }
+    const m = M[st.mi]; if (m.draw) { c.moveTo(SX(m.from[0]), SY(m.from[1])); c.lineTo(SX(st.x), SY(st.y)); }
+    c.stroke();
+  }
+  if (bad && S.bb) {
+    c.save(); c.setLineDash([6, 4]); c.strokeStyle = BAD; c.lineWidth = 1.5;
+    c.strokeRect(SX(S.bb.x0 + S.off[0]), SY(S.bb.y1 + S.off[1]), S.bb.w * k, S.bb.h * k); c.restore();
+  }
+  // highlighted G-code line
+  const hl = S.hover >= 0 ? S.hover : S.sel;
+  if (hl >= 0 && J.lines[hl]) {
+    const L = J.lines[hl], a = L.from, b = L.to, acc = css('--accent');
+    c.strokeStyle = acc; c.fillStyle = acc; c.lineWidth = 5; c.globalAlpha = .9;
+    if (Math.hypot(a[0] - b[0], a[1] - b[1]) > 1e-9) {
+      if (L.kind === 'travel' || L.kind === 'home') c.setLineDash([7, 5]);
+      c.beginPath(); c.moveTo(SX(a[0]), SY(a[1])); c.lineTo(SX(b[0]), SY(b[1])); c.stroke(); c.setLineDash([]);
+      c.beginPath(); c.arc(SX(b[0]), SY(b[1]), 5, 0, Math.PI * 2); c.fill();
+    } else { c.lineWidth = 3; c.beginPath(); c.arc(SX(b[0]), SY(b[1]), 11, 0, Math.PI * 2); c.stroke(); }
+    c.globalAlpha = 1;
+  }
+  // origin marker (prominent)
+  c.strokeStyle = zero; c.lineWidth = 3; c.beginPath(); c.arc(x0, y0, 9, 0, Math.PI * 2); c.stroke();
+  c.lineWidth = 1.5; c.beginPath(); c.moveTo(x0 - 15, y0); c.lineTo(x0 + 15, y0); c.moveTo(x0, y0 - 15); c.lineTo(x0, y0 + 15); c.stroke();
+  c.save(); c.translate(x0 - 12, y0 + 10);
+  c.font = '700 12px "IBM Plex Mono", monospace'; const bw = Math.max(c.measureText('ORIGIN').width, c.measureText('X0 Y0').width) + 14;
+  c.fillStyle = zero; rr(c, -bw, 0, bw, 34, 6); c.fill();
+  c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'top'; c.fillText('ORIGIN', -bw / 2, 4); c.font = '500 11px "IBM Plex Mono", monospace'; c.fillText('X0 Y0', -bw / 2, 19);
+  c.restore();
+  // PenBot head
+  const lift = clamp(st.z / PEN.safeZ, 0, 1);
+  drawHead(c, SX(st.x), SY(st.y), lift, st.vx, st.vy, clamp(k * 0.62, 26, 46));
+  // DRO + status
+  $('#droX').textContent = f4(st.x); $('#droY').textContent = f4(st.y); $('#droZ').textContent = f4(st.z);
+  let stTxt;
+  if (S.sim.t <= 0) stTxt = '<b>Sitting at the origin</b>Pen up';
+  else if (S.sim.t >= J.T) stTxt = '<b>Done!</b>Back at the origin';
+  else { const m = M[st.mi]; stTxt = m.draw ? '<b>Drawing</b>' + PEN.feed + ' in/min' : (m.to[2] !== m.from[2] && m.to[0] === m.from[0] && m.to[1] === m.from[1]) ? (m.to[2] < m.from[2] ? '<b>Pen going down</b>to Z' + f4(m.to[2]) : '<b>Pen going up</b>to Z' + f4(m.to[2])) : '<b>Moving, pen up</b>rapid (G0)'; }
+  $('#status').innerHTML = stTxt;
+  const T = J.T; $('#time').textContent = mmss(S.sim.t / 1) + ' / ' + mmss(T);
+  if (!scrubbing) $('#scrub').value = T > 0 ? Math.round(S.sim.t / T * 1000) : 0;
+  // current line
+  const curLi = S.sim.t > 0 && st.mi >= 0 ? M[st.mi].li : -1;
+  if (curLi !== S.cur) { S.cur = curLi; renderCode(S.sim.playing); renderExplain(); }
+}
+
+// ================= G-code panel =================
+const LH = 22, cs = $('#cscroll'), csz = $('#csizer');
+const KIND = { setup: 'Setup', up: 'Pen up', travel: 'Move (pen up)', down: 'Pen down', draw: 'Draw', home: 'Go home', end: 'The end' };
+function tokHTML(text, kind) {
+  const parts = text.split(' ');
+  let h = `<span class="c k-${kind}">${esc(parts[0])}</span>`;
+  for (let i = 1; i < parts.length; i++) {
+    const p = parts[i], L = p[0], cls = { X: 'ax', Y: 'ay', Z: 'az', F: 'af', P: 'ap' }[L] || '';
+    h += `<span class="t ${cls}"><b>${esc(L)}</b>${esc(p.slice(1))}</span>`;
+  }
+  return h;
+}
+let lastWin = '';
+function renderCode(follow) {
+  const lines = S.job.lines, n = lines.length;
+  csz.style.height = n * LH + 'px';
+  $('#codeN').textContent = n + ' lines';
+  if (follow && S.cur >= 0) {
+    const top = S.cur * LH, h = cs.clientHeight;
+    if (top < cs.scrollTop + LH * 2 || top > cs.scrollTop + h - LH * 4) cs.scrollTop = Math.max(0, top - h * 0.35);
+  }
+  const first = Math.max(0, Math.floor(cs.scrollTop / LH) - 12), last = Math.min(n, first + Math.ceil((cs.clientHeight || 600) / LH) + 24);
+  const key = first + ':' + last + ':' + S.cur + ':' + S.sel + ':' + n + ':' + S.jobId;
+  if (key === lastWin) return; lastWin = key;
+  let h = '';
+  for (let i = first; i < last; i++) {
+    const L = lines[i];
+    h += `<div class="row k-${L.kind}${i === S.cur ? ' cur' : ''}${i === S.sel ? ' sel' : ''}" data-i="${i}" style="top:${i * LH}px"><span class="no">${i + 1}</span><span class="tx">${tokHTML(L.text, L.kind)}</span></div>`;
+  }
+  csz.innerHTML = h;
+}
+cs.addEventListener('scroll', () => renderCode(false), { passive: true });
+csz.addEventListener('mouseover', e => { const r = e.target.closest('.row'); if (!r) return; const i = +r.dataset.i; if (i !== S.hover) { S.hover = i; renderExplain(); draw(); } });
+csz.addEventListener('mouseleave', () => { if (S.hover !== -1) { S.hover = -1; renderExplain(); draw(); } });
+csz.addEventListener('click', e => {
+  const r = e.target.closest('.row'); if (!r) return; const i = +r.dataset.i, L = S.job.lines[i];
+  S.sel = S.sel === i ? -1 : i;
+  if (S.sel >= 0 && L.mi !== undefined) { const m = S.job.moves[L.mi]; S.sim.t = Math.max(0, m.t0 + m.dur - 1e-6); S.sim.playing = false; setPlayIcon(); }
+  else if (S.sel >= 0 && i < 3) { S.sim.t = 0; }
+  lastWin = ''; renderCode(false); renderExplain(); draw();
+});
+function explain(L) {
+  const to = L.to, fr = L.from;
+  switch (L.kind) {
+    case 'setup':
+      if (L.text === 'G20') return '<b>G20 = inches.</b> Every number after this line is in inches. (G21 would mean millimeters.)';
+      return '<b>G90 = absolute positions.</b> Every X and Y is measured from the origin (X0 Y0), the bottom-left corner of the paper.';
+    case 'up': return `<b>Pen up.</b> G0 is a rapid (fast) move. Z${f4(to[2])} lifts the pen ${PEN.safeZ} in above the paper so it can move without drawing.`;
+    case 'travel': return `<b>Move with the pen up</b> to X ${nd(to[0])}, Y ${nd(to[1])} — that’s ${nd(to[0])} in right of the origin and ${nd(to[1])} in up. Nothing gets drawn on a G0 move.`;
+    case 'down': return `<b>Pen down.</b> G1 moves at a set speed. Z${f4(to[2])} goes ${nd(-to[2])} in below the paper’s surface (the cut depth) — a tiny bit of pressure so the tip stays on the paper. F${PEN.plunge} = ${PEN.plunge} in/min.` + (PASSES > 1 ? ` This is pass ${L.pass} of ${PASSES}.` : ' Only one pass is needed, because the cut depth and the depth per pass are both 0.01 in.');
+    case 'draw': {
+      const len = Math.hypot(to[0] - fr[0], to[1] - fr[1]);
+      return `<b>Draw a straight line</b> from (${nd(fr[0])}, ${nd(fr[1])}) to (${nd(to[0])}, ${nd(to[1])}), ${nd(len)} in long, at F${PEN.feed} = ${PEN.feed} in/min (the feed rate).` + (len < 0.2 ? ' Curves are made of lots of short straight lines like this one.' : '');
+    }
+    case 'home': return '<b>Go home.</b> A rapid move back to the origin, X0 Y0, so PenBot finishes in the corner.';
+    case 'end': return '<b>G4 is a dwell</b> — a short pause (P0.1). It’s the last line, so the drawing is done!';
+  }
+  return '';
+}
+function renderExplain() {
+  const i = S.hover >= 0 ? S.hover : S.sel >= 0 ? S.sel : S.cur;
+  const box = $('#explain');
+  if (i < 0 || !S.job.lines[i]) {
+    box.innerHTML = `<div class="el">What does each line do?</div><p>Point at (or tap) any line to see what it tells PenBot. Press <b>play</b> and the line PenBot is running lights up.</p>`;
+    return;
+  }
+  const L = S.job.lines[i];
+  box.innerHTML = `<div class="el"><span class="tag k-${L.kind}">${KIND[L.kind]}</span><span>Line ${i + 1}:</span><span>${tokHTML(L.text, L.kind)}</span></div><p>${explain(L)}</p>`;
+}
+
+// ================= side panel =================
+const IC = {
+  bad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>',
+  warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.5"/></svg>',
+  good: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>'
+};
+function renderSide() {
+  const box = $('#fileBox');
+  if (!S.file) {
+    box.innerHTML = `<div class="empty-card"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5h17l9 9v29H12z"/><path d="M29 5v9h9"/><path d="M18 33c3-6 6-6 8-2s5 3 7-3"/></svg>
+      <div><b>No drawing yet</b><div class="small muted">Open an SVG or DXF, or drop it on the page.</div></div>
+      <div class="btnrow" style="justify-content:center;margin:0"><button class="btn" data-act="open">Open file</button><button class="btn" data-act="sample">Try the sample</button></div></div>`;
+    $('#posSec').hidden = true; $('#jobSec').hidden = true; $('#fname').textContent = 'No drawing yet';
+    return;
+  }
+  const F = S.file, b = S.bb, msgs = [];
+  if (!S.fits) {
+    if (b.w > PAPER.w + 1e-6 || b.h > PAPER.h + 1e-6) {
+      const turnFits = b.h <= PAPER.w + 1e-6 && b.w <= PAPER.h + 1e-6;
+      msgs.push(['bad', `Your drawing is ${d2(b.w)} × ${d2(b.h)} in — too big for 8.5 × 11 paper. ` + (turnFits ? 'Press <b>Turn 90°</b> to fit it, or make it smaller in Onshape.' : 'Make it smaller in Onshape and export again.')]);
+    } else msgs.push(['bad', 'Part of your drawing is off the paper. Drag it back on, or press <b>Center</b>.']);
+  } else msgs.push(['good', 'Fits on the paper. Ready to download!']);
+  if (F.kind === 'dxf' && F.idx === 1) msgs.push(['warn', 'This DXF was in <b>millimeters</b>, so PenBot changed it to inches. Next time, set your Onshape units to <b>inches</b> before exporting.']);
+  for (const n of F.notes) msgs.push(n);
+  const unitSel = F.opts.length > 1 ? `<label class="fld" style="margin-top:8px">${F.kind === 'dxf' ? 'Units in the file' : 'SVG size'}<select class="sel" id="selUnits">${F.opts.map((o, i) => `<option value="${i}"${i === F.idx ? ' selected' : ''}>${esc(o.label)}</option>`).join('')}</select></label>` : '';
+  box.innerHTML = `<div class="card">
+      <div class="small muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(S.name)} · ${F.kind.toUpperCase()}</div>
+      <div class="big-size">${d2(b.w)} × ${d2(b.h)}<small>in</small></div>
+      <div class="small muted">${S.job.shapes} shape${S.job.shapes === 1 ? '' : 's'} to draw</div>
+      ${unitSel}
+    </div>
+    <div class="msgs">${msgs.map(m => `<div class="msg ${m[0]}">${IC[m[0]]}<div>${m[1]}</div></div>`).join('')}</div>`;
+  $('#posSec').hidden = false; $('#jobSec').hidden = false;
+  const inX = $('#inX'), inY = $('#inY');
+  if (document.activeElement !== inX) inX.value = nd(b.x0 + S.off[0]);
+  if (document.activeElement !== inY) inY.value = nd(b.y0 + S.off[1]);
+  $('#btnFileOrigin').disabled = S.rot !== 0;
+  const J = S.job;
+  $('#jobKv').innerHTML = `<span>Lines of G-code</span><b>${J.lines.length}</b><span>Drawing distance</span><b>${nd(Math.round(J.drawLen * 10) / 10)} in</b><span>Pen lifts</span><b>${J.lifts}</b><span>Time (about)</span><b>${mmss(J.T)}</b>`;
+  $('#fname').textContent = S.name;
+}
+$('#side').addEventListener('change', e => {
+  if (e.target.id === 'selUnits') {
+    S.file.idx = +e.target.value; const keepCenter = S.place !== 'file'; applyUnits();
+    S.off = keepCenter || !fitsAt([0, 0]) ? centerOff() : [0, 0]; rebuild();
+  }
+});
+$('#side').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (b) { if (b.dataset.act === 'open') $('#file').click(); else loadText(SAMPLE, 'penbot-sample.svg', { center: true }); return; }
+  const q = e.target.closest('[data-learn]'); if (q) openWiz(+q.dataset.learn);
+});
+const posInput = (el, axis) => el.addEventListener('change', () => {
+  const v = parseFloat(el.value); if (!isFinite(v) || !S.bb) { renderSide(); return; }
+  S.off[axis] = snap(v - (axis ? S.bb.y0 : S.bb.x0)); S.place = 'manual'; rebuild();
+});
+posInput($('#inX'), 0); posInput($('#inY'), 1);
+$('#btnCenter').onclick = () => { if (!S.bb) return; S.off = centerOff(); S.place = 'center'; rebuild(); };
+$('#btnFileOrigin').onclick = () => { if (!S.bb) return; S.off = [0, 0]; S.place = 'file'; rebuild(); if (!S.fits) toast('At its file position, part of the drawing is off the paper.'); };
+$('#btnRot').onclick = () => { if (!S.file) return; S.rot = (S.rot + 1) % 4; applyUnits(); S.off = centerOff(); S.place = 'center'; rebuild(); };
+
+function updateAll() {
+  S.jobId = (S.jobId || 0) + 1; lastWin = '';
+  renderSide(); renderCode(false); renderExplain(); setPlayIcon(); draw();
+  $('#btnDl').disabled = !S.file || !S.fits || !S.placed.length;
+  $('#btnDl').title = !S.file ? 'Open a drawing first' : !S.fits ? 'Fit the drawing on the paper first' : 'Download the G-code file';
+}
+
+// ================= simulation =================
+let scrubbing = false, raf = 0;
+function setPlayIcon() {
+  $('#btnPlay').innerHTML = S.sim.playing ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4.5" height="16" rx="1"/><rect x="13.5" y="4" width="4.5" height="16" rx="1"/></svg>' : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg>';
+  $('#btnPlay').title = S.sim.playing ? 'Pause' : 'Watch PenBot draw';
+}
+function tick(now) {
+  raf = 0; if (!S.sim.playing) return;
+  const dt = Math.min(0.1, (now - S.sim.last) / 1000); S.sim.last = now;
+  S.sim.t += dt * (+$('#rate').value);
+  if (S.sim.t >= S.job.T) { S.sim.t = S.job.T; S.sim.playing = false; setPlayIcon(); }
+  draw();
+  if (S.sim.playing) raf = requestAnimationFrame(tick);
+}
+function play() {
+  if (!S.job.moves.length) return;
+  if (S.sim.t >= S.job.T) S.sim.t = 0;
+  S.sim.playing = true; S.sel = -1; S.sim.last = performance.now(); setPlayIcon();
+  if (!raf) raf = requestAnimationFrame(tick);
+}
+function pause() { S.sim.playing = false; setPlayIcon(); }
+$('#btnPlay').onclick = () => S.sim.playing ? pause() : play();
+$('#btnRestart').onclick = () => { pause(); S.sim.t = 0; S.sel = -1; lastWin = ''; cs.scrollTop = 0; renderCode(false); draw(); };
+$('#scrub').addEventListener('input', e => { scrubbing = true; pause(); S.sim.t = S.job.T * e.target.value / 1000; S.sel = -1; draw(); renderCode(true); });
+$('#scrub').addEventListener('change', () => { scrubbing = false; });
+$('#showTravel').onchange = e => { S.showTravel = e.target.checked; draw(); };
+
+// ================= drag on the paper =================
+let drag = null;
+const toIn = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left - S.view.ox) / S.view.k, (S.view.oy - (e.clientY - r.top)) / S.view.k]; };
+const onDrawing = p => { const b = S.bb; if (!b) return false; const pad = 12 / S.view.k; return p[0] >= b.x0 + S.off[0] - pad && p[0] <= b.x1 + S.off[0] + pad && p[1] >= b.y0 + S.off[1] - pad && p[1] <= b.y1 + S.off[1] + pad; };
+cv.addEventListener('pointerdown', e => {
+  const p = toIn(e); if (!onDrawing(p)) return;
+  pause(); drag = { p, off: S.off.slice(), id: e.pointerId }; cv.setPointerCapture(e.pointerId); cv.style.cursor = 'grabbing';
+});
+let dragRaf = 0;
+cv.addEventListener('pointermove', e => {
+  const p = toIn(e);
+  if (!drag) { cv.style.cursor = onDrawing(p) ? 'grab' : 'default'; return; }
+  S.off = [snap(drag.off[0] + p[0] - drag.p[0]), snap(drag.off[1] + p[1] - drag.p[1])];
+  if (e.shiftKey === false) S.off = S.off.map(v => Math.round(v * 100) / 100);
+  if (!dragRaf) dragRaf = requestAnimationFrame(() => { dragRaf = 0; S.place = 'manual'; rebuild(); });
+});
+const endDrag = () => { if (drag) { drag = null; cv.style.cursor = 'grab'; } };
+cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+
+// ================= files: open, drop, download =================
+$('#btnOpen').onclick = () => $('#file').click();
+$('#btnSample').onclick = () => loadText(SAMPLE, 'penbot-sample.svg', { center: true });
+$('#btnLearn').onclick = () => openWiz(0);
+$('#file').onchange = e => { readFile(e.target.files[0]); e.target.value = ''; };
+let dragDepth = 0;
+window.addEventListener('dragenter', e => { if ([...(e.dataTransfer?.types || [])].includes('Files')) { dragDepth++; $('#dropHint').hidden = false; e.preventDefault(); } });
+window.addEventListener('dragover', e => { e.preventDefault(); });
+window.addEventListener('dragleave', () => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) $('#dropHint').hidden = true; });
+window.addEventListener('drop', e => { e.preventDefault(); dragDepth = 0; $('#dropHint').hidden = true; const f = e.dataTransfer?.files?.[0]; if (f) readFile(f); });
+$('#btnDl').onclick = () => {
+  if (!S.file || !S.fits) return;
+  const text = S.job.lines.map(L => L.text).join('\n') + '\n';
+  const base = (S.name.replace(/\.[^.]+$/, '') || 'penbot').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_') || 'penbot';
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' })); a.download = base + '.nc';
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast('Saved ' + base + '.nc');
+};
+document.addEventListener('keydown', e => {
+  if (!$('#wiz').hidden) {
+    if (e.key === 'Escape') closeWiz();
+    else if (e.key === 'ArrowRight' && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) goWiz(Math.min(STEPS.length - 1, WZ.step + 1));
+    else if (e.key === 'ArrowLeft' && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) goWiz(Math.max(0, WZ.step - 1));
+    return;
+  }
+  if (e.key === ' ' && !/INPUT|SELECT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)) { e.preventDefault(); S.sim.playing ? pause() : play(); }
+});
+
+// =====================================================================
+// ================= learning splash screens (wizard) =================
+// =====================================================================
+const WZ = { step: 0, stop: null };
+const HEAD_SVG = `<g class="hd"><ellipse class="hd-sh" rx="7" ry="2.6" fill="rgba(15,20,35,.26)"/><g class="hd-b">
+  <path d="M-4.6 -10 L4.6 -10 L1.4 -1.8 L-1.4 -1.8Z" fill="#f3e2c1" stroke="#1d1d2b" stroke-width="1.1" stroke-linejoin="round"/><path d="M-1.4 -1.8 L1.4 -1.8 L0 0.4Z" fill="#1d1d2b"/>
+  <rect x="-11" y="-34" width="22" height="25" rx="6" fill="#ffd23f" stroke="#1d1d2b" stroke-width="1.5"/>
+  <circle cx="-4.8" cy="-25" r="5.3" fill="#fff" stroke="#1d1d2b" stroke-width="1.2"/><circle class="pu" data-x="-4.8" data-y="-25" cx="-4.8" cy="-23" r="2.4" fill="#1d1d2b"/>
+  <circle cx="5.1" cy="-24.2" r="5.3" fill="#fff" stroke="#1d1d2b" stroke-width="1.2"/><circle class="pu" data-x="5.1" data-y="-24.2" cx="5.1" cy="-22.2" r="2.4" fill="#1d1d2b"/>
+  <path d="M-3.6 -15.8 Q0 -12.8 3.6 -15.8" fill="none" stroke="#1d1d2b" stroke-width="1.2" stroke-linecap="round"/></g></g>`;
+function setHead(g, x, y, lift, vx, vy, sc) {
+  g.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)}) scale(${sc || 1})`);
+  g.querySelector('.hd-b').setAttribute('transform', `translate(0 ${(-lift * 12).toFixed(2)})`);
+  const sh = g.querySelector('.hd-sh'); sh.setAttribute('rx', (6 + lift * 3).toFixed(2)); sh.setAttribute('opacity', (1 - lift * 0.4).toFixed(2));
+  const L = Math.hypot(vx, vy), ux = L > 1e-9 ? vx / L : 0, uy = L > 1e-9 ? vy / L : 0.8;
+  g.querySelectorAll('.pu').forEach((p, i) => { p.setAttribute('cx', (+p.dataset.x + ux * 2.3 + (i && L > 1e-9 ? 0.4 : 0)).toFixed(2)); p.setAttribute('cy', (+p.dataset.y + uy * 2.3).toFixed(2)); });
+}
+// Waypoint animation used by the splash screens. Waypoints are in inches; z > 0 means pen up.
+function plan(wps, sp) {
+  const segs = []; let t = 0;
+  for (let i = 1; i < wps.length; i++) {
+    const a = wps[i - 1], b = wps[i], dxy = Math.hypot(b.x - a.x, b.y - a.y), dz = Math.abs(b.z - a.z);
+    let dur = b.wait != null ? b.wait : dxy > 1e-9 ? dxy / (a.z <= 0 && b.z <= 0 ? sp.draw : sp.travel) : dz / sp.z;
+    if (b.min) dur = Math.max(dur, b.min);
+    segs.push({ a, b, t0: t, dur }); t += dur;
+  }
+  return {
+    T: t, segs,
+    at(tt) {
+      let i = 0; while (i < segs.length - 1 && segs[i].t0 + segs[i].dur <= tt) i++;
+      const s = segs[i]; if (!s) return { x: wps[0].x, y: wps[0].y, z: wps[0].z, i: -1, vx: 0, vy: 0 };
+      const u = s.dur > 0 ? clamp((tt - s.t0) / s.dur, 0, 1) : 1;
+      return { x: s.a.x + (s.b.x - s.a.x) * u, y: s.a.y + (s.b.y - s.a.y) * u, z: s.a.z + (s.b.z - s.a.z) * u, i, u, vx: s.b.x - s.a.x, vy: s.b.y - s.a.y };
+    },
+    ink(tt, X, Y) {
+      let d = '';
+      for (const s of segs) {
+        if (s.t0 >= tt) break;
+        if (s.a.z <= 0 && s.b.z <= 0 && (s.a.x !== s.b.x || s.a.y !== s.b.y)) {
+          const u = s.dur > 0 ? clamp((tt - s.t0) / s.dur, 0, 1) : 1;
+          d += `M${X(s.a.x).toFixed(1)} ${Y(s.a.y).toFixed(1)}L${X(s.a.x + (s.b.x - s.a.x) * u).toFixed(1)} ${Y(s.a.y + (s.b.y - s.a.y) * u).toFixed(1)}`;
+        }
+      }
+      return d;
+    }
+  };
+}
+function loop(fn) {
+  let id = 0, t0 = performance.now(), alive = true;
+  const f = now => { if (!alive) return; fn((now - t0) / 1000, () => { t0 = now; }); id = requestAnimationFrame(f); };
+  id = requestAnimationFrame(f);
+  return () => { alive = false; cancelAnimationFrame(id); };
+}
+const paperSVG = (X, Y, k, gridOn) => {
+  let s = `<rect class="paper" x="${X(0)}" y="${Y(11)}" width="${8.5 * k}" height="${11 * k}"/>`;
+  if (gridOn) { s += '<g class="pgrid">'; for (let i = 1; i < 9; i++) s += `<line x1="${X(i)}" y1="${Y(11)}" x2="${X(i)}" y2="${Y(0)}"/>`; for (let j = 1; j < 11; j++) s += `<line x1="${X(0)}" y1="${Y(j)}" x2="${X(8.5)}" y2="${Y(j)}"/>`; s += '</g>'; s += `<rect x="${X(0)}" y="${Y(11)}" width="${8.5 * k}" height="${11 * k}" fill="none" stroke="#b4bfd0"/>`; }
+  return s;
+};
+const originSVG = (x, y) => `<circle class="zero-s" cx="${x}" cy="${y}" r="6" stroke-width="2.4"/><path class="zero-s" d="M${x - 10} ${y}h20M${x} ${y - 10}v20" stroke-width="1.3"/>`;
+const pts = (cx, cy, r1, r2, n, rot) => { const o = []; for (let i = 0; i <= 2 * n; i++) { const a = rot + Math.PI * i / n, r = i % 2 ? r2 : r1; o.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } return o; };
+
+const STEPS = [
+  { label: 'What is CNC?', kick: 'Lesson 1', title: 'Meet PenBot',
+    text: () => `<p><b>CNC</b> stands for <b>Computer Numerical Control</b>. Instead of a person steering the tool, a computer reads a list of numbers and moves the tool exactly where the numbers say.</p>
+      <p>Our ShopBot usually holds a spinning router bit. Today it’s holding a <b>pen</b>, so you can see how CNC works without cutting anything.</p>
+      <div class="callout">The gantry slides up and down the table (Y). The head slides left and right along the gantry (X). The pen goes up and down (Z).</div>
+      <div class="chips"><span class="chip">CNC router</span><span class="chip">Laser cutter</span><span class="chip">Plasma table</span><span class="chip">Embroidery machine</span><span class="chip">3D printer</span></div>
+      <p class="small">Every one of these is a CNC machine following numbers.</p>`,
+    vis(fig) {
+      const k = 180 / 8.5, X = x => 110 + x * k, Y = y => 270 - y * k;
+      fig.innerHTML = `<svg class="mv" viewBox="0 0 400 300" role="img" aria-label="A CNC machine with a pen drawing a star">
+        <rect class="frame" x="76" y="10" width="248" height="282" rx="10"/>
+        <line class="rail" x1="92" y1="22" x2="92" y2="282"/><line class="rail" x1="308" y1="22" x2="308" y2="282"/>
+        ${paperSVG(X, Y, k, true)}${originSVG(X(0), Y(0))}
+        <path class="plan" id="v1plan"/><path class="ink" id="v1ink"/>
+        <g id="v1gan"><rect class="gantry" x="82" y="-6" width="236" height="12" rx="3"/><rect class="gantry" x="80" y="-11" width="22" height="22" rx="4"/><rect class="gantry" x="298" y="-11" width="22" height="22" rx="4"/></g>
+        ${HEAD_SVG}
+        <rect class="readout" x="8" y="232" width="62" height="60" rx="7"/>
+        <text class="readout-t" x="16" y="252"><tspan fill="#ff7b7b">X</tspan> <tspan id="v1x">0.00</tspan></text>
+        <text class="readout-t" x="16" y="269"><tspan fill="#5fe08f">Y</tspan> <tspan id="v1y">0.00</tspan></text>
+        <text class="readout-t" x="16" y="286"><tspan fill="#7fb2ff">Z</tspan> <tspan id="v1z">0.15</tspan></text>
+        <text class="lbl-m" x="339" y="38">gantry</text><path class="dash" d="M337 34 L318 34"/>
+      </svg>`;
+      const star = pts(4.25, 6.6, 2.6, 1.05, 5, Math.PI / 2), circ = []; for (let i = 0; i <= 48; i++) { const a = -Math.PI / 2 + i / 48 * Math.PI * 2; circ.push([4.25 + 1.15 * Math.cos(a), 2.4 + 1.15 * Math.sin(a)]); }
+      const up = 0.15, w = [{ x: 0, y: 0, z: up }];
+      const shape = P => { w.push({ x: P[0][0], y: P[0][1], z: up }, { x: P[0][0], y: P[0][1], z: -0.01 }); for (const p of P.slice(1)) w.push({ x: p[0], y: p[1], z: -0.01 }); w.push({ x: P[P.length - 1][0], y: P[P.length - 1][1], z: up }); };
+      w.push({ x: 0, y: 0, z: up, wait: 0.9 });
+      shape(star); shape(circ); w.push({ x: 0, y: 0, z: up }, { x: 0, y: 0, z: up, wait: 1.6 });
+      const P = plan(w, { draw: 3.2, travel: 7, z: 0.4 });
+      const pl = [star, circ].map(S2 => 'M' + S2.map(p => X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join('L')).join('');
+      fig.querySelector('#v1plan').setAttribute('d', pl);
+      const ink = fig.querySelector('#v1ink'), g = fig.querySelector('.hd'), gan = fig.querySelector('#v1gan'), rx = fig.querySelector('#v1x'), ry = fig.querySelector('#v1y'), rz = fig.querySelector('#v1z');
+      fig.querySelector('figcaption').textContent = 'PenBot reads numbers and moves to each spot — watch X, Y and Z change.';
+      return loop((t, reset) => {
+        if (t > P.T) { reset(); t = 0; }
+        const s = P.at(t);
+        gan.setAttribute('transform', `translate(0 ${Y(s.y).toFixed(1)})`);
+        setHead(g, X(s.x), Y(s.y), clamp(s.z / 0.15, 0, 1), s.vx, -s.vy);
+        ink.setAttribute('d', P.ink(t, X, Y));
+        rx.textContent = s.x.toFixed(2); ry.textContent = s.y.toFixed(2); rz.textContent = s.z.toFixed(2);
+      });
+    } },
+  { label: 'X Y Z', kick: 'Lesson 2', title: 'X, Y and Z',
+    text: () => `<p>Every spot on the paper has an address made of two numbers:</p>
+      <ul><li><b style="color:var(--x)">X</b> is how far to the <b>right</b>.</li><li><b style="color:var(--y)">Y</b> is how far <b>up</b>.</li></ul>
+      <p>Both are measured from the <b>origin</b> — the bottom-left corner of the paper, where X = 0 and Y = 0.</p>
+      <p><b style="color:var(--z)">Z</b> is up and down. <b>Z = 0</b> is the top of the paper. Positive Z is up in the air; negative Z is down into the material.</p>
+      <div class="callout">Onshape uses the same colors: X is red, Y is green, Z is blue.</div>`,
+    vis(fig) {
+      const k = 150 / 8.5, X = x => 40 + x * k, Y = y => 262 - y * k;
+      const ZS = 228, zk = 420, ZX = 300;
+      fig.innerHTML = `<svg class="mv" viewBox="0 0 400 300" role="img" aria-label="X Y and Z directions">
+        ${paperSVG(X, Y, k, true)}
+        <path class="ox" d="M${X(0)} ${Y(0) + 0.5}H${X(2)}" stroke-width="3"/><path class="ox" d="M${X(2) + 8} ${Y(0) + 0.5}l-9 -5v10z" stroke="none"/><text class="tx lbl" x="${X(2) + 4}" y="${Y(0) - 7}">X+</text>
+        <path class="oy" d="M${X(0) - 0.5} ${Y(0)}V${Y(2)}" stroke-width="3"/><path class="oy" d="M${X(0) - 0.5} ${Y(2) - 8}l-5 9h10z" stroke="none"/><text class="ty lbl" x="${X(0) - 8}" y="${Y(2) - 12}" text-anchor="end">Y+</text>
+        ${originSVG(X(0), Y(0))}<text class="lbl" x="${X(0) - 8}" y="${Y(0) + 34}" style="fill:var(--zero)">ORIGIN 0,0</text>
+        <path class="ox" id="v2dx" stroke-dasharray="4 3" stroke-width="1.5" fill="none"/><path class="oy" id="v2dy" stroke-dasharray="4 3" stroke-width="1.5" fill="none"/>
+        <text class="tx lbl" id="v2lx" text-anchor="middle"></text><text class="ty lbl" id="v2ly" text-anchor="end"></text>
+        ${HEAD_SVG}
+        <text class="big" x="222" y="40">Side view</text>
+        <rect x="222" y="${ZS + 2}" width="160" height="16" class="board"/><rect x="222" y="${ZS - 1}" width="160" height="3" fill="#fff" stroke="#b4bfd0" stroke-width=".6"/>
+        <path class="oz" d="M370 ${ZS - 2}V${ZS - 0.17 * zk}" stroke-width="3"/><path class="oz" d="M370 ${ZS - 0.17 * zk - 8}l-5 9h10z" stroke="none"/><text class="tz lbl" x="362" y="${ZS - 0.17 * zk - 12}" text-anchor="end">Z+</text>
+        <text class="lbl-m" x="226" y="${ZS - 6}">Z = 0 (top of paper)</text>
+        <g id="v2side">${HEAD_SVG.replace('class="hd"', 'class="hd2"')}</g>
+        <rect class="readout" x="214" y="58" width="180" height="26" rx="6"/><text class="readout-t" x="222" y="76" style="font-size:12px"><tspan fill="#ff7b7b">X</tspan> <tspan id="v2x">0.00</tspan>  <tspan fill="#5fe08f">Y</tspan> <tspan id="v2y">0.00</tspan>  <tspan fill="#7fb2ff">Z</tspan> <tspan id="v2z">0.15</tspan></text>
+      </svg>`;
+      const up = 0.15;
+      const w = [{ x: 0, y: 0, z: up }, { x: 0, y: 0, z: up, wait: 1, cap: 'PenBot starts at the origin: X 0, Y 0.' },
+        { x: 5, y: 0, z: up, cap: 'Moving in X: going right makes X bigger.' }, { x: 5, y: 0, z: up, wait: 0.7 },
+        { x: 5, y: 7, z: up, cap: 'Moving in Y: going up makes Y bigger.' }, { x: 5, y: 7, z: up, wait: 0.7, cap: 'This spot’s address is X 5, Y 7.' },
+        { x: 5, y: 7, z: -0.01, cap: 'Z goes down: the pen touches the paper (Z below 0).' }, { x: 5, y: 7, z: -0.01, wait: 1 },
+        { x: 5, y: 7, z: up, cap: 'Z goes up: the pen lifts off the paper.' }, { x: 5, y: 7, z: up, wait: 0.8 },
+        { x: 0, y: 0, z: up, cap: 'Back home to the origin.' }, { x: 0, y: 0, z: up, wait: 1 }];
+      const P = plan(w, { draw: 2, travel: 2.6, z: 0.12 });
+      const g = fig.querySelector('.hd'), g2 = fig.querySelector('.hd2'), cap = fig.querySelector('figcaption');
+      const dx = fig.querySelector('#v2dx'), dy = fig.querySelector('#v2dy'), lx = fig.querySelector('#v2lx'), ly = fig.querySelector('#v2ly');
+      const rx = fig.querySelector('#v2x'), ry = fig.querySelector('#v2y'), rz = fig.querySelector('#v2z');
+      return loop((t, reset) => {
+        if (t > P.T) { reset(); t = 0; }
+        const s = P.at(t), seg = P.segs[Math.max(0, s.i)];
+        const c = seg && seg.b.cap; if (c && cap.textContent !== c) cap.textContent = c;
+        setHead(g, X(s.x), Y(s.y), clamp(s.z / up, 0, 1), s.vx, -s.vy, 0.9);
+        setHead(g2, ZX, ZS - Math.max(0, s.z) * zk + Math.min(0, s.z) * 60, 0, 0, 0, 1.25);
+        dx.setAttribute('d', s.x > 0.05 ? `M${X(s.x)} ${Y(s.y)}V${Y(0) - 0}` : '');
+        dy.setAttribute('d', s.y > 0.05 ? `M${X(s.x)} ${Y(s.y)}H${X(0)}` : '');
+        lx.setAttribute('x', X(s.x)); lx.setAttribute('y', Y(0) + 16); lx.textContent = s.x > 0.05 ? 'X ' + s.x.toFixed(2) : '';
+        ly.setAttribute('x', X(0) - 4); ly.setAttribute('y', Y(s.y) + 4); ly.textContent = s.y > 0.05 ? s.y.toFixed(2) : '';
+        rx.textContent = s.x.toFixed(2); ry.textContent = s.y.toFixed(2); rz.textContent = s.z.toFixed(2);
+      });
+    } },
+  { label: 'Speed', kick: 'Lesson 3', title: 'Feed rate = speed',
+    text: () => `<p><b>Feed rate</b> is how fast the tool moves while it’s drawing or cutting. It’s measured in <b>inches per minute</b> (in/min).</p>
+      <p>PenBot always draws at <b>70 in/min</b>. That’s 70 ÷ 60 ≈ <b>1.17 inches every second</b>. The race on the left runs in real time.</p>
+      <div class="slide"><label for="v3s">Try your own speed <b id="v3v">150 in/min</b></label><input id="v3s" type="range" min="10" max="300" step="5" value="150"></div>
+      <div class="formula" id="v3f"></div>
+      <p class="small">On the router, feed rate matters a lot: too fast can snap a bit, too slow can burn the wood. With a pen, going too fast can make the ink skip.</p>`,
+    vis(fig, q) {
+      const k = 330 / 8.5, X0 = 34, lanes = [{ y: 104, name: 'PenBot', speed: 70 }, { y: 206, name: 'You', speed: 150 }];
+      fig.innerHTML = `<svg class="mv" viewBox="0 0 400 300" role="img" aria-label="Two pens racing across a sheet of paper">
+        ${lanes.map((L, i) => `<rect class="paper" x="${X0}" y="${L.y - 22}" width="${8.5 * k}" height="44"/>
+          <text class="big" x="${X0}" y="${L.y - 46}">${L.name} · <tspan id="v3n${i}">${L.speed}</tspan> in/min</text>
+          <text class="lbl" x="${X0 + 8.5 * k}" y="${L.y - 46}" text-anchor="end" id="v3t${i}">0.0 s</text>
+          <path class="ink" id="v3i${i}"/>`).join('')}
+        ${lanes.map(L => `<path class="dash" d="M${X0 + 8.5 * k} ${L.y - 26}V${L.y + 26}"/>`).join('')}
+        <path d="M${X0} 266H${X0 + 8.5 * k}" stroke="var(--ink)" stroke-width="1.3"/><path d="M${X0} 266l9 -5v10zM${X0 + 8.5 * k} 266l-9 -5v10z" fill="var(--ink)"/>
+        <rect x="${X0 + 8.5 * k / 2 - 40}" y="254" width="80" height="24" rx="6" fill="var(--panel)" stroke="var(--line)"/><text class="big" x="${X0 + 8.5 * k / 2}" y="271" text-anchor="middle">8.5 in</text>
+        ${HEAD_SVG}${HEAD_SVG.replace('class="hd"', 'class="hd2"')}
+      </svg>`;
+      fig.querySelector('figcaption').textContent = 'Real time: each pen drawing a line across the paper.';
+      const heads = [fig.querySelector('.hd'), fig.querySelector('.hd2')], sl = q.querySelector('#v3s');
+      const upd = () => {
+        lanes[1].speed = +sl.value; q.querySelector('#v3v').textContent = sl.value + ' in/min'; fig.querySelector('#v3n1').textContent = sl.value;
+        const a = 8.5 / 70 * 60, b = 8.5 / lanes[1].speed * 60;
+        q.querySelector('#v3f').innerHTML = `Time = distance ÷ speed<br>PenBot: 8.5 in ÷ 70 in/min = <b>${a.toFixed(1)} s</b><br>You: 8.5 in ÷ ${lanes[1].speed} in/min = <b>${b.toFixed(1)} s</b>`;
+      };
+      upd(); let resetFn = null;
+      sl.addEventListener('input', () => { upd(); if (resetFn) resetFn(); });
+      return loop((t, reset) => {
+        resetFn = reset;
+        const lead = 0.5, done = Math.max(...lanes.map(L => 8.5 / L.speed * 60)) + lead + 1.6;
+        if (t > done) { reset(); t = 0; }
+        lanes.forEach((L, i) => {
+          const tt = Math.max(0, t - lead), x = Math.min(8.5, L.speed / 60 * tt), fin = x >= 8.5;
+          const down = t >= lead * 0.6 && !fin;
+          setHead(heads[i], X0 + x * k, L.y, down ? 0 : 1, fin ? 0 : 1, 0, 1.05);
+          fig.querySelector('#v3i' + i).setAttribute('d', x > 0 ? `M${X0} ${L.y}H${X0 + x * k}` : '');
+          fig.querySelector('#v3t' + i).textContent = (fin ? 8.5 / L.speed * 60 : tt).toFixed(1) + ' s' + (fin ? ' ✓' : '');
+        });
+      });
+    } },
+  { label: 'Depth', kick: 'Lesson 4', title: 'Cut depth & depth per pass',
+    text: () => `<p><b>Cut depth</b> is how far below the surface (Z = 0) the tool goes. <b>Depth per pass</b> is how much deeper it goes on each trip.</p>
+      <p>A router bit can’t cut ½ in deep in one bite, so it makes several <b>passes</b>, stepping down a little each time.</p>
+      <div class="chips"><button class="chip on" id="v4pen">PenBot: 0.01 / 0.01</button><button class="chip" id="v4rt">Router example: 0.5 / 0.125</button></div>
+      <div class="slide"><label for="v4d">Cut depth <b id="v4dv"></b></label><input id="v4d" type="range" min="0.01" max="0.75" step="0.005"></div>
+      <div class="slide"><label for="v4p">Depth per pass <b id="v4pv"></b></label><input id="v4p" type="range" min="0.01" max="0.5" step="0.005"></div>
+      <div class="formula" id="v4f"></div>
+      <div class="callout">PenBot uses <b>0.01 in</b> for both, so it only needs <b>1 pass</b>. 0.01 in is about as thick as 2 or 3 sheets of paper — just enough pressure to keep the pen touching.</div>`,
+    vis(fig, q) {
+      const XL = 70, XR = 340, SURF = 150, BOT = 248;
+      fig.innerHTML = `<svg class="mv" viewBox="0 0 400 300" role="img" aria-label="Side view of the tool making passes">
+        <text class="big" x="20" y="28">Side view</text><text class="lbl-m" x="380" y="282" text-anchor="end" id="v4mat"></text>
+        <g id="v4m"></g><path id="v4cut" class="air"/><path id="v4ink" class="ink"/>
+        <g id="v4lv"></g>
+        <path d="M20 ${SURF}H${XL - 6}" stroke="var(--zero)" stroke-width="1.5" stroke-dasharray="3 2"/><text class="lbl" x="20" y="${SURF - 6}" style="fill:var(--zero)">Z 0</text>
+        <g id="v4tool"></g>
+        <rect class="readout" x="20" y="262" width="186" height="28" rx="6"/><text class="readout-t" x="30" y="281" id="v4ro"></text>
+      </svg>`;
+      const ds = q.querySelector('#v4d'), ps = q.querySelector('#v4p');
+      let cfg = { d: 0.01, p: 0.01 };
+      const tool = fig.querySelector('#v4tool'), cut = fig.querySelector('#v4cut'), ink = fig.querySelector('#v4ink'), lv = fig.querySelector('#v4lv'), ro = fig.querySelector('#v4ro');
+      let st = null, resetFn = null;
+      const setup = () => {
+        cfg.d = +ds.value; cfg.p = +ps.value;
+        const N = Math.max(1, Math.ceil(cfg.d / cfg.p - 1e-9)), pen = cfg.d <= 0.02;
+        q.querySelector('#v4dv').textContent = cfg.d.toFixed(3) + ' in'; q.querySelector('#v4pv').textContent = cfg.p.toFixed(3) + ' in';
+        q.querySelector('#v4f').innerHTML = `Passes = cut depth ÷ depth per pass (round up)<br>= ${cfg.d.toFixed(3)} ÷ ${cfg.p.toFixed(3)} = ${(cfg.d / cfg.p).toFixed(2)} → <b>${N} pass${N === 1 ? '' : 'es'}</b>`;
+        q.querySelector('#v4pen').classList.toggle('on', Math.abs(cfg.d - 0.01) < 1e-6 && Math.abs(cfg.p - 0.01) < 1e-6);
+        q.querySelector('#v4rt').classList.toggle('on', Math.abs(cfg.d - 0.5) < 1e-6 && Math.abs(cfg.p - 0.125) < 1e-6);
+        const zk = pen ? 60 / 0.01 : 84 / cfg.d;
+        fig.querySelector('#v4mat').textContent = pen ? 'paper (zoomed way in!)' : 'wood board';
+        fig.querySelector('#v4m').innerHTML = pen
+          ? `<rect class="board" x="${XL - 40}" y="${SURF + 6}" width="${XR - XL + 80}" height="${BOT - SURF - 6}"/><rect x="${XL - 40}" y="${SURF}" width="${XR - XL + 80}" height="6" fill="#fff" stroke="#b4bfd0"/><text class="lbl-m" x="${XL - 34}" y="${SURF + 26}">spoilboard</text>`
+          : `<rect class="wood" x="${XL - 40}" y="${SURF}" width="${XR - XL + 80}" height="${BOT - SURF}"/><path class="wood-g" d="M${XL - 40} ${SURF + 30}q80 -8 160 0t170 0M${XL - 40} ${SURF + 80}q90 6 170 0t170 0"/>`;
+        let lvh = '';
+        const show = Math.min(N, 12);
+        for (let i = 1; i <= show; i++) { const z = Math.min(cfg.d, (N > 12 ? Math.round(i * N / show) : i) * cfg.p), yy = SURF + (pen ? 0 : z * zk); if (pen) break; lvh += `<path class="dash" d="M${XL - 6} ${yy}H${XR + 6}"/><text class="lbl-m" x="${XR + 10}" y="${yy + 4}">-${z.toFixed(3)}</text>`; }
+        lv.innerHTML = lvh;
+        const profile = new Float32Array(55);
+        const w = [];
+        const L = 0.15, x0 = 0, x1 = 1;
+        w.push({ x: x0, y: 0, z: L });
+        for (let i = 1; i <= N; i++) { const z = -Math.min(cfg.d, i * cfg.p); w.push({ x: x0, y: 0, z: L, wait: 0.15 }, { x: x0, y: 0, z, min: 0.35 }, { x: x1, y: 0, z, min: Math.max(0.5, 2.2 / Math.sqrt(N)) }, { x: x1, y: 0, z: L, min: 0.3 }); if (i < N) w.push({ x: x0, y: 0, z: L, min: 0.4 }); }
+        w.push({ x: x1, y: 0, z: L, wait: 1.8 });
+        st = { P: plan(w, { draw: 1, travel: 2.5, z: 0.5 }), N, pen, zk, profile };
+        if (resetFn) resetFn();
+      };
+      const preset = (d, p) => { ds.value = d; ps.value = p; setup(); };
+      q.querySelector('#v4pen').onclick = () => preset(0.01, 0.01);
+      q.querySelector('#v4rt').onclick = () => preset(0.5, 0.125);
+      ds.addEventListener('input', setup); ps.addEventListener('input', setup);
+      preset(0.01, 0.01);
+      fig.querySelector('figcaption').textContent = 'Not to scale above Z 0 — the tool lifts to a safe height between passes.';
+      return loop((t, reset) => {
+        resetFn = reset;
+        const { P, N, pen, zk, profile } = st;
+        if (t > P.T) { reset(); t = 0; }
+        if (t < 0.02) profile.fill(0);
+        const s = P.at(t), X = XL + s.x * (XR - XL), depth = Math.max(0, -s.z);
+        if (depth > 0) { const bi = Math.round(s.x * (profile.length - 1)); for (let b = 0; b <= bi; b++) profile[b] = Math.max(profile[b], depth); }
+        const yTip = s.z > 0 ? SURF - 10 - (s.z / 0.15) * 30 : SURF + (pen ? 0 : depth * zk);
+        if (!pen) {
+          let d = `M${XL} ${SURF}`; for (let b = 0; b < profile.length; b++) d += `L${(XL + b / (profile.length - 1) * (XR - XL)).toFixed(1)} ${(SURF + profile[b] * zk).toFixed(1)}`; d += `L${XR} ${SURF}Z`;
+          cut.setAttribute('d', d); ink.setAttribute('d', '');
+          tool.innerHTML = `<rect x="${X - 7}" y="${yTip - 120}" width="14" height="56" fill="#c3c9d2" stroke="#4c5563"/><rect class="bit" x="${X - 5}" y="${yTip - 64}" width="10" height="64" rx="2"/><path d="M${X - 5} ${yTip - 60}l10 -8M${X - 5} ${yTip - 40}l10 -8M${X - 5} ${yTip - 20}l10 -8" stroke="#4c5563" stroke-width="1.2"/>`;
+        } else {
+          cut.setAttribute('d', '');
+          let maxb = -1; for (let b = 0; b < profile.length; b++) if (profile[b] > 0) maxb = b;
+          ink.setAttribute('d', maxb >= 0 ? `M${XL} ${SURF - 1}H${XL + maxb / (profile.length - 1) * (XR - XL)}` : '');
+          tool.innerHTML = `<g transform="translate(${X} ${yTip}) scale(1.7)">${HEAD_SVG}</g>` + (depth > 0 ? `<text class="lbl" x="${X + 30}" y="${SURF + 36}" style="fill:var(--z)">Z -${depth.toFixed(3)}</text><path d="M${X + 26} ${SURF + 28}l-20 -24" stroke="var(--z)" stroke-width="1.4"/>` : '');
+          setHead(tool.querySelector('.hd'), 0, 0, 0, s.vx, 0, 1);
+        }
+        const seg = P.segs[Math.max(0, s.i)]; let pass = 1; for (let i = 0; i <= Math.max(0, s.i); i++) if (P.segs[i].b.z < 0 && P.segs[i].a.z > 0) pass = Math.min(N, (P.segs.slice(0, i + 1).filter(g => g.b.z < 0 && g.a.z > 0).length));
+        ro.innerHTML = `Pass ${pass} of ${N}   <tspan fill="#7fb2ff">Z</tspan> ${s.z > 0 ? '+' + s.z.toFixed(3) : (-depth).toFixed(3)}`;
+        void seg;
+      });
+    } },
+  { label: 'G-code', kick: 'Lesson 5', title: 'G-code: the list of numbers',
+    text: () => `<p><b>G-code</b> is the list of instructions PenBot sends to the machine — one instruction per line, run from top to bottom. Watch this tiny program draw a house:</p>
+      <div class="mini-code" id="v5code"></div>
+      <div class="mini-exp" id="v5exp"></div>
+      <p class="small">PenBot shows your drawing’s G-code on the right side of the screen, with these same colors.</p>`,
+    vis(fig, q) {
+      const k = 34, X = x => 92 + x * k, Y = y => 270 - y * k;
+      const up = 0.15, D = -0.01;
+      const prog = [
+        ['G20', 'setup', null, '<b>G20</b>: use inches.'],
+        ['G90', 'setup', null, '<b>G90</b>: measure every spot from the origin (0,0).'],
+        ['G0 Z' + f4(up), 'up', { x: 0, y: 0, z: up }, '<b>G0</b> = rapid move. <b>Z0.15</b>: lift the pen so it can travel.'],
+        ['G0 X1.0000 Y1.0000', 'travel', { x: 1, y: 1, z: up }, 'Rapid move, pen up, to <b>X1 Y1</b>. Nothing is drawn.'],
+        ['G1 Z-0.0100 F70.0', 'down', { x: 1, y: 1, z: D }, '<b>G1</b> = move at the feed rate. <b>Z-0.01</b>: pen down. <b>F70</b>: 70 in/min.'],
+        ['G1 X4.0000 Y1.0000 F70.0', 'draw', { x: 4, y: 1, z: D }, 'Draw a line to <b>X4 Y1</b> (the floor).'],
+        ['G1 X4.0000 Y3.5000 F70.0', 'draw', { x: 4, y: 3.5, z: D }, 'Draw up to <b>X4 Y3.5</b> (right wall).'],
+        ['G1 X2.5000 Y5.2000 F70.0', 'draw', { x: 2.5, y: 5.2, z: D }, 'Draw to <b>X2.5 Y5.2</b> (the roof peak).'],
+        ['G1 X1.0000 Y3.5000 F70.0', 'draw', { x: 1, y: 3.5, z: D }, 'Draw down to <b>X1 Y3.5</b>.'],
+        ['G1 X1.0000 Y1.0000 F70.0', 'draw', { x: 1, y: 1, z: D }, 'Draw back to the start, <b>X1 Y1</b>. House done!'],
+        ['G0 Z' + f4(up), 'up', { x: 1, y: 1, z: up }, '<b>Z0.15</b>: pen up.'],
+        ['G0 X0.0000 Y0.0000', 'home', { x: 0, y: 0, z: up }, 'Rapid move home to the origin, <b>X0 Y0</b>.']
+      ];
+      let grid = ''; for (let i = 1; i <= 5; i++) grid += `<line class="pgrid" x1="${X(i)}" y1="${Y(6.6)}" x2="${X(i)}" y2="${Y(0)}"/><text class="lbl-m" x="${X(i)}" y="${Y(0) + 14}" text-anchor="middle">${i}</text>`;
+      for (let j = 1; j <= 6; j++) grid += `<line class="pgrid" x1="${X(0)}" y1="${Y(j)}" x2="${X(7.5)}" y2="${Y(j)}"/><text class="lbl-m" x="${X(0) - 6}" y="${Y(j) + 4}" text-anchor="end">${j}</text>`;
+      fig.innerHTML = `<svg class="mv" viewBox="0 0 400 300" role="img" aria-label="PenBot drawing a house from G-code">
+        <rect class="paper" x="${X(0)}" y="${Y(6.6)}" width="${7.5 * k}" height="${6.6 * k}"/>${grid}
+        <path d="M${X(0)} ${Y(0)}H${X(7.5)}M${X(0)} ${Y(0)}V${Y(6.6)}" stroke="#b4bfd0" fill="none"/>
+        ${originSVG(X(0), Y(0))}<path class="trav" id="v5tr"/><path class="ink" id="v5ink"/>${HEAD_SVG}
+        <rect class="readout" x="8" y="10" width="200" height="26" rx="6"/><text class="readout-t" x="18" y="28" id="v5ro"></text>
+      </svg>`;
+      fig.querySelector('figcaption').textContent = 'A corner of the paper, zoomed in. Each grid square is 1 inch.';
+      const code = q.querySelector('#v5code'), exp = q.querySelector('#v5exp');
+      code.innerHTML = prog.map((p, i) => `<div class="k-${p[1]}" data-i="${i}"><span class="no">${i + 1}</span><span>${tokHTML(p[0], p[1])}</span></div>`).join('');
+      const w = [{ x: 0, y: 0, z: up, li: -1 }];
+      for (let i = 0; i < prog.length; i++) { const p = prog[i], prev = w[w.length - 1]; const to = p[2] || { x: prev.x, y: prev.y, z: prev.z }; w.push(Object.assign({}, to, { li: i, min: 0.9 })); }
+      w.push(Object.assign({}, w[w.length - 1], { li: prog.length - 1, wait: 2 }));
+      const P = plan(w, { draw: 1.4, travel: 3, z: 0.25 });
+      const g = fig.querySelector('.hd'), ink = fig.querySelector('#v5ink'), tr = fig.querySelector('#v5tr'), ro = fig.querySelector('#v5ro');
+      let lastLi = -2;
+      return loop((t, reset) => {
+        if (t > P.T) { reset(); t = 0; }
+        const s = P.at(t), seg = P.segs[Math.max(0, s.i)], li = seg ? seg.b.li : -1;
+        setHead(g, X(s.x), Y(s.y), clamp(s.z / up, 0, 1), s.vx, -s.vy, 0.95);
+        ink.setAttribute('d', P.ink(t, X, Y));
+        tr.setAttribute('d', seg && seg.a.z > 0 && seg.b.z > 0 && (seg.a.x !== seg.b.x || seg.a.y !== seg.b.y) ? `M${X(seg.a.x)} ${Y(seg.a.y)}L${X(seg.b.x)} ${Y(seg.b.y)}` : '');
+        ro.innerHTML = `<tspan fill="#ff7b7b">X</tspan> ${s.x.toFixed(2)}  <tspan fill="#5fe08f">Y</tspan> ${s.y.toFixed(2)}  <tspan fill="#7fb2ff">Z</tspan> ${s.z.toFixed(2)}`;
+        if (li !== lastLi) {
+          lastLi = li;
+          code.querySelectorAll('div').forEach(d => d.classList.toggle('cur', +d.dataset.i === li));
+          exp.innerHTML = li >= 0 ? `Line ${li + 1}: ${prog[li][3]}` : '';
+        }
+      });
+    } },
+  { label: 'Your file', kick: 'Your turn', title: 'Make it in Onshape',
+    text: () => `<ol>
+        <li>Set the units to <b>inches</b>: in the document menu (☰), open <b>Workspace units</b> and pick <b>Inch</b>.</li>
+        <li>Sketch on the <b>Top</b> plane. Keep your drawing <b>up and to the right of the origin</b>, inside <b>8.5 in wide × 11 in tall</b>.</li>
+        <li>Right-click the sketch → <b>Export as DXF/DWG</b> → choose <b>DXF</b>.</li>
+        <li>Open the DXF in PenBot. Your sketch’s origin lands on the paper’s bottom-left corner.</li>
+      </ol>
+      <div class="callout">PenBot draws every line in your file, so delete any extra lines you don’t want on the paper. SVG files work too.</div>`,
+    vis(fig) {
+      fig.innerHTML = `<div class="dropzone" id="v6dz">
+        <svg class="dz-ic" viewBox="0 0 64 64">${ICON_INNER}</svg>
+        <h3>Drop your DXF or SVG here</h3>
+        <p class="muted small" style="margin:0">The paper is always <b>8.5 × 11 in</b>, with the origin at the bottom-left corner.</p>
+        <div class="row2"><button class="btn-primary" id="v6open">Choose a file</button><button class="btn" id="v6sample">Try the sample</button></div>
+      </div>`;
+      fig.querySelector('figcaption').textContent = '';
+      const dz = fig.querySelector('#v6dz');
+      fig.querySelector('#v6open').onclick = () => $('#file').click();
+      fig.querySelector('#v6sample').onclick = () => loadText(SAMPLE, 'penbot-sample.svg', { center: true });
+      dz.addEventListener('dragenter', () => dz.classList.add('hover')); dz.addEventListener('dragleave', () => dz.classList.remove('hover')); dz.addEventListener('drop', () => dz.classList.remove('hover'));
+      return () => {};
+    } }
+];
+const ICON_INNER = `<rect width="64" height="64" rx="14" fill="#5b4bdb"/><path d="M7 55c3.5-5.5 7.5-5.5 10.5-1.5s7 4.6 12.5 3.6" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round"/><path d="M24.5 43h15l-5.4 10.6h-4.2z" fill="#f3e2c1" stroke="#1d1d2b" stroke-width="1.8" stroke-linejoin="round"/><path d="M29.9 53.6h4.2L32 58z" fill="#1d1d2b"/><rect x="19" y="8" width="26" height="36" rx="8" fill="#ffd23f" stroke="#1d1d2b" stroke-width="2.2"/><circle cx="25.5" cy="21" r="7.6" fill="#ffffff" stroke="#1d1d2b" stroke-width="2"/><circle cx="23.4" cy="18.6" r="3.4" fill="#1d1d2b"/><circle cx="22.4" cy="17.6" r="1" fill="#ffffff"/><circle cx="39.5" cy="22" r="7.6" fill="#ffffff" stroke="#1d1d2b" stroke-width="2"/><circle cx="41.7" cy="24.6" r="3.4" fill="#1d1d2b"/><circle cx="40.7" cy="23.6" r="1" fill="#ffffff"/><path d="M27.5 33.5q4.5 3.6 9 0" fill="none" stroke="#1d1d2b" stroke-width="2" stroke-linecap="round"/>`;
+function openWiz(i) { $('#wiz').hidden = false; goWiz(i || 0); }
+function closeWiz() { if (WZ.stop) { WZ.stop(); WZ.stop = null; } $('#wiz').hidden = true; $('#wzBody').innerHTML = ''; draw(); }
+function goWiz(i) {
+  if (WZ.stop) { WZ.stop(); WZ.stop = null; }
+  WZ.step = i; const s = STEPS[i], last = i === STEPS.length - 1;
+  $('#wzProg').innerHTML = STEPS.map((x, j) => `<li class="${j === i ? 'cur' : j < i ? 'done' : ''}"><button data-go="${j}"><b>${j + 1}</b><span class="lb">${x.label}</span></button></li>`).join('');
+  $('#wzBody').innerHTML = `<figure class="wz-vis"><div class="vis"></div><figcaption></figcaption></figure>
+    <div class="wz-q"><div class="kick">${s.kick}</div><h2>${s.title}</h2>${s.text()}
+      <div class="wz-nav"><button class="btn" id="wzBack"${i === 0 ? ' disabled' : ''}>← Back</button><span class="dots">${i + 1} / ${STEPS.length}</span>
+      ${last ? '<button class="btn-primary" id="wzDone">Go to PenBot</button>' : '<button class="btn-primary" id="wzNext">Next →</button>'}</div></div>`;
+  const fig = $('#wzBody .wz-vis'), q = $('#wzBody .wz-q');
+  const inner = fig.querySelector('.vis');
+  const shim = { set innerHTML(h) { inner.innerHTML = h; }, querySelector: sel => sel === 'figcaption' ? fig.querySelector('figcaption') : inner.querySelector(sel) };
+  WZ.stop = s.vis(shim, q);
+  $('#wzBack').onclick = () => goWiz(Math.max(0, i - 1));
+  if (last) $('#wzDone').onclick = closeWiz; else $('#wzNext').onclick = () => goWiz(i + 1);
+  $('#wiz').scrollTop = 0;
+}
+$('#wzProg').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) goWiz(+b.dataset.go); });
+$('#wzSkip').onclick = closeWiz;
+
+// ================= start =================
+new ResizeObserver(() => fit()).observe($('#cvWrap'));
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => draw());
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => draw());
+updateAll();
+openWiz(0);
+window.PenBot = { S, loadText, importDXF, importSVG, buildJob }; // handy for testing in the console
+})();
+</script>
+</body>
+</html>

@@ -93,6 +93,20 @@ body.resizing, body.resizing * { cursor: col-resize !important; user-select: non
 .hud { position: absolute; left: 12px; bottom: 10px; right: 12px; display: flex; align-items: center; gap: 10px; pointer-events: none; font: 12px var(--f-mono); color: var(--muted); }
 .hud > * { pointer-events: auto; }
 .hud .xy { font-variant-numeric: tabular-nums; min-width: 12em; }
+.actbar { position: absolute; left: 50%; bottom: 50px; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px; padding: 4px; max-width: calc(100% - 24px); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 20px rgba(15, 25, 45, .16); z-index: 2; }
+.actbar button { border: 0; background: none; border-radius: 7px; padding: 7px 11px; display: inline-flex; gap: 7px; align-items: center; font-weight: 600; font-size: 13px; white-space: nowrap; }
+.actbar button:hover { background: var(--panel-2); }
+.actbar button svg { width: 17px; height: 17px; flex: none; }
+.actbar button.hi { background: var(--accent); color: var(--accent-ink); }
+.actbar button.hi:hover { background: var(--accent); filter: brightness(1.08); }
+.actbar button.danger { color: var(--zero); }
+.actbar i { width: 1px; align-self: stretch; margin: 4px 3px; background: var(--line); }
+.callout { background: var(--accent-soft); }
+.callout b { font-weight: 600; }
+.callout p { margin: 0; font-size: 12.5px; line-height: 1.45; }
+.callout .btn-primary { justify-content: center; }
+@media (min-width: 901px) { .actbar { left: calc(50% - 137px); max-width: calc(100% - 310px); } }
+@media (max-width: 900px) { .actbar { flex-wrap: nowrap; bottom: 46px; } .actbar i { display: none; } .actbar button { padding: 6px 8px; font-size: 12.5px; } .actbar .t { display: none; } }
 .hud .zoom { margin-left: auto; display: flex; gap: 2px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 2px; }
 .hud .zoom button { border: 0; background: none; width: 28px; height: 26px; border-radius: 4px; color: var(--ink); display: grid; place-items: center; }
 .hud .zoom button:hover { background: var(--panel-2); }
@@ -127,6 +141,9 @@ body.resizing, body.resizing * { cursor: col-resize !important; user-select: non
 .btn:hover { background: var(--panel-2); }
 .btn svg { width: 15px; height: 15px; }
 .btn.danger { color: var(--zero); }
+.btn.center0 { width: 100%; justify-content: center; padding: 8px 10px; font-weight: 600; color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.btn.center0:hover { background: var(--accent-soft); filter: brightness(1.04); }
+.btn.center0 svg { width: 17px; height: 17px; }
 .cuttypes { display: grid; gap: 4px; }
 .cuttype { display: grid; grid-template-columns: 34px 1fr; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: var(--panel); text-align: left; }
 .cuttype:hover { border-color: var(--grid-major); background: var(--panel-2); }
@@ -196,6 +213,59 @@ details.adv textarea { width: 100%; min-height: 84px; font: 12px/1.45 var(--f-mo
 .modal-card .row { justify-content: flex-end; }
 .modal-card textarea { width: 100%; min-height: 160px; font: 11.5px/1.4 var(--f-mono); border: 1px solid var(--line); border-radius: 5px; background: var(--panel-2); padding: 8px; }
 
+
+
+/* take-it-to-the-shop screen */
+.ship { position: fixed; inset: 0; z-index: 45; background: rgba(10, 14, 22, .5); overflow: auto; display: flex;
+  padding-block: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.ship-card { margin: auto; width: min(640px, 100%); background: var(--panel); border-radius: 12px; box-shadow: 0 24px 60px rgba(0, 0, 0, .3); overflow: hidden; }
+.sh-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; padding: 18px 20px 6px; }
+.sh-head h2 { margin: 4px 0 0; font: 600 28px/1.05 var(--f-display); }
+.sh-x { width: 34px; height: 34px; }
+.sh-trip { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); padding: 18px 20px 14px; margin: 8px 20px 0; background: var(--panel-2); border-radius: 10px; }
+.sh-line { position: absolute; left: calc(20px + (100% - 40px) / 6); right: calc(20px + (100% - 40px) / 6); top: 46px; height: 0; border-top: 2px dashed var(--grid-major); }
+.sh-line i { position: absolute; left: 0; top: -2px; height: 2px; width: 0; background: var(--accent); transition: width .9s ease; }
+.sh-trip[data-stage="saved"] .sh-line i { width: 50%; }
+.sh-node { position: relative; z-index: 1; display: grid; justify-items: center; gap: 6px; color: var(--muted); }
+.sh-node svg { width: 56px; height: 56px; padding: 8px; border-radius: 50%; background: var(--panel); border: 2px solid var(--line); box-sizing: border-box; }
+.sh-node span { font: 600 12px var(--f-display); letter-spacing: .06em; text-transform: uppercase; }
+.sh-node.n1 { color: var(--ink); }
+.sh-ok { position: absolute; top: -4px; left: calc(50% + 14px); width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-size: 13px; opacity: 0; transform: scale(.4); transition: opacity .25s .8s, transform .25s .8s; }
+.sh-trip[data-stage="saved"] .n2 { color: var(--accent); }
+.sh-trip[data-stage="saved"] .n2 svg { border-color: var(--accent); }
+.sh-trip[data-stage="saved"] .sh-ok { opacity: 1; transform: none; }
+.sh-trip[data-stage="saved"] .n3 svg { animation: shPulse 1.6s 1.1s ease-in-out 3; }
+@keyframes shPulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); border-color: var(--line); } 50% { box-shadow: 0 0 0 8px var(--accent-soft); border-color: var(--accent); } }
+.sh-token { position: absolute; z-index: 2; top: 8px; left: calc(20px + (100% - 40px) / 6 - 30px); width: 26px; height: 32px; transition: left .9s ease, transform .9s ease; }
+.sh-token svg { width: 26px; height: 32px; display: block; }
+.sh-token text { font: 700 7px var(--f-mono); fill: var(--accent); }
+.sh-trip[data-stage="start"] .sh-token { animation: shBob 1.4s ease-in-out infinite; }
+@keyframes shBob { 50% { transform: translateY(-4px); } }
+.sh-trip[data-stage="saved"] .sh-token { left: calc(50% - 30px); }
+.sh-trip[data-stage="downloads"] .sh-token svg path { stroke: var(--warn); }
+.sh-trip[data-stage="downloads"] .sh-token text { fill: var(--warn); }
+.sh-body { padding: 16px 20px 6px; display: grid; gap: 16px; }
+.sh-step { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; }
+.sh-num { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--chrome); color: var(--chrome-ink); font: 600 14px var(--f-mono); }
+.sh-main { display: grid; gap: 9px; min-width: 0; }
+.sh-main h3 { margin: 4px 0 0; font: 600 20px var(--f-display); }
+.sh-main .note { margin: 0; font-size: 13.5px; line-height: 1.5; }
+.sh-file { margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font: 500 14px var(--f-mono); }
+.sh-file svg { width: 18px; height: 18px; color: var(--accent); flex: none; }
+.sh-file b { overflow-wrap: anywhere; }
+.sh-file span { font: 12px var(--f-body); color: var(--muted); }
+.btn-primary.done { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); }
+.sh-status { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ink); }
+.sh-status:empty { display: none; }
+.sh-status.warn { color: var(--warn); background: var(--warn-soft); padding: 7px 10px; border-radius: 6px; }
+.sh-list { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; line-height: 1.45; }
+.sh-list li::marker { font: 600 13px var(--f-mono); color: var(--muted); }
+.sh-photo { margin: 2px 0 0; display: flex; gap: 7px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.sh-photo svg { width: 16px; height: 16px; flex: none; }
+.sh-foot { display: flex; justify-content: flex-end; padding: 12px 20px 18px; }
+@media (prefers-reduced-motion: reduce) { .sh-token, .sh-line i, .sh-ok { transition: none; } .sh-trip .sh-token, .sh-trip .n3 svg { animation: none !important; } }
+@media (max-width: 520px) { .sh-node svg { width: 46px; height: 46px; } .sh-line { top: 41px; } .sh-node span { font-size: 10.5px; } .sh-head h2 { font-size: 24px; } }
 
 /* setup wizard */
 .wiz { position: fixed; inset: 0; z-index: 60; overflow: auto; display: flex; flex-direction: column;
@@ -368,6 +438,7 @@ details.adv textarea { width: 100%; min-height: 84px; font: 12px/1.45 var(--f-mo
             <button id="zFit" title="Fit material (F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>
           </div>
         </div>
+        <div class="actbar" id="actbar" role="toolbar" aria-label="Selection actions" hidden></div>
         <div class="drop-hint" id="dropHint" hidden>Drop SVG or DXF to import</div>
       </div>
       <div class="inspector" id="insp"></div>
@@ -415,6 +486,7 @@ details.adv textarea { width: 100%; min-height: 84px; font: 12px/1.45 var(--f-mo
   <input type="file" id="fileOpen" accept=".json,.routeready,application/json" hidden>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div class="modal" id="modal" hidden><div class="modal-card" id="modalCard"></div></div>
+  <div class="ship" id="ship" hidden><div class="ship-card" id="shipCard" role="dialog" aria-modal="true" aria-label="Take it to the shop"></div></div>
   <div class="wiz" id="wiz" hidden><div class="wiz-card" id="wizCard" role="dialog" aria-modal="true" aria-label="Project setup"></div></div>
 </div>
 
@@ -1692,19 +1764,46 @@ const ALIGN = [
   ['vcenter', 'Center vertically', '<path d="M3 12h18"/><rect x="6" y="5" width="4" height="14"/><rect x="14" y="8" width="4" height="8"/>'],
   ['top', 'Align top', '<path d="M3 4h18"/><rect x="6" y="7" width="4" height="12"/><rect x="14" y="7" width="4" height="7"/>']
 ];
+const CENTER_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>';
+const centerLabel = () => P.zero === 'center' ? 'Center on 0,0' : 'Center on material';
+const centerBtn = (act, text) => `<button class="btn center0" data-act="${act}" title="Move together to the middle of the material, keeping their spacing (C)">${CENTER_IC}${text}</button>`;
 const ic = (p, sw) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw || 1.8}">${p}</svg>`;
+const BREAK_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/><path d="M15 4h5v5M9 20H4v-5"/></svg>';
+function renderActbar() {
+  const bar = $('#actbar');
+  const ss = selected();
+  if (!P.objects.length) { bar.hidden = true; bar.innerHTML = ''; return; }
+  const to = P.zero === 'center' ? 'Center to 0,0' : 'Center on material';
+  const I = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  let h;
+  if (!ss.length) h = `<button data-act="centerAll" title="Move all the artwork together to the middle of the material">${CENTER_IC}${P.zero === 'center' ? 'Center everything to 0,0' : 'Center everything on material'}</button>`;
+  else {
+    const canBreak = ss.some(x => x.contours.length > 1);
+    h = `<button data-act="center" title="Move the selection to the middle of the material, keeping spacing (C)">${CENTER_IC}${to}</button>`;
+    if (canBreak) h += `<i></i><button class="hi" data-act="break" title="Split into separate pieces so each can get its own cut (Ctrl+Shift+G)">${BREAK_IC}Break apart</button>`;
+    if (ss.length > 1) h += `<i></i><button data-act="combine" title="Join into one shape so holes stay holes when pocketing (Ctrl+G)">${I('<rect x="3" y="3" width="12" height="12" rx="1.5"/><rect x="9" y="9" width="12" height="12" rx="1.5"/>')}Combine</button>`;
+    h += `<i></i><button data-act="dup" title="Duplicate (Ctrl+D)" aria-label="Duplicate">${I('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>')}<span class="t">Duplicate</span></button>`;
+    h += `<button class="danger" data-act="del" title="Delete (Del)" aria-label="Delete">${I('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>')}<span class="t">Delete</span></button>`;
+  }
+  bar.innerHTML = h; bar.hidden = false;
+}
 function renderInspector() {
+  renderActbar();
   const el = $('#insp');
   const ss = selected();
   if (document.activeElement && el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT' && drag) return;
   if (!ss.length) {
     el.innerHTML = `<div class="insp-sec"><span class="eyebrow">Design</span>
-      <p class="note" style="margin:0">Draw a shape with the tools on the left, or drop an SVG or DXF onto the sheet. Click a shape to set how it gets cut.</p></div>
+      <p class="note" style="margin:0">Draw a shape with the tools on the left, or drop an SVG or DXF onto the sheet. Click a shape to set how it gets cut.</p>
+      ${P.objects.length ? centerBtn('centerAll', P.zero === 'center' ? 'Center all artwork on 0,0' : 'Center all artwork on material') : ''}</div>
       <div class="insp-sec"><span class="eyebrow">Shortcuts</span><div class="keys">
       <kbd>Drag</kbd><span>Move a shape, or box-select</span>
       <kbd>Shift</kbd><span>Add to selection</span>
+      <kbd>Ctrl A</kbd><span>Select everything</span>
+      <kbd>C</kbd><span>Center selection on ${P.zero === 'center' ? '0,0' : 'the material'}</span>
       <kbd>Arrows</kbd><span>Nudge 1/16 in (Shift: 1/4 in)</span>
       <kbd>Ctrl D</kbd><span>Duplicate</span>
+      <kbd>Ctrl G</kbd><span>Combine (Shift: break apart)</span>
       <kbd>Del</kbd><span>Delete</span>
       <kbd>Space</kbd><span>Hold and drag to pan</span>
       <kbd>Wheel</kbd><span>Zoom</span></div></div>`;
@@ -1721,7 +1820,7 @@ function renderInspector() {
       if (o.kind === 'rect') params = unitField('pR', 'Corner radius', o.params.r || 0);
       else if (o.kind === 'polygon') params = unitField('pSides', 'Sides', o.params.sides, '#');
       else if (o.kind === 'star') params = unitField('pPoints', 'Points', o.params.points, '#') + unitField('pInner', 'Inner size', o.params.inner, '%');
-      body = `<div class="insp-sec">${alignRow}</div>
+      body = `<div class="insp-sec">${alignRow}${centerBtn('center', centerLabel())}</div>
       <div class="insp-sec">
         <label class="fld"><span>Name</span><input class="txt" id="iName" value="${esc(o.name)}" spellcheck="false"></label>
         <div class="grid2">${unitField('iX', 'X (left edge)', b.x0 - zx)}${unitField('iY', 'Y (bottom edge)', b.y0 - zy)}
@@ -1734,8 +1833,10 @@ function renderInspector() {
         ${params}</div>
       </div>`;
     } else {
-      body = `<div class="insp-sec"><span class="eyebrow">${ss.length} shapes selected</span>${alignRow}<p class="note" style="margin:0">Alignment lines the shapes up with each other.</p></div>`;
+      body = `<div class="insp-sec"><span class="eyebrow">${ss.length} shapes selected</span>${centerBtn('center', centerLabel() + ' as a group')}${alignRow}<p class="note" style="margin:0">The center button moves all of them together and keeps their spacing. The alignment buttons line them up with each other.</p></div>`;
     }
+    if (ss.length > 1) body += `<div class="insp-sec"><span class="eyebrow">Pieces</span><div class="row">${ss.length > 1 ? `<button class="btn" data-act="combine" title="Join into one shape so holes stay holes when pocketing (Ctrl+G)">${ic('<rect x="3" y="3" width="12" height="12" rx="1.5"/><rect x="9" y="9" width="12" height="12" rx="1.5"/>', 2)}Combine</button>` : ''}</div>
+      <p class="note" style="margin:0">Combine joins them into one shape. Use it to pocket a shape that has holes in it.</p></div>`;
     body += `<div class="insp-sec"><div class="row"><button class="btn" data-act="dup">${ic('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>', 2)}Duplicate</button><button class="btn danger" data-act="del">${ic('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>', 2)}Delete</button></div></div>`;
   } else {
     const same = k => ss.every(s => JSON.stringify(k(s)) === JSON.stringify(k(o)));
@@ -1756,6 +1857,13 @@ function renderInspector() {
       <p class="note" style="margin:0">Tabs only appear on passes deeper than ${fmtN(Math.max(0, o.cut.depth - tb.height))} in.</p>` : ''}</div>`;
     }
   }
+  const multi = ss.filter(x => x.contours.length > 1);
+  if (multi.length) {
+    const n = multi.reduce((a, x) => a + x.contours.length, 0);
+    body = `<div class="insp-sec callout"><b>${multi.length === 1 && ss.length === 1 ? 'This shape has ' + n + ' outlines stuck together' : n + ' outlines are stuck together'}</b>
+      <p>Break it apart to pick a different cut for the holes and the outside.</p>
+      <button class="btn-primary" data-act="break">${BREAK_IC}Break apart</button></div>` + body;
+  }
   el.innerHTML = tabs + body;
 }
 function setPosField() {
@@ -1774,6 +1882,10 @@ $('#insp').addEventListener('click', e => {
   switch (act.dataset.act) {
     case 'del': deleteSel(); break;
     case 'dup': duplicateSel(); break;
+    case 'center': centerSel(ss); break;
+    case 'combine': combineSel(); break;
+    case 'break': breakSel(); break;
+    case 'centerAll': centerSel(P.objects); break;
     case 'through': pushUndo(); for (const o of ss) o.cut.depth = P.material.t; changed(); break;
     case 'rot90': pushUndo(); for (const o of ss) o.rot = ((o.rot || 0) + 90) % 360; changed(); break;
     case 'flipH': pushUndo(); for (const o of ss) o.sx = -o.sx; changed(); break;
@@ -1834,6 +1946,28 @@ function align(k) {
     if (k === 'vcenter') o.y += (ref.y0 + ref.y1) / 2 - (b.y0 + b.y1) / 2;
   }
   changed();
+}
+$('#actbar').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const a = b.dataset.act;
+  if (a === 'center') centerSel(selected());
+  else if (a === 'centerAll') centerSel(P.objects);
+  else if (a === 'break') breakSel();
+  else if (a === 'combine') combineSel();
+  else if (a === 'dup') duplicateSel();
+  else if (a === 'del') deleteSel();
+});
+function centerSel(list) {
+  if (!list.length) return;
+  const b = selBox(list);
+  const dx = P.material.w / 2 - (b.x0 + b.x1) / 2, dy = P.material.h / 2 - (b.y0 + b.y1) / 2;
+  if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) { toast('Already centered.'); return; }
+  pushUndo();
+  for (const o of list) { o.x += dx; o.y += dy; }
+  changed();
+  const what = list.length === 1 ? 'Shape' : list.length + ' shapes';
+  toast(`${what} centered on ${P.zero === 'center' ? '0,0' : 'the material'}.`);
+  if (b.w > P.material.w + 1e-6 || b.h > P.material.h + 1e-6) setTimeout(() => toast('The artwork is bigger than the material, so it hangs off the edges.'), 2400);
 }
 function deleteSel() { if (!sel.size) return; pushUndo(); P.objects = P.objects.filter(o => !sel.has(o.id)); sel.clear(); changed(); }
 function duplicateSel() {
@@ -1992,11 +2126,12 @@ document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click'
 
 window.addEventListener('keydown', e => {
   const tag = (e.target.tagName || '').toLowerCase();
-  if (tag === 'input' || tag === 'textarea' || tag === 'select' || !$('#modal').hidden || !$('#wiz').hidden) return;
+  if (tag === 'input' || tag === 'textarea' || tag === 'select' || !$('#modal').hidden || !$('#wiz').hidden || !$('#ship').hidden) return;
   const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
   if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); return; }
   if (mod && k === 'y') { e.preventDefault(); doRedo(); return; }
   if (mod && k === 'd') { e.preventDefault(); duplicateSel(); return; }
+  if (mod && k === 'g') { e.preventDefault(); e.shiftKey ? breakSel() : combineSel(); return; }
   if (mod && k === 'a') { e.preventDefault(); sel = new Set(P.objects.map(o => o.id)); renderInspector(); drawDesign(); return; }
   if (mod && k === 's') { e.preventDefault(); saveProject(); return; }
   if (mod) return;
@@ -2007,6 +2142,7 @@ window.addEventListener('keydown', e => {
   if (tools[k]) { setTool(tools[k]); return; }
   if (k === 'i') { $('#fileImport').click(); return; }
   if (k === 'f') { fitView(); return; }
+  if (k === 'c') { if (sel.size) centerSel(selected()); return; }
   const arrows = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, 1], arrowdown: [0, -1] };
   if (arrows[k] && sel.size) {
     e.preventDefault();
@@ -2104,17 +2240,80 @@ function importSVG(text) {
   if (!contours.length) throw new Error('No shapes were found in this SVG. Text needs to be converted to outlines first.');
   return { contours, unitName: ai ? 'Illustrator points' : null };
 }
+// Turn world-space contours into one selectable piece each. Holes default to "inside",
+// outer outlines to "outside", open lines to "on the line".
+function piecesFromWorld(wcs, baseName, depth) {
+  const closed = wcs.filter(c => c.closed);
+  const info = wcs.map(c => {
+    let lvl = 0;
+    if (c.closed) {
+      const a = Math.abs(RR.area(c.pts));
+      for (const q of closed) if (q !== c && Math.abs(RR.area(q.pts)) > a && RR.pointInPoly(c.pts[0], q.pts)) lvl++;
+    }
+    return { c, lvl };
+  });
+  // outer pieces first so holes sit on top and win clicks
+  info.sort((a, b) => (a.c.closed ? a.lvl : 1e9) - (b.c.closed ? b.lvl : 1e9));
+  const counts = { part: 0, hole: 0, line: 0 };
+  const total = { part: 0, hole: 0, line: 0 };
+  const role = x => !x.c.closed ? 'line' : x.lvl % 2 ? 'hole' : 'part';
+  for (const x of info) total[role(x)]++;
+  return info.map(x => {
+    const r = role(x), c = x.c;
+    const bb = RR.bboxOf([c]), cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2;
+    counts[r]++;
+    const label = total[r] > 1 ? `${r} ${counts[r]}` : r;
+    return {
+      id: uid(), kind: 'path', name: wcs.length === 1 ? baseName : `${baseName} ${label}`, params: {}, rot: 0, sx: 1, sy: 1, geomVer: 1, lock: true,
+      contours: [{ closed: c.closed, pts: c.pts.map(p => [p[0] - cx, p[1] - cy]) }], x: cx, y: cy,
+      cut: { type: r === 'line' ? 'on' : r === 'hole' ? 'inside' : 'outside', depth, tabs: { on: false, count: 4, width: 0.25, height: 0.1 } }
+    };
+  });
+}
 function addImported(name, res) {
   const bb = RR.bboxOf(res.contours);
-  const cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2;
+  const dx = P.material.w / 2 - (bb.x0 + bb.x1) / 2, dy = P.material.h / 2 - (bb.y0 + bb.y1) / 2;
+  const wcs = res.contours.map(c => ({ closed: c.closed, pts: c.pts.map(p => [p[0] + dx, p[1] + dy]) }));
+  const pieces = piecesFromWorld(wcs, name, P.material.t);
+  P.objects.push(...pieces);
+  return pieces;
+}
+function combineSel() {
+  const ss = selected();
+  if (ss.length < 2) { toast('Select two or more shapes to combine.'); return; }
+  pushUndo();
+  const wcs = ss.flatMap(o => world(o).map(c => ({ closed: c.closed, pts: c.pts.map(p => [p[0], p[1]]) })));
+  const bb = RR.bboxOf(wcs), cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2;
+  // keep the cut settings of the biggest shape (usually the outer outline)
+  const big = ss.reduce((m, o) => { const b = wbox(o), mb = wbox(m); return b.w * b.h > mb.w * mb.h ? o : m; }, ss[0]);
   const o = {
-    id: uid(), kind: 'path', name, params: {}, rot: 0, sx: 1, sy: 1, geomVer: 1, lock: true,
-    contours: res.contours.map(c => ({ closed: c.closed, pts: c.pts.map(p => [p[0] - cx, p[1] - cy]) })),
-    x: P.material.w / 2, y: P.material.h / 2,
-    cut: { type: res.contours.some(c => c.closed) ? 'on' : 'on', depth: P.material.t, tabs: { on: false, count: 4, width: 0.25, height: 0.1 } }
+    id: uid(), kind: 'path', name: big.name.replace(/ (part|hole|line)( \d+)?$/, '') || 'Combined shape', params: {}, rot: 0, sx: 1, sy: 1, geomVer: 1, lock: true,
+    contours: wcs.map(c => ({ closed: c.closed, pts: c.pts.map(p => [p[0] - cx, p[1] - cy]) })), x: cx, y: cy,
+    cut: JSON.parse(JSON.stringify(big.cut))
   };
-  P.objects.push(o);
-  return o;
+  if (o.cut.type === 'inside') o.cut.type = 'outside';
+  const idx = Math.min(...ss.map(x => P.objects.indexOf(x)));
+  P.objects = P.objects.filter(x => !sel.has(x.id));
+  P.objects.splice(idx, 0, o);
+  sel = new Set([o.id]); inspTab = 'cut';
+  changed();
+  toast(`Combined ${ss.length} shapes into one. Holes inside it stay holes when you pocket or cut it out.`);
+}
+function breakSel() {
+  const ss = selected().filter(o => o.contours.length > 1);
+  if (!ss.length) { toast('Nothing to break apart. These shapes are already separate pieces.'); return; }
+  pushUndo();
+  const next = new Set(sel);
+  let n = 0;
+  for (const o of ss) {
+    const wcs = world(o).map(c => ({ closed: c.closed, pts: c.pts.map(p => [p[0], p[1]]) }));
+    const pieces = piecesFromWorld(wcs, o.name, o.cut.depth);
+    P.objects.splice(P.objects.indexOf(o), 1, ...pieces);
+    next.delete(o.id); pieces.forEach(p => next.add(p.id)); n += pieces.length;
+  }
+  sel = next; inspTab = 'cut';
+  changed();
+  toast(`Broke apart into ${n} pieces. Holes are set to cut inside and outlines to cut outside.`);
 }
 async function importFiles(files) {
   const added = [];
@@ -2128,10 +2327,11 @@ async function importFiles(files) {
       else if (ext === 'dxf' || /^\s*0\s*[\r\n]+\s*SECTION/i.test(text.slice(0, 200))) res = RR.importDXF(text);
       else throw new Error(`${f.name} is not an SVG or DXF file.`);
       if (first) { pushUndo(); first = false; }
-      const o = addImported(f.name.replace(/\.[^.]+$/, ''), res);
-      added.push(o);
-      const b = wbox(o);
-      toast(`Imported ${f.name}: ${fmtN(b.w)} × ${fmtN(b.h)} in${res.unitName ? ', units read as ' + res.unitName : ''}`);
+      const pieces = addImported(f.name.replace(/\.[^.]+$/, ''), res);
+      added.push(...pieces);
+      const b = selBox(pieces);
+      const holes = pieces.filter(x => x.cut.type === 'inside').length;
+      toast(`Imported ${f.name}: ${fmtN(b.w)} × ${fmtN(b.h)} in, ${pieces.length} piece${pieces.length > 1 ? 's' : ''}${holes ? ` (${holes} hole${holes > 1 ? 's' : ''} set to cut inside)` : ''}${res.unitName ? ', units read as ' + res.unitName : ''}`);
       if (b.w > P.material.w || b.h > P.material.h) setTimeout(() => toast(`${f.name} is larger than the material. Resize it in the Shape panel.`), 2600);
     } catch (err) {
       toast(err.message || `Could not import ${f.name}.`);
@@ -2159,16 +2359,15 @@ async function saveFile(name, text) {
     let dl = null;
     try { dl = await window.claude.use('downloads'); } catch (e) { dl = null; }
     if (dl) {
-      try { await dl.save({ filename: name, data: text }); toast('Saved ' + name); return; }
+      try { await dl.save({ filename: name, data: text }); toast('Saved ' + name); return 'saved'; }
       catch (err) {
-        if (err && err.code === 'declined') return;
+        if (err && err.code === 'declined') return 'declined';
         if (err && err.code === 'rejected_extension') {
-          try { await dl.save({ filename: name + '.txt', data: text }); toast(`Saved as ${name}.txt. Remove ".txt" from the name before loading it on the ShopBot.`); }
-          catch (e2) { if (!e2 || e2.code !== 'declined') toast('Saving files is blocked in this view. Use "Copy .sbp code" instead.'); }
-          return;
+          try { await dl.save({ filename: name + '.txt', data: text }); toast(`Saved as ${name}.txt. Remove ".txt" from the name before loading it on the ShopBot.`); return 'saved'; }
+          catch (e2) { if (!e2 || e2.code !== 'declined') toast('Saving files is blocked in this view. Use "Copy .sbp code" instead.'); return 'failed'; }
         }
         toast('Saving files is blocked in this view. Use "Copy .sbp code" instead.');
-        return;
+        return 'failed';
       }
     }
   }
@@ -2177,6 +2376,7 @@ async function saveFile(name, text) {
   a.download = name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   toast('Downloaded ' + name);
+  return 'downloaded';
 }
 function currentJob() { if (!job) runJob(); return job; }
 function exportCheck() {
@@ -2185,7 +2385,7 @@ function exportCheck() {
   return j;
 }
 const sbpText = j => RR.toGcode(P, j, { header: P.machine.header, footer: P.machine.footer });
-$('#btnExport').addEventListener('click', () => { const j = exportCheck(); if (j) saveFile(safeName() + '.sbp', sbpText(j)); });
+$('#btnExport').addEventListener('click', () => { const j = exportCheck(); if (j) openShip(j); });
 $('#btnNc').addEventListener('click', () => { const j = exportCheck(); if (j) saveFile(safeName() + '.nc', RR.toGcode(P, j, {})); });
 $('#btnCopy').addEventListener('click', () => {
   const j = exportCheck(); if (!j) return;
@@ -2505,6 +2705,102 @@ function update3D() {
   render3D();
 }
 
+// ---------- "Take it to the shop" export screen ----------
+// Teachers: edit these steps to match your shop. These words are filled in for each job:
+// {file} file name · {bit} bit size · {zero} where 0,0 is · {wood} wood size · {thick} thickness
+const SHOP_STEPS = [
+  'On the ShopBot computer, open your Google Drive and get <b>{file}</b> onto that computer.',
+  'Fasten your {wood} wood to the bed. Keep clamps and screws away from the cut lines.',
+  'Put the <b>{bit}</b> bit in the router.',
+  'Move the bit to the <b>{zero}</b> of the wood and zero X and Y.',
+  'Zero Z on top of the wood ({thick} thick) with the zero plate.',
+  'In the ShopBot software, choose <b>Cut Part</b> and open <b>{file}</b>.',
+  'Safety glasses on and dust collection on, then start the cut.'
+];
+const canPick = () => typeof window.showSaveFilePicker === 'function' && window.self === window.top;
+let shipState = null;
+function fillStep(t, d) { return t.replace(/\{(\w+)\}/g, (m, k) => d[k] != null ? d[k] : m); }
+function openShip(j) {
+  const name = safeName() + '.sbp';
+  shipState = { name, text: sbpText(j), stage: 'start', savedAs: null };
+  const m = P.material;
+  const d = {
+    file: esc(name), bit: fracIn(P.bit.dia) + ' in', zero: P.zero === 'center' ? 'center' : 'front-left corner',
+    wood: `${fmtN(m.w)} × ${fmtN(m.h)} in`, thick: `${fmtN(m.t)} in`
+  };
+  const icon = (p) => `<svg viewBox="0 0 48 48" aria-hidden="true">${p}</svg>`;
+  $('#shipCard').innerHTML = `
+    <header class="sh-head">
+      <div><span class="eyebrow">Your cut file is ready</span><h2>Take it to the shop</h2></div>
+      <button class="iconbtn sh-x" data-ship="close" title="Close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </header>
+    <div class="sh-trip" id="shTrip" data-stage="start" aria-hidden="true">
+      <div class="sh-line"><i></i></div>
+      <div class="sh-node n1">${icon('<rect x="9" y="12" width="30" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M5 36h38" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>')}<span>This computer</span></div>
+      <div class="sh-node n2">${icon('<path d="M15 34h19a8 8 0 0 0 1-15.9A11 11 0 0 0 14 20a7 7 0 0 0 1 14z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>')}<span>Google Drive</span><b class="sh-ok">✓</b></div>
+      <div class="sh-node n3">${icon('<path d="M6 38h36M10 38V14M38 38V14M8 14h32" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><rect x="20" y="14" width="8" height="10" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M24 24v6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M14 34h20" stroke="var(--wood-deep)" stroke-width="3"/>')}<span>ShopBot</span></div>
+      <div class="sh-token"><svg viewBox="0 0 26 32"><path d="M2 2h15l7 7v21H2z" fill="var(--panel)" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/><path d="M17 2v7h7" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/><text x="13" y="24" text-anchor="middle">SBP</text></svg></div>
+    </div>
+    <div class="sh-body">
+      <section class="sh-step">
+        <span class="sh-num">1</span>
+        <div class="sh-main">
+          <h3>Save it to your Google Drive</h3>
+          <p class="sh-file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg><b>${esc(name)}</b><span>${fmtTime(j.minutes + 2 / 60)} cut</span></p>
+          <p class="note">${canPick()
+            ? 'In the save window, pick your <b>Google Drive</b> folder. Files left in Downloads stay on this computer and won’t be in the shop.'
+            : 'Your browser puts the file in <b>Downloads</b>. After it saves, drag it into your <b>Google Drive</b> so you can get it in the shop.'}</p>
+          <div class="row"><button class="btn-primary" data-ship="save" id="shSave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>${canPick() ? 'Save file…' : 'Download file'}</button>
+            <button class="btn" data-ship="project" title="Save the design too, so you can change it later">Also save the project</button></div>
+          <p class="sh-status" id="shStatus" role="status"></p>
+        </div>
+      </section>
+      <section class="sh-step">
+        <span class="sh-num">2</span>
+        <div class="sh-main">
+          <h3>At the ShopBot</h3>
+          <ol class="sh-list">${SHOP_STEPS.map(s => `<li>${fillStep(s, d)}</li>`).join('')}</ol>
+          <p class="sh-photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take a photo of this list to bring to the shop.</p>
+        </div>
+      </section>
+    </div>
+    <footer class="sh-foot"><button class="btn" data-ship="close">Done</button></footer>`;
+  $('#ship').hidden = false;
+  $('#shSave').focus({ preventScroll: true });
+}
+function setShipStage(stage, msg, warn) {
+  shipState.stage = stage;
+  $('#shTrip').dataset.stage = stage;
+  const s = $('#shStatus'); s.innerHTML = msg || ''; s.classList.toggle('warn', !!warn);
+}
+async function shipSave() {
+  const st = shipState; if (!st) return;
+  if (canPick()) {
+    try {
+      const h = await window.showSaveFilePicker({ id: 'routeready-sbp', suggestedName: st.name, types: [{ description: 'ShopBot part file', accept: { 'text/plain': ['.sbp'] } }] });
+      const w = await h.createWritable(); await w.write(st.text); await w.close();
+      setShipStage('saved', `Saved as <b>${esc(h.name)}</b>. If you picked your Google Drive folder, it will be waiting in the shop. Next time the save window opens in the same folder.`);
+      $('#shSave').classList.add('done');
+      return;
+    } catch (e) {
+      if (e && e.name === 'AbortError') { setShipStage('start', 'Not saved yet. Click <b>Save file…</b> and pick your Google Drive folder.', true); return; }
+    }
+  }
+  const r = await saveFile(st.name, st.text);
+  if (r === 'saved') setShipStage('saved', `Saved <b>${esc(st.name)}</b>. Make sure it ends up in your Google Drive before you head to the shop.`);
+  else if (r === 'downloaded') setShipStage('downloads', `<b>${esc(st.name)}</b> is in this computer's <b>Downloads</b> folder. Open Google Drive and drag it in now, or it won't be in the shop.`, true);
+}
+function closeShip() { $('#ship').hidden = true; $('#shipCard').innerHTML = ''; shipState = null; }
+$('#ship').addEventListener('click', e => {
+  if (e.target.id === 'ship') { closeShip(); return; }
+  const b = e.target.closest('[data-ship]'); if (!b) return;
+  const a = b.dataset.ship;
+  if (a === 'close') closeShip();
+  else if (a === 'save') shipSave();
+  else if (a === 'project') saveProject();
+});
+$('#ship').addEventListener('keydown', e => { if (e.key === 'Escape') closeShip(); });
+
 // ---------- setup wizard ----------
 const WZ_STEPS = [
   { key: 'size', label: 'Wood size' },
@@ -2823,7 +3119,7 @@ renderCards();
 renderInspector();
 runJob();
 openWizard(false);
-window.__rr = { get P() { return P; }, get job() { return job; }, importText: (name, text) => importFiles([new File([text], name)]), sbp: () => sbpText(currentJob()) };
+window.__rr = { screenOf: (x, y) => [X(x), Y(y)], get sel() { return [...sel]; }, get P() { return P; }, get job() { return job; }, importText: (name, text) => importFiles([new File([text], name)]), sbp: () => sbpText(currentJob()) };
 })();
 </script>
 

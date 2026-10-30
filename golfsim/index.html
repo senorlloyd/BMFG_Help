@@ -239,7 +239,7 @@ h2{font:600 1.05rem var(--display);margin:0}
         <ul class="rules">
           <li>Drag back from the ball and let go to putt. Drag anywhere else to orbit, scroll to zoom.</li>
           <li>A part with <b>tee</b> in its name marks the start. One with <b>cup</b> or <b>hole</b> marks the hole. Everything else is solid.</li>
-          <li>Parts named <b>spinner</b> or <b>windmill</b> spin, around a part named <b>hub</b> if one sits on them. Add a speed like “spinner 20rpm”. Parts named <b>slider</b> or <b>gate</b> slide across the hole. Change any part under Moving parts.</li>
+          <li>Parts named <b>spinner</b> or <b>windmill</b> spin, around a part named <b>hub</b> if one sits on them. Add a speed like “spinner 20rpm”. Parts named <b>slider</b> or <b>gate</b> slide across the hole; add an angle like “slider 45deg” to turn the path. Parts named <b>lift</b> or <b>drawbridge</b> sink into the floor and rise again. Change any part under Moving parts.</li>
           <li>Drop a PNG or JPG to put it on the flag. It also prints on top of any part named <b>decal</b>.</li>
           <li>Open or drop a <b>.golfhole</b> file to play a hole someone shared.</li>
           <li>Ball is 42.7 mm, cup is 108 mm, same for every hole.</li>
@@ -449,7 +449,7 @@ teeMark.rotation.x=-Math.PI/2;scene.add(teeMark);
 /* ---------- course import ---------- */
 let course=null,simT=0; // simT is the clock that drives moving parts
 const TEE_RE=/(^|[^a-z])tee([^a-z]|$)/i, CUP_RE=/(^|[^a-z])(cup|hole)([^a-z]|$)/i;
-const SPIN_RE=/(^|[^a-z])(spin|rotat|windmill|propeller|turbine|fan(?![a-z]))/i, SLIDE_RE=/(^|[^a-z])(slid|gate|piston|shuttle)/i;
+const SPIN_RE=/(^|[^a-z])(spin|rotat|windmill|propeller|turbine|fan(?![a-z]))/i, SLIDE_RE=/(^|[^a-z])(slid|gate|piston|shuttle)/i, LIFT_RE=/(^|[^a-z])(lift|elevator|riser|drawbridge)/i;
 const HUB_RE=/(^|[^a-z])(hub|pivot|axle)([^a-z]|$)/i, DECAL_RE=/(^|[^a-z])(decal|logo|sticker|image)/i;
 const fmt=n=>n>=100?n.toFixed(0):n>=10?n.toFixed(1):n.toFixed(2);
 
@@ -527,7 +527,8 @@ function loadCourse(object,src,opt){
   else for(const n of parts.keys()){
     let cfg=null;
     if(SPIN_RE.test(n)){const r=n.match(/(\d+(?:\.\d+)?)\s*rpm/i);cfg={type:'spin',speed:r?Math.max(1,Math.min(10,Math.round(+r[1]/3))):4,dist:40}}
-    else if(SLIDE_RE.test(n))cfg={type:'across',speed:3,dist:40};
+    else if(LIFT_RE.test(n))cfg={type:'lift',speed:3,dist:30,ang:0};
+    else if(SLIDE_RE.test(n)){const a=n.match(/(-?\d+)\s*(?:deg|°)/i);cfg={type:'across',speed:3,dist:40,ang:a?Math.max(-90,Math.min(90,+a[1])):0}}
     if(saved[n])cfg=saved[n];
     if(cfg&&cfg.type!=='fixed')motions[n]=cfg;
   }
@@ -544,9 +545,9 @@ function loadCourse(object,src,opt){
     const tv=triangles(ms,pivot),group=new THREE.Group();group.position.copy(pivot);group.updateMatrixWorld(true);
     const keep=ms.map(m=>({mesh:m,parent:m.parent}));ms.forEach(m=>{group.attach(m);movingMeshes.add(m)});scene.add(group);
     movers.push({name:n,type:cfg.type,group,keep,pivot,verts:tv.verts,idx:tv.idx,rad:tv.rad,
-      dir:cfg.type==='along'?fwd.clone():new V3(-fwd.z,0,fwd.x),omega:cfg.speed*3*Math.PI/30,A:cfg.dist/200,period:12/cfg.speed,
+      dir:slideDir(cfg,fwd),omega:cfg.speed*3*Math.PI/30,A:cfg.dist/200,period:12/cfg.speed,
       p:pivot.clone(),q:new THREE.Quaternion(),lv:new V3(),av:new V3()});
-    report.push({l:'ok',t:`<b>Moving part.</b> “${esc(n)}” ${cfg.type==='spin'?`spins at ${cfg.speed*3} rpm${hubNote}`:`slides ${cfg.dist} cm ${cfg.type}`}.`});
+    report.push({l:'ok',t:`<b>Moving part.</b> “${esc(n)}” ${cfg.type==='spin'?`spins at ${cfg.speed*3} rpm${hubNote}`:cfg.type==='lift'?`sinks ${cfg.dist} cm and rises again`:`slides ${cfg.dist} cm ${cfg.type}${cfg.ang?`, turned ${cfg.ang}°`:''}`}.`});
   }
   const st=triangles(solids.filter(m=>!movingMeshes.has(m)));
   const tris=(st.idx.length+movers.reduce((a,m)=>a+m.idx.length,0))/3;
@@ -567,7 +568,7 @@ function loadCourse(object,src,opt){
   }
 
   scene.add(root);
-  const sig=Object.entries(motions).sort().map(([n,c])=>`${n}:${c.type}:${c.speed}:${c.type==='spin'?'':c.dist}`).join(',');
+  const sig=Object.entries(motions).sort().map(([n,c])=>`${n}:${c.type}:${c.speed}:${c.type==='spin'?'':c.dist}${c.ang&&c.type!=='spin'&&c.type!=='lift'?':a'+c.ang:''}`).join(',');
   course={key,custom:false,forceUp,bytes:opt.bytes||null,fileName:opt.fileName||'',place:{tee:opt.tee||null,cup:opt.cup||null},pkg:opt.pkg||null,decalURL:null,sig,root,object,solids,size,box,tee,cup,zUp,src,realHole,onshape:opt.onshape,
     cupR:Math.max(CUP_R,realHole?c0.half:0),movers,decals,parts:[...parts.keys()],motions,fwd};
   course.scoreKey=scoreKeyFor(course);
@@ -666,8 +667,13 @@ function reload(extra){const c=course;loadCourse(c.object,c.src,Object.assign({o
 // one scoreboard per exact layout: same model, same moving parts, same tee and cup
 function scoreKeyFor(c){return c.key+(c.sig?'|'+c.sig:'')+(c.forceUp!==undefined?'|up'+(c.zUp?'z':'y'):'')+(c.place.tee?'|t'+c.place.tee.join(','):'')+(c.place.cup?'|c'+c.place.cup.join(','):'')}
 const UP=new V3(0,1,0);
+// slide direction: across or along the hole, turned by ang degrees around the up axis; lift goes straight down
+function slideDir(cfg,fwd){if(cfg.type==='lift')return new V3(0,-1,0);
+  const d=cfg.type==='along'?fwd.clone():new V3(-fwd.z,0,fwd.x);return cfg.ang?d.applyAxisAngle(new V3(0,1,0),cfg.ang*Math.PI/180):d}
 function moverAt(m,t){
   if(m.type==='spin'){const a=m.omega*t;m.q.setFromAxisAngle(UP,a);m.p.copy(m.pivot);m.lv.set(0,0,0);m.av.set(0,m.omega,0)}
+  else if(m.type==='lift'){const k=2*Math.PI/m.period,D=2*m.A;m.q.identity(); // modeled position is the top; it sinks D and comes back
+    m.p.copy(m.pivot).addScaledVector(m.dir,D*(1-Math.cos(k*t))/2);m.lv.copy(m.dir).multiplyScalar(D*k*Math.sin(k*t)/2);m.av.set(0,0,0)}
   else{const k=2*Math.PI/m.period;m.q.identity();m.p.copy(m.pivot).addScaledVector(m.dir,m.A*Math.sin(k*t));m.lv.copy(m.dir).multiplyScalar(m.A*k*Math.cos(k*t));m.av.set(0,0,0)}
 }
 function applyMovers(dt){simT+=dt;course.movers.forEach((m,k)=>{moverAt(m,simT);engine.setMover(k,m.p,m.q,m.lv,m.av)})}
@@ -838,7 +844,7 @@ function saveScore(name){
 $('saveForm').addEventListener('submit',ev=>{ev.preventDefault();saveScore($('who').value.trim().slice(0,14));$('saveForm').hidden=true;$('bannerSub').textContent+=' · saved'});
 
 /* ---------- moving-parts panel ---------- */
-const MOTIONS=[['fixed','Fixed'],['spin','Spin'],['across','Slide across'],['along','Slide along']];
+const MOTIONS=[['fixed','Fixed'],['spin','Spin'],['across','Slide across'],['along','Slide along'],['lift','Up and down']];
 const speedText=(type,v)=>type==='spin'?`${v*3} rpm`:`${(12/v).toFixed(1)} s`;
 function renderMotion(){
   $('motion').innerHTML=course.parts.map((n,i)=>{
@@ -846,11 +852,12 @@ function renderMotion(){
     return `<div class="mrow" data-part="${esc(n)}"><span class="pname">${esc(n)}</span>
       <select id="mt${i}" aria-label="Motion for ${esc(n)}">${MOTIONS.map(([v,l])=>`<option value="${v}"${v===c.type?' selected':''}>${l}</option>`).join('')}</select>
       <label${c.type==='fixed'?' hidden':''}>Speed<input id="ms${i}" type="range" min="1" max="10" value="${c.speed}"><output>${speedText(c.type,c.speed)}</output></label>
-      <label${c.type==='fixed'||c.type==='spin'?' hidden':''}>Travel<input id="md${i}" type="range" min="10" max="150" step="5" value="${c.dist}"><output>${c.dist} cm</output></label></div>`}).join('');
+      <label${c.type==='fixed'||c.type==='spin'?' hidden':''}>Travel<input id="md${i}" type="range" min="10" max="150" step="5" value="${c.dist}"><output>${c.dist} cm</output></label>
+      <label${c.type==='across'||c.type==='along'?'':' hidden'}>Angle<input id="ma${i}" type="range" min="-90" max="90" step="15" value="${c.ang||0}"><output>${c.ang||0}°</output></label></div>`}).join('');
 }
-function rowCfg(row){const [sel,sp,ds]=row.querySelectorAll('select,input');return {type:sel.value,speed:+sp.value,dist:+ds.value}}
+function rowCfg(row){const [sel,sp,ds,an]=row.querySelectorAll('select,input');return {type:sel.value,speed:+sp.value,dist:+ds.value,ang:+an.value}}
 $('motion').addEventListener('input',e=>{const row=e.target.closest('.mrow');if(!row||e.target.tagName!=='INPUT')return;const c=rowCfg(row),outs=row.querySelectorAll('output');
-  outs[0].textContent=speedText(c.type,c.speed);outs[1].textContent=c.dist+' cm'});
+  outs[0].textContent=speedText(c.type,c.speed);outs[1].textContent=c.dist+' cm';outs[2].textContent=c.ang+'°'});
 $('motion').addEventListener('change',e=>{
   const row=e.target.closest('.mrow');if(!row)return;
   const cfg=rowCfg(row),all=store.get('cadgolf.motion.'+course.key,{});all[row.dataset.part]=cfg;store.set('cadgolf.motion.'+course.key,all);

@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BMFG Help</title>
-<meta name="description" content="Beaverton MFG shop apps: PenBot, RouteReady, InlayReady, CarveReady, ArcRight, LaserReady, KissCut, NeedlePath, WreSTL and CAD Mini Golf.">
+<meta name="description" content="Beaverton MFG shop apps: PenBot, RouteReady, InlayReady, CarveReady, ArcRight, LaserReady, KissCut, NeedlePath, WreSTL, CAD Mini Golf and SiegeReady.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&family=Big+Shoulders+Stencil:wght@900&family=Chakra+Petch:wght@700&family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Barlow+Semi+Condensed:wght@700&family=Bowlby+One&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&family=Big+Shoulders+Stencil:wght@900&family=Chakra+Petch:wght@700&family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Barlow+Semi+Condensed:wght@700&family=Bowlby+One&family=Cinzel:wght@900&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#eef0f2; --panel:#ffffff; --ink:#16191e; --muted:#5b636e; --line:#d6dbe1; --focus:#2a5fc4;
@@ -56,6 +56,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
 .golfsim   {--a-bg:#eaefe6;--a-ink:#15241b;--a-accent:#d94f27;--a-felt:#2f7d4f}
 .penbot    {--a-bg:#f1effd;--a-ink:#1a2230;--a-accent:#5b4bdb;--a-zero:#dd4425}
 .wrestl    {--a-bg:#eef0f2;--a-ink:#1d2228;--a-accent:#cf2a27;--a-gold:#e8a100;--a-turq:#0e9d97}
+.siegeready{--a-bg:#f4ebe1;--a-ink:#1e140e;--a-accent:#d9530b;--a-stone:#8a7f74;--a-flame:#ffb347}
 @media (prefers-color-scheme: dark){
 :root:not([data-theme="light"]) .routeready{--a-bg:#161b23;--a-ink:#e5eaf1;--a-accent:#6d9af0;--a-accent-ink:#0c1320;--a-zero:#f0623f}
 :root:not([data-theme="light"]) .inlayready{--a-bg:#1c1a17;--a-ink:#e5eaf1;--a-accent:#6d9af0;--a-accent-ink:#0c1320;--a-zero:#f0623f;--a-plug:#9a6a45}
@@ -66,6 +67,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
 :root:not([data-theme="light"]) .golfsim   {--a-bg:#0f1612;--a-ink:#e7efe9;--a-accent:#ff7c50;--a-felt:#46a26b}
 :root:not([data-theme="light"]) .penbot    {--a-bg:#1b1930;--a-ink:#e5eaf1;--a-accent:#9d92ff;--a-zero:#f0623f}
 :root:not([data-theme="light"]) .wrestl    {--a-bg:#15181c;--a-ink:#e8ebee;--a-accent:#f04e43;--a-gold:#ffbe2e;--a-turq:#2fc4bc}
+:root:not([data-theme="light"]) .siegeready{--a-bg:#1b1410;--a-ink:#f4e9dc;--a-accent:#ff7a1a;--a-stone:#a99c8e;--a-flame:#ffd36b}
 }
 :root[data-theme="dark"] .routeready{--a-bg:#161b23;--a-ink:#e5eaf1;--a-accent:#6d9af0;--a-accent-ink:#0c1320;--a-zero:#f0623f}
 :root[data-theme="dark"] .inlayready{--a-bg:#1c1a17;--a-ink:#e5eaf1;--a-accent:#6d9af0;--a-accent-ink:#0c1320;--a-zero:#f0623f;--a-plug:#9a6a45}
@@ -76,6 +78,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
 :root[data-theme="dark"] .golfsim   {--a-bg:#0f1612;--a-ink:#e7efe9;--a-accent:#ff7c50;--a-felt:#46a26b}
 :root[data-theme="dark"] .penbot    {--a-bg:#1b1930;--a-ink:#e5eaf1;--a-accent:#9d92ff;--a-zero:#f0623f}
 :root[data-theme="dark"] .wrestl    {--a-bg:#15181c;--a-ink:#e8ebee;--a-accent:#f04e43;--a-gold:#ffbe2e;--a-turq:#2fc4bc}
+:root[data-theme="dark"] .siegeready{--a-bg:#1b1410;--a-ink:#f4e9dc;--a-accent:#ff7a1a;--a-stone:#a99c8e;--a-flame:#ffd36b}
 
 /* ---------- ShopBot family: shared blue well + corner badge ---------- */
 .shopbot{--sb-bg:#e1ecfa;--sb-line:#b9d0f0;--sb-ink:#1f4f9e}
@@ -131,6 +134,11 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
 .mk-pb img{width:60px;height:60px;flex:none;transform:rotate(-6deg);filter:drop-shadow(0 3px 4px rgba(0,0,0,.18))}
 .mk-pb span b{color:var(--a-accent);font-weight:700}
 
+/* SiegeReady mark */
+.mk-sr{display:flex;align-items:center;gap:12px;font:900 28px/1 "Cinzel",Georgia,serif;letter-spacing:.04em;text-transform:uppercase;color:var(--a-ink)}
+.mk-sr svg{width:64px;height:64px;flex:none}
+.mk-sr span b{color:var(--a-accent);font-weight:900}
+
 /* More links */
 .more{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
 .more h2{font:500 .78rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 6px 0 0}
@@ -142,7 +150,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
   .wrap{padding-top:28px}
   .grid{grid-template-columns:1fr}
   .well{height:130px}
-  .plate{font-size:32px}.tag{font-size:27px}.mk-kc{font-size:31px}.mk-rr,.mk-gs{font-size:26px}.mk-ws{font-size:27px}.mk-pb{font-size:28px}
+  .plate{font-size:32px}.tag{font-size:27px}.mk-kc{font-size:31px}.mk-rr,.mk-gs{font-size:26px}.mk-ws{font-size:27px}.mk-pb{font-size:28px}.mk-sr{font-size:23px}
 }
 @media (prefers-reduced-motion:reduce){ .app,.machine::after{transition:none} .app:hover{transform:none} }
 </style>
@@ -237,6 +245,15 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
           <span>Mini Golf</span></div></div>
         <div class="body"><h2 class="name">CAD Mini Golf</h2>
           <p class="desc">Drop in an Onshape model of a mini golf hole and play it in 3D.</p>
+          <span class="machine">Onshape game</span></div>
+      </a></li>
+
+      <li><a class="app siegeready" href="siegeready/index.html">
+        <div class="well"><div class="mk-sr" aria-hidden="true">
+          <svg viewBox="0 0 64 64"><path d="M6 50C14 22 34 10 52 14" fill="none" stroke="var(--a-accent)" stroke-width="2.2" stroke-dasharray="3 4" stroke-linecap="round"/><path d="M34 58V30h4v4h4v-4h4v4h4v-4h4v28z" fill="var(--a-stone)"/><path d="M41 58v-9a3 3 0 0 1 6 0v9z" fill="var(--a-bg)"/><path d="M44 30V18" stroke="var(--a-ink)" stroke-width="1.6"/><path d="M44 18h8l-2 3 2 3h-8z" fill="var(--a-accent)"/><path d="M2 58h60" stroke="var(--a-ink)" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="40" r="7" fill="var(--a-flame)" opacity=".55"/><circle cx="10" cy="40" r="4.2" fill="var(--a-accent)"/><circle cx="9" cy="39" r="1.6" fill="#fff" opacity=".8"/></svg>
+          <span>Siege<b>Ready</b></span></div></div>
+        <div class="body"><h2 class="name">SiegeReady</h2>
+          <p class="desc">Rig your Onshape marble launcher, then launch a flaming marble for distance, accuracy, or to knock down a castle.</p>
           <span class="machine">Onshape game</span></div>
       </a></li>
     </ul>

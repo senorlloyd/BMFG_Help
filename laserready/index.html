@@ -8,6 +8,7 @@
   --bg:#E7E8EA; --panel:#F7F7F8; --sheet:#D7DADD; --birch:#EBD9B4; --birch-edge:#BFA374; --ink:#1D2024; --muted:#5D636B; --line:#CDD1D6;
   --grid:rgba(110,80,30,.14); --grid-major:rgba(110,80,30,.30); --field:#FFFFFF;
   --cut:#E0181B; --scratch:#1D47D6; --burn:#2A1C10; --warn:#B45309; --ok:#2A7F3C; --accent:#E0181B; --accent-ink:#FFFFFF;
+  --chrome:#1D2024; --chrome-2:#33383F; --chrome-ink:#F3F4F6; --chrome-muted:#A2A8B0;
   --f-display:"Chakra Petch","Arial Narrow",system-ui,sans-serif;
   --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
@@ -15,11 +16,11 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#121417; --panel:#1A1D21; --sheet:#0D0F11; --birch:#5A4A33; --birch-edge:#857050; --ink:#E6E8EB; --muted:#9097A0; --line:#2C3137;
   --grid:rgba(255,230,190,.07); --grid-major:rgba(255,230,190,.15); --field:#111316;
-  --cut:#FF4D4F; --scratch:#7391FF; --burn:#120C06; --warn:#F59E0B; --ok:#5FC777; --accent:#FF4D4F; --accent-ink:#1A0505; color-scheme:dark}}
+  --cut:#FF4D4F; --scratch:#7391FF; --burn:#120C06; --warn:#F59E0B; --ok:#5FC777; --accent:#FF4D4F; --accent-ink:#1A0505; --chrome:#08090B; --chrome-2:#2A2E34; --chrome-ink:#F3F4F6; --chrome-muted:#8C939C; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#121417; --panel:#1A1D21; --sheet:#0D0F11; --birch:#5A4A33; --birch-edge:#857050; --ink:#E6E8EB; --muted:#9097A0; --line:#2C3137;
   --grid:rgba(255,230,190,.07); --grid-major:rgba(255,230,190,.15); --field:#111316;
-  --cut:#FF4D4F; --scratch:#7391FF; --burn:#120C06; --warn:#F59E0B; --ok:#5FC777; --accent:#FF4D4F; --accent-ink:#1A0505; color-scheme:dark}
+  --cut:#FF4D4F; --scratch:#7391FF; --burn:#120C06; --warn:#F59E0B; --ok:#5FC777; --accent:#FF4D4F; --accent-ink:#1A0505; --chrome:#08090B; --chrome-2:#2A2E34; --chrome-ink:#F3F4F6; --chrome-muted:#8C939C; color-scheme:dark}
 
 [hidden]{display:none!important}
 html{height:100%;box-sizing:border-box}
@@ -135,6 +136,77 @@ input[type=range]{accent-color:var(--ink);padding:0;border:0;background:transpar
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--panel);
   font:500 13px var(--f-body);padding:10px 14px;border-radius:6px;max-width:calc(100% - 32px);box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:20}
 
+/* ---------- lessons (first-run tutorial) ---------- */
+.wiz{position:fixed;inset:0;z-index:60;overflow:auto;display:flex;flex-direction:column;background-color:var(--bg);
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:32px 32px;
+  padding-block:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wiz-card{margin:auto;width:min(1020px,100%);background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 24px 60px rgba(20,16,10,.22);overflow:hidden}
+.wz-head{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;padding:12px 18px;background:var(--chrome);color:var(--chrome-ink)}
+.tag.tag-sm{font-size:16px;padding:5px 10px 4px 21px;margin:3px;outline-offset:2px}
+.tag.tag-sm::before{left:7px;width:6px;height:6px;margin-top:-3px;background:var(--chrome)}
+.wz-prog{list-style:none;margin:0;padding:0;display:flex;gap:2px;flex:1;justify-content:center;flex-wrap:wrap}
+.wz-prog button{background:none;border:0;color:var(--chrome-muted);padding:5px 8px;font:500 13px var(--f-body)}
+.wz-prog button:hover{background:var(--chrome-2);color:var(--chrome-ink)}
+.wz-prog b{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:600 11.5px var(--f-mono);border:1.5px solid currentColor}
+.wz-prog .cur button{color:var(--chrome-ink)}
+.wz-prog .cur b{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.wz-prog .done b{background:var(--chrome-2);border-color:var(--chrome-2);color:var(--chrome-ink)}
+.wz-noshow{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--chrome-muted);cursor:pointer}
+.wz-skip{background:none;border:1px solid var(--chrome-2);color:var(--chrome-ink)}
+.wz-skip:hover{background:var(--chrome-2);border-color:var(--chrome-2)}
+.wz-body{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);min-height:480px}
+.wz-vis{margin:0;background:var(--sheet);border-right:1px solid var(--line);display:grid;grid-template-rows:1fr auto;align-items:center;padding:18px;gap:8px;min-width:0}
+.wz-vis .vis{display:grid;gap:14px;min-width:0}
+.wz-vis svg.mv{display:block;width:100%;height:auto;max-height:440px}
+.wz-vis figcaption{font-size:12.5px;color:var(--muted);text-align:center;min-height:1.4em}
+.wz-q{padding:24px 28px;display:grid;align-content:start;gap:12px;min-width:0}
+.wz-q .kick{font:600 12px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.wz-q h2{margin:0;font:700 32px/1.05 var(--f-display);letter-spacing:.01em;text-wrap:balance}
+.wz-q h3.sub{margin:4px 0 -4px;font:600 14px var(--f-display);text-transform:uppercase;letter-spacing:.08em;color:var(--ink)}
+.wz-q p{margin:0;color:var(--muted);line-height:1.55;max-width:54ch}
+.wz-q p b,.wz-q li b{color:var(--ink)}
+.wz-q ol,.wz-q ul{margin:0;padding-left:20px;color:var(--muted);display:grid;gap:6px;line-height:1.45}
+.wz-nav{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:6px;padding-top:12px;border-top:1px solid var(--line)}
+.wz-nav .dots{font:500 12px var(--f-mono);color:var(--muted)}
+.callout{border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 9%,transparent);border-radius:0 7px 7px 0;padding:8px 11px;font-size:13px;line-height:1.45;color:var(--ink)}
+.spec{display:grid;gap:8px}
+.spec div{display:grid;grid-template-columns:34px minmax(0,1fr);gap:4px 12px;align-items:center;font-size:13px;color:var(--muted);line-height:1.35}
+.spec i{width:34px;border-radius:2px;grid-row:span 2}
+.spec b{color:var(--ink)} .spec code{font:500 12px var(--f-mono);color:var(--ink)}
+.dropzone{border:3px dashed var(--line);border-radius:14px;padding:22px 18px;display:grid;justify-items:center;gap:10px;text-align:center;background:var(--panel);transition:border-color .15s,background .15s}
+.dropzone.hover{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--panel))}
+.dropzone h3{margin:0;font:700 22px var(--f-display)}
+.dropzone .row2{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+/* lesson figures */
+.mv .sheet{fill:var(--birch);stroke:var(--birch-edge);stroke-width:1.5}
+.mv .eng{font:700 40px var(--f-display);fill:var(--burn)}
+.mv .eng-s{font:700 32px var(--f-display);fill:var(--burn)}
+.mv .cutl{fill:none;stroke:var(--cut);stroke-width:2.2;stroke-linecap:round}
+.mv .scrl{fill:none;stroke:var(--scratch);stroke-width:1.8;stroke-linecap:round}
+.mv .ghost{fill:none;stroke:var(--birch-edge);stroke-width:1.2;stroke-dasharray:3 3}
+.mv .kerf{fill:none;stroke:var(--burn);stroke-width:2.6}
+.mv .lz-body{fill:var(--ink)} .mv .lz-dot{fill:var(--cut)} .mv .lz-glow{fill:var(--cut);fill-opacity:.28}
+.mv .ro{fill:var(--ink)} .mv .ro-t{font:600 12px var(--f-mono);fill:var(--panel);letter-spacing:.06em}
+.mv .lbl{font:600 13px var(--f-display);fill:var(--ink);letter-spacing:.04em}
+.mv .lbl-m{font:500 11px var(--f-mono);fill:var(--muted)}
+.mv .beam{fill:var(--cut);fill-opacity:.45}
+.mv .noz{fill:var(--ink)}
+.mv .groove{fill:var(--burn)} .mv .groove-s{fill:var(--scratch)}
+.mv .bed{stroke:var(--muted);stroke-width:1;opacity:.5}
+.mv .bd-c{fill:var(--panel);stroke:var(--line);stroke-width:1.5} .mv .bd-n{font:600 12px var(--f-mono);fill:var(--muted)}
+.mv .bd-c.on{fill:var(--accent);stroke:var(--accent)} .mv .bd-n.on{fill:var(--accent-ink)}
+.mv .bd-c.done{fill:var(--ink);stroke:var(--ink)} .mv .bd-n.done{fill:var(--panel)}
+.mv .bd-t{font:600 13px var(--f-display);fill:var(--muted);letter-spacing:.03em} .mv .bd-t.on,.mv .bd-t.done{fill:var(--ink)}
+.mv .box{fill:var(--panel);stroke:var(--line);stroke-width:1.5} .mv .box-t{font:600 13px var(--f-display);fill:var(--ink);letter-spacing:.03em}
+.mv .arw{stroke:var(--muted);stroke-width:1.6;fill:none} .mv .arw-h{fill:var(--muted)}
+.mv .tagbox{fill:var(--birch);stroke:var(--cut);stroke-width:1.6}
+@media (max-width:760px){
+  .wz-body{grid-template-columns:minmax(0,1fr)}
+  .wz-vis{border-right:0;border-bottom:1px solid var(--line)}
+  .wz-q{padding:18px} .wz-q h2{font-size:27px}
+  .wz-prog .lb{display:none}
+}
 @media (max-width:860px){
   html,body,.app{height:auto}
   .work{grid-template-columns:1fr;grid-template-rows:auto 62vh auto}
@@ -149,9 +221,10 @@ input[type=range]{accent-color:var(--ink);padding:0;border:0;background:transpar
   <header class="bar">
     <div class="brand"><span class="tag" role="img" aria-label="LaserReady">LASER<b>READY</b></span></div>
     <div class="group">
+      <button id="btn-learn" type="button" title="Open the laser lessons">Learn lasers</button>
       <button id="btn-new" type="button">New</button>
-      <label class="btn" for="file-in" tabindex="0" id="lbl-import">Import SVG or image</label>
-      <input type="file" id="file-in" multiple accept=".svg,image/svg+xml,image/png,image/jpeg,image/webp,image/gif,image/bmp" hidden>
+      <label class="btn" for="file-in" tabindex="0" id="lbl-import">Import SVG, DXF or image</label>
+      <input type="file" id="file-in" multiple accept=".svg,.dxf,image/svg+xml,image/png,image/jpeg,image/webp,image/gif,image/bmp" hidden>
       <button id="btn-undo" type="button" title="Undo (Ctrl+Z)">Undo</button>
       <button id="btn-redo" type="button" title="Redo (Ctrl+Shift+Z)">Redo</button>
     </div>
@@ -190,7 +263,7 @@ input[type=range]{accent-color:var(--ink);padding:0;border:0;background:transpar
           <button type="button" id="z-in" title="Zoom in" aria-label="Zoom in">+</button>
         </div>
       </div>
-      <div class="drop" id="drop" hidden>Drop images to engrave or an SVG to import</div>
+      <div class="drop" id="drop" hidden>Drop an SVG or DXF, or images to engrave</div>
     </div>
 
     <aside class="panel" aria-label="Inspector">
@@ -230,6 +303,17 @@ input[type=range]{accent-color:var(--ink);padding:0;border:0;background:transpar
   </div>
 </div>
 <div class="toast" id="toast" role="status" hidden></div>
+<div class="wiz" id="wiz" hidden role="dialog" aria-modal="true" aria-label="Learn how the laser works">
+  <div class="wiz-card">
+    <div class="wz-head">
+      <span class="tag tag-sm" aria-hidden="true">LASER<b>READY</b></span>
+      <ol class="wz-prog" id="wzProg"></ol>
+      <label class="wz-noshow"><input type="checkbox" id="wzNoShow"> Don't show at start</label>
+      <button class="wz-skip" id="wzSkip" type="button">Skip to LaserReady</button>
+    </div>
+    <div class="wz-body" id="wzBody"></div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/clipper-lib@6.4.2/clipper.js"></script>
 <script id="core">
@@ -572,6 +656,89 @@ function tidyContours(list){
   }
   for(const o of opens){ if(o.pts.length>3 && samePt(o.pts[0],o.pts[o.pts.length-1],JOIN_TOL)){ o.pts.pop(); o.k.pop(); o.k[0]=1; o.closed=true; } }
   return closed.concat(opens).filter(c=>c.circle||!(c.closed&&c.pts.length<3));
+}
+
+/* ===== DXF import (Onshape, Illustrator, AutoCAD). DXF is Y-up; the bed is Y-down from the top-left. ===== */
+const ACI_RGB={1:[255,0,0],5:[0,0,255],7:[0,0,0]};
+function importDXF(text){
+  if(/^AutoCAD Binary DXF/.test(text)) throw new Error('That DXF is saved in binary format. Export it again as a regular (ASCII) DXF.');
+  const Ls=text.split(/\r\n|\n|\r/), P=[];
+  for(let i=0;i+1<Ls.length;i+=2){ const c=parseInt(Ls[i],10); if(isNaN(c)){ i--; continue; } P.push([c,Ls[i+1].trim()]); }
+  if(!P.some(q=>q[0]===0&&q[1]==='SECTION')) throw new Error("That file isn't a readable DXF.");
+  let ins=null, i=0, ents=[]; const blocks={}, layerCol={};
+  const readRecs=()=>{ const recs=[]; let r=null; while(i<P.length){ const [c,v]=P[i]; if(c===0){ if(v==='ENDSEC') break; r={t:v,d:[]}; recs.push(r); } else if(r) r.d.push([c,v]); i++; } return recs; };
+  const gs=(r,c)=>{ const q=r.d.find(x=>x[0]===c); return q?q[1]:''; };
+  const gn=(r,c,def)=>{ const q=r.d.find(x=>x[0]===c); const v=q?parseFloat(q[1]):NaN; return isFinite(v)?v:(def===undefined?0:def); };
+  const tc2rgb=v=>[v>>16&255,v>>8&255,v&255];
+  while(i<P.length){
+    if(P[i][0]===0&&P[i][1]==='SECTION'){ const nm=(P[i+1]||[])[1]; i+=2;
+      if(nm==='HEADER'){ for(;i<P.length&&!(P[i][0]===0&&P[i][1]==='ENDSEC');i++) if(P[i][0]===9&&P[i][1]==='$INSUNITS'&&P[i+1]) ins=parseInt(P[i+1][1],10); }
+      else if(nm==='TABLES'){ for(const r of readRecs()) if(r.t==='LAYER'){ const tc=gn(r,420,NaN); layerCol[gs(r,2)]=isFinite(tc)?tc2rgb(tc):(ACI_RGB[Math.abs(gn(r,62,7))]||null); } }
+      else if(nm==='BLOCKS'){ let b=null; for(const r of readRecs()){ if(r.t==='BLOCK'){ b={name:gs(r,2),bx:gn(r,10),by:gn(r,20),recs:[]}; blocks[b.name]=b; } else if(r.t==='ENDBLK') b=null; else if(b) b.recs.push(r); } }
+      else if(nm==='ENTITIES') ents=readRecs();
+      else while(i<P.length&&!(P[i][0]===0&&P[i][1]==='ENDSEC')) i++;
+      continue; }
+    i++; }
+  const unitSc={1:1,2:12,4:1/25.4,5:1/2.54,6:1000/25.4}[ins];
+  let sc=unitSc||1;
+  const tol=FLAT_TOL/sc, clampN=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const segsFor=(r,sw)=>clampN(Math.ceil(Math.abs(sw)/(2*Math.acos(clampN(1-tol/Math.max(r,1e-9),-1,1)))),2,720);
+  const raw=[], warn={text:0,hatch:0};
+  const colOf=(r,inh)=>{ const tc=gn(r,420,NaN); if(isFinite(tc)) return tc2rgb(tc); const a=gn(r,62,256);
+    if(a===256) return layerCol[gs(r,8)||'0']||null; if(a===0) return inh||null; return ACI_RGB[a]||[128,128,128]; };
+  const bulge=(p1,p2,b,out)=>{ if(Math.abs(b)<1e-9){ out.push([p2[0],p2[1]]); return; }
+    const th=4*Math.atan(b), dx=p2[0]-p1[0], dy=p2[1]-p1[1], c=Math.hypot(dx,dy); if(c<1e-12) return;
+    const hh=(c/2)/Math.tan(th/2), cx=(p1[0]+p2[0])/2-dy/c*hh, cy=(p1[1]+p2[1])/2+dx/c*hh;
+    const r=Math.hypot(p1[0]-cx,p1[1]-cy), a1=Math.atan2(p1[1]-cy,p1[0]-cx), n=segsFor(r,th);
+    for(let k=1;k<n;k++){ const a=a1+th*k/n; out.push([cx+r*Math.cos(a),cy+r*Math.sin(a)]); } out.push([p2[0],p2[1]]); };
+  const arc=(cx,cy,r,a0,a1)=>{ const n=segsFor(r,a1-a0), out=[]; for(let k=0;k<=n;k++){ const a=a0+(a1-a0)*k/n; out.push([cx+r*Math.cos(a),cy+r*Math.sin(a)]); } return out; };
+  const deBoor=(deg,U,Cp,Wt,t)=>{ const n=Cp.length; let k=deg; while(k<n-1&&!(t>=U[k]&&t<U[k+1])) k++; const dd=[];
+    for(let j=0;j<=deg;j++){ const q=Cp[j+k-deg], w=Wt[j+k-deg]||1; dd.push([q[0]*w,q[1]*w,w]); }
+    for(let r=1;r<=deg;r++) for(let j=deg;j>=r;j--){ const den=U[j+1+k-r]-U[j+k-deg], al=den===0?0:(t-U[j+k-deg])/den;
+      dd[j]=[(1-al)*dd[j-1][0]+al*dd[j][0],(1-al)*dd[j-1][1]+al*dd[j][1],(1-al)*dd[j-1][2]+al*dd[j][2]]; }
+    return [dd[deg][0]/dd[deg][2],dd[deg][1]/dd[deg][2]]; };
+  const emit=(recs,M,depth,inh)=>{ if(depth>8) return;
+    const push=(pts,closed,mir,col)=>{ if(pts.length<2) return; raw.push({pts:pts.map(q=>mapp(M,mir?-q[0]:q[0],q[1])),closed,col}); };
+    for(let k=0;k<recs.length;k++){ const r=recs[k], t=r.t, mir=gn(r,230,1)<0, col=colOf(r,inh);
+      if(t==='LINE') push([[gn(r,10),gn(r,20)],[gn(r,11),gn(r,21)]],false,false,col);
+      else if(t==='CIRCLE'){ const cx=gn(r,10), cy=gn(r,20), rr=gn(r,40);
+        if(isSimilarity(M)&&!mir){ const c=mapp(M,cx,cy); raw.push({circle:{cx:c[0],cy:c[1],r:rr*Math.sqrt(M[0]*M[0]+M[1]*M[1])},closed:true,col}); }
+        else push(arc(cx,cy,rr,0,TAU),true,mir,col); }
+      else if(t==='ARC'){ const a0=gn(r,50)*Math.PI/180; let a1=gn(r,51)*Math.PI/180; while(a1<=a0+1e-12) a1+=TAU; push(arc(gn(r,10),gn(r,20),gn(r,40),a0,a1),false,mir,col); }
+      else if(t==='LWPOLYLINE'||t==='POLYLINE'){ const V=[];
+        if(t==='LWPOLYLINE'){ for(const [c,v] of r.d){ if(c===10) V.push({x:+v,y:0,b:0}); else if(c===20&&V.length) V[V.length-1].y=+v; else if(c===42&&V.length) V[V.length-1].b=+v; } }
+        else { while(k+1<recs.length&&recs[k+1].t==='VERTEX'){ k++; V.push({x:gn(recs[k],10),y:gn(recs[k],20),b:gn(recs[k],42)}); } if(k+1<recs.length&&recs[k+1].t==='SEQEND') k++; }
+        const flags=gn(r,70)|0; if(flags&(16|64)) continue; const closed=!!(flags&1); if(V.length<2) continue;
+        const out=[[V[0].x,V[0].y]]; for(let j=1;j<V.length;j++) bulge([V[j-1].x,V[j-1].y],[V[j].x,V[j].y],V[j-1].b,out);
+        if(closed) bulge([V[V.length-1].x,V[V.length-1].y],[V[0].x,V[0].y],V[V.length-1].b,out);
+        if(closed&&out.length>2){ const f=out[0], l=out[out.length-1]; if(Math.hypot(f[0]-l[0],f[1]-l[1])<1e-9) out.pop(); }
+        push(out,closed,mir&&t==='LWPOLYLINE',col); }
+      else if(t==='SPLINE'){ const deg=gn(r,71,3)|0, U=[], Cp=[], Wt=[], F=[];
+        for(const [c,v] of r.d){ if(c===40) U.push(+v); else if(c===41) Wt.push(+v); else if(c===10) Cp.push([+v,0]); else if(c===20&&Cp.length) Cp[Cp.length-1][1]=+v; else if(c===11) F.push([+v,0]); else if(c===21&&F.length) F[F.length-1][1]=+v; }
+        let pts; if(Cp.length>deg&&U.length===Cp.length+deg+1){ const t0=U[deg], t1=U[Cp.length], m=clampN(Cp.length*14,24,1500); pts=[];
+          for(let s=0;s<=m;s++) pts.push(deBoor(deg,U,Cp,Wt,s===m?t1-1e-12*Math.max(1,Math.abs(t1)):t0+(t1-t0)*s/m)); pts[pts.length-1]=Cp[Cp.length-1].slice(); }
+        else pts=F.length>1?F:Cp;
+        push(pts,!!(gn(r,70)&1),false,col); }
+      else if(t==='ELLIPSE'){ const cx=gn(r,10), cy=gn(r,20), mx=gn(r,11), my=gn(r,21), ra=gn(r,40,1); let s=gn(r,41,0), e=gn(r,42,TAU); while(e<=s+1e-12) e+=TAU;
+        const Rr=Math.hypot(mx,my), n=segsFor(Rr,e-s), out=[]; for(let j=0;j<=n;j++){ const a=s+(e-s)*j/n; out.push([cx+mx*Math.cos(a)-my*ra*Math.sin(a),cy+my*Math.cos(a)+mx*ra*Math.sin(a)]); }
+        push(out,Math.abs(e-s-TAU)<1e-6,false,col); }
+      else if(t==='INSERT'){ const b=blocks[gs(r,2)]; if(!b) continue; const rot=gn(r,50)*Math.PI/180, c=Math.cos(rot), s=Math.sin(rot), sx=gn(r,41,1), sy=gn(r,42,1);
+        const T=mmul(mmul(mmul([1,0,0,1,gn(r,10),gn(r,20)],[c,s,-s,c,0,0]),[sx,0,0,sy,0,0]),[1,0,0,1,-b.bx,-b.by]); emit(b.recs,mmul(M,T),depth+1,col); }
+      else if(t==='TEXT'||t==='MTEXT') warn.text++;
+      else if(t==='HATCH'||t==='SOLID') warn.hatch++;
+    } };
+  emit(ents,[1,0,0,1,0,0],0,null);
+  // no units in the file: inches unless the drawing is far too big for a laser bed, then millimeters
+  let guessedMM=false;
+  if(!unitSc){ let bb=null; for(const q of raw) bb=bbUnion(bb,q.circle?{x0:q.circle.cx-q.circle.r,y0:q.circle.cy-q.circle.r,x1:q.circle.cx+q.circle.r,y1:q.circle.cy+q.circle.r}:bboxOf(q.pts));
+    if(bb&&Math.max(bb.x1-bb.x0,bb.y1-bb.y0)>60){ sc=1/25.4; guessedMM=true; } }
+  const cat=c=>isRed(c)?'red':isBlue(c)?'blue':'other';
+  const hasRed=raw.some(q=>cat(q.col)==='red');
+  const groups={cut:[],scratch:[],engrave:[]};
+  for(const q of raw){ const k=cat(q.col), op=k==='red'?'cut':k==='blue'?'scratch':hasRed?'engrave':'cut';
+    if(q.circle){ const cx=q.circle.cx*sc, cy=-q.circle.cy*sc, r=q.circle.r*sc; groups[op].push({closed:true,circle:{cx,cy,r},pts:circlePts(cx,cy,r)}); }
+    else groups[op].push({closed:q.closed,pts:q.pts.map(v=>[v[0]*sc,-v[1]*sc])}); }
+  return {groups,warn,ins,unitsKnown:!!unitSc,guessedMM,allCut:!hasRed&&!groups.scratch.length&&!groups.engrave.length};
 }
 
 /* ===== Offset (Clipper): d>0 grows the outline and shrinks its holes ===== */
@@ -1047,6 +1214,7 @@ for(const b of document.querySelectorAll('.opbtn')) b.addEventListener('click',(
 
 /* ===== Keyboard ===== */
 window.addEventListener('keydown',e=>{
+  if(!$('wiz').hidden){ if(e.key==='Escape') closeWiz(); else if(e.key==='ArrowRight'&&WZ.step<STEPS.length-1) goWiz(WZ.step+1); else if(e.key==='ArrowLeft'&&WZ.step>0) goWiz(WZ.step-1); return; }
   const t=e.target; if(t&&(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA')) { if(e.key==='Enter'&&t.id==='o-dist'){ e.preventDefault(); applyOffset(); return; } if(e.key==='Enter'&&t.tagName==='INPUT') t.blur(); return; }
   const k=e.key, mod=e.ctrlKey||e.metaKey;
   if(mod&&(k==='z'||k==='Z')){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
@@ -1146,6 +1314,7 @@ function renderPanel(){
   const openCuts=an?an.items.filter(i=>i.op==='cut'&&!i.c.closed):[];
   if(openCuts.length) L.push({kind:'note',items:openCuts.map(i=>({id:i.s.id})),t:`${openCuts.length} open cut line${openCuts.length>1?'s':''}. ${openCuts.length>1?'They slice':'It slices'} the material but won't free a part.`});
   if(lastImport&&lastImport.warn.text) L.push({kind:'warn',items:[],t:`${lastImport.warn.text} text object${lastImport.warn.text>1?'s were':' was'} skipped. Create outlines in Illustrator before saving the SVG, or retype it with the Text tool.`});
+  if(lastImport&&lastImport.warn.hatch) L.push({kind:'warn',items:[],t:`${lastImport.warn.hatch} filled area${lastImport.warn.hatch>1?'s':''} (hatch) in the DXF ${lastImport.warn.hatch>1?'were':'was'} skipped. Only lines come in from a DXF. Use SVG to keep fills.`});
   if(lastImport&&lastImport.warn.image) L.push({kind:'warn',items:[],t:`${lastImport.warn.image} linked image${lastImport.warn.image>1?'s were':' was'} skipped. Embed images in the SVG, or import the image file directly.`});
   checkItems=L;
   $('checks').innerHTML=L.length?L.map((c,i)=>`<li><span class="pill ${c.kind}">${c.kind==='warn'?'Fix':'Note'}</span>${c.items.length?`<button type="button" data-check="${i}">${esc(c.t)}</button>`:`<span>${esc(c.t)}</span>`}</li>`).join('')
@@ -1310,6 +1479,23 @@ function doImportSVG(text,name){
   toast(`Imported ${bits.join(', ')} at ${fmtIn(bb.x1-bb.x0)} × ${fmtIn(bb.y1-bb.y0)} in`+(many?'. That file has a lot of objects, so they were grouped by cut, scratch and engrave.':res.unitsFromFile?'. Each object is its own piece: click one to change it.':` (read as ${res.ppi===25.4?'millimeters':res.ppi===1?'inches':res.ppi+' units per inch'}). Wrong size? Type the width in Selection.`));
   if(name){ const base=name.replace(/\.svg$/i,''); settings.name=base; $('job-name').value=base; persist(); }
 }
+function doImportDXF(text,name){
+  let res; try{ res=importDXF(text); }catch(err){ toast(err.message||'Could not read that DXF.'); return; }
+  const parts=[];
+  for(const op of ['engrave','scratch','cut']){ const cs=tidyContours(res.groups[op]); if(!cs.length) continue;
+    if(cs.length>800) parts.push({type:'import',op,label:`Imported ${OPS[op].toLowerCase()} paths`,contours:cs});
+    else parts.push(...breakApart({type:'import',op,contours:cs})); }
+  if(!parts.length){ toast('No lines or shapes found in that DXF.'); return; }
+  lastImport={warn:{text:res.warn.text,image:0,hatch:res.warn.hatch}};
+  let bb=null; for(const q of parts) bb=bbUnion(bb,shapeBB(q));
+  const [dx,dy]=placeOffset(bb);
+  checkpoint(); for(const q of parts){ translate(q,dx,dy); q.id=newId(); shapes.push(q); }
+  selIds=new Set(parts.map(q=>q.id)); afterChange(); fit();
+  const units=res.unitsKnown?'':res.guessedMM?' (no units in the file, read as millimeters)':' (no units in the file, read as inches)';
+  toast(`Imported ${parts.length} piece${parts.length>1?'s':''} at ${fmtIn(bb.x1-bb.x0)} × ${fmtIn(bb.y1-bb.y0)} in${units}.`+
+    (res.allCut?' Everything came in as Cut. Click text or shapes to engrave and press 3.':' Red lines cut, blue scratch, the rest engraves.')+(units?' Wrong size? Type the width in Selection.':''));
+  if(name){ const base=name.replace(/\.dxf$/i,''); settings.name=base; $('job-name').value=base; persist(); }
+}
 /* Huge photos are scaled so the long side is at most 4000 px (13" at 300 DPI) to keep the app quick */
 const MAX_PX=4000;
 function loadImageFile(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onerror=rej;
@@ -1332,18 +1518,21 @@ async function doImportImage(file,at){
   return {w,h,dpi:Math.round(d.w/w),scaled:d.scaled};
 }
 const isSvgFile=f=>/svg/i.test(f.type)||/\.svg$/i.test(f.name);
+const isDxfFile=f=>/\.dxf$/i.test(f.name)||/dxf/i.test(f.type);
 const isImgFile=f=>/^image\//.test(f.type)||/\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name);
 async function importFiles(list,at){
   const files=Array.from(list||[]); if(!files.length) return;
-  const imgs=files.filter(f=>isImgFile(f)&&!isSvgFile(f)), svgs=files.filter(isSvgFile), other=files.length-imgs.length-svgs.length;
+  if(!$('wiz').hidden) closeWiz();
+  const imgs=files.filter(f=>isImgFile(f)&&!isSvgFile(f)&&!isDxfFile(f)), svgs=files.filter(isSvgFile), dxfs=files.filter(f=>isDxfFile(f)&&!isSvgFile(f)), other=files.length-imgs.length-svgs.length-dxfs.length;
   for(const f of svgs) doImportSVG(await f.text(),f.name);
+  for(const f of dxfs) doImportDXF(await f.text(),f.name);
   let placed=[], pt=at?at.slice():null;
   for(const f of imgs){ const r=await doImportImage(f,pt); if(!r) continue; placed.push(r);
     if(pt){ pt=[pt[0]+0.375,pt[1]+0.375]; } }
   if(!at&&placed.length) fit(); else draw();
   if(placed.length===1){ const r=placed[0]; toast(`Image placed at ${fmtIn(r.w)} × ${fmtIn(r.h)} in (${r.dpi} DPI)${r.scaled?', scaled from a very large photo':''}. Dark areas engrave in black.`); }
   else if(placed.length>1) toast(`${placed.length} images placed. Click one to size it or change how it engraves.`);
-  if(other) toast(`${other} file${other>1?'s were':' was'} skipped. Drop PNG, JPG, WebP or SVG files.`);
+  if(other) toast(`${other} file${other>1?'s were':' was'} skipped. Drop SVG, DXF, PNG, JPG or WebP files.`);
 }
 async function importFile(f){ if(f) importFiles([f]); }
 $('file-in').addEventListener('change',e=>{ importFiles(Array.from(e.target.files)); e.target.value=''; });
@@ -1419,6 +1608,195 @@ $('z-in').addEventListener('click',()=>zoomAt(1.4,W/2,H/2)); $('z-out').addEvent
 
 let toastT=0; function toast(m){ const t=$('toast'); t.textContent=m; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>{ t.hidden=true; },4600); }
 
+/* ===== Lessons: a short tutorial that opens with LaserReady ===== */
+const WZ={step:0,stop:null}, WZ_KEY='laserready-skip-lessons';
+const lerp=(a,b,u)=>a+(b-a)*u, cl01=u=>Math.max(0,Math.min(1,u));
+/* runs fn(t) every frame with t looping over [0,T); reduced motion shows the finished frame */
+function anim(fn,T){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches){ fn(T-0.01); return ()=>{}; }
+  let id=0, alive=true; const t0=performance.now();
+  const f=now=>{ if(!alive) return; fn(((now-t0)/1000)%T); id=requestAnimationFrame(f); };
+  id=requestAnimationFrame(f); return ()=>{ alive=false; cancelAnimationFrame(id); };
+}
+const HEAD=`<g class="lz"><circle class="lz-glow" r="10"/><rect class="lz-body" x="-7" y="-7" width="14" height="14" rx="3"/><circle class="lz-dot" r="2.4"/></g>`;
+function placeHead(g,p,on){ g.setAttribute('transform',`translate(${p[0].toFixed(1)} ${p[1].toFixed(1)})`); g.querySelector('.lz-glow').style.opacity=on?1:0; g.querySelector('.lz-dot').style.opacity=on?1:.3; }
+const setR=(el,x,y,w,h)=>{ el.setAttribute('x',x); el.setAttribute('y',y); el.setAttribute('width',Math.max(0,w)); el.setAttribute('height',Math.max(0,h)); };
+const rrect=(x0,y0,x1,y1,r)=>`M${x0+r} ${y0}H${x1-r}A${r} ${r} 0 0 1 ${x1} ${y0+r}V${y1-r}A${r} ${r} 0 0 1 ${x1-r} ${y1}H${x0+r}A${r} ${r} 0 0 1 ${x0} ${y1-r}V${y0+r}A${r} ${r} 0 0 1 ${x0+r} ${y0}Z`;
+const ring=(cx,cy,r)=>`M${cx+r} ${cy}A${r} ${r} 0 1 1 ${cx-r} ${cy}A${r} ${r} 0 1 1 ${cx+r} ${cy}Z`;
+/* A laser job for the figures: raster steps sweep row by row and reveal artwork through a clip; trace steps follow a path. */
+function laserJob(steps,home){
+  const segs=[]; let t=0, pos=home;
+  const move=to=>{ const d=Math.hypot(to[0]-pos[0],to[1]-pos[1]); const dur=Math.max(.18,d/420); segs.push({k:'move',a:pos,b:to,t0:t,dur}); t+=dur; pos=to; };
+  steps.forEach((s,i)=>{ s.idx=i;
+    if(s.k==='raster'){ const rh=(s.y1-s.y0)/s.rows; move([s.x0,s.y0+rh/2]); s.t0=t; segs.push(s); t+=s.dur; const lr=s.rows-1; pos=[lr%2?s.x0:s.x1,s.y0+(lr+.5)*rh]; }
+    else { s.L=s.el.getTotalLength(); s.el.style.strokeDasharray=s.L; const p0=s.el.getPointAtLength(0); move([p0.x,p0.y]); s.t0=t; segs.push(s); t+=s.dur; const p1=s.el.getPointAtLength(s.L); pos=[p1.x,p1.y]; } });
+  move(home);
+  return { end:t, steps,
+    at(tt){ let head=home, on=false;
+      for(const s of segs){ const u=s.dur?cl01((tt-s.t0)/s.dur):1, cur=tt>=s.t0&&tt<s.t0+s.dur;
+        if(s.k==='move'){ if(cur) head=[lerp(s.a[0],s.b[0],u),lerp(s.a[1],s.b[1],u)]; }
+        else if(s.k==='raster'){ const rh=(s.y1-s.y0)/s.rows, U=u*s.rows, row=Math.min(s.rows-1,Math.floor(U)), f=U-row, ltr=row%2===0, x=ltr?lerp(s.x0,s.x1,f):lerp(s.x1,s.x0,f);
+          setR(s.ca,s.x0-8,s.y0,s.x1-s.x0+16,(u>=1?s.rows:row)*rh);
+          if(u>0&&u<1) setR(s.cb,ltr?s.x0-8:x,s.y0+row*rh,ltr?x-s.x0+8:s.x1+8-x,rh); else setR(s.cb,0,0,0,0);
+          if(cur){ head=[x,s.y0+(row+.5)*rh]; on=true; } }
+        else { s.el.style.strokeDashoffset=String(s.L*(1-u)); if(cur){ const q=s.el.getPointAtLength(s.L*u); head=[q.x,q.y]; on=true; } } }
+      return {head,on}; } };
+}
+const caption=(fig,txt)=>{ const c=fig.querySelector('figcaption'); if(c.textContent!==txt) c.textContent=txt; };
+
+const STEPS=[
+  { label:'Two jobs', kick:'Lesson 1', title:'Cutting and engraving',
+    text:()=>`<p>A laser cutter does two separate jobs with the same beam.</p>
+      <p><b>Engraving</b> works like an inkjet printer. The laser sweeps back and forth one row at a time and burns the surface wherever the design is dark. Use it for text, pictures and filled shapes.</p>
+      <p><b>Cutting</b> follows a line. The laser moves slower with more power and goes all the way through the material. Use it to free your part from the sheet.</p>
+      <div class="callout">Laser software often calls engraving <b>raster</b> and cutting <b>vector</b>.</div>`,
+    vis(fig){
+      const TAG=rrect(70,70,330,230,24), HOLE=ring(102,150,11);
+      fig.innerHTML=`<svg class="mv" viewBox="0 0 400 300" role="img" aria-label="A laser engraves text row by row, then cuts out a tag">
+        <defs><clipPath id="l1c"><rect id="l1a"/><rect id="l1b"/></clipPath></defs>
+        <rect class="sheet" x="14" y="14" width="372" height="272" rx="4"/>
+        <path class="kerf" id="l1kerf" d="${TAG}" style="opacity:0"/><path class="kerf" id="l1kerfh" d="${HOLE}" style="opacity:0"/>
+        <g id="l1part">
+          <path class="ghost" d="${TAG}"/><path class="ghost" d="${HOLE}"/>
+          <g clip-path="url(#l1c)"><text class="eng" x="215" y="140" text-anchor="middle">LASER</text><text class="eng" x="215" y="186" text-anchor="middle">READY</text></g>
+          <path class="cutl" id="l1hole" d="${HOLE}"/><path class="cutl" id="l1out" d="${TAG}"/>
+        </g>
+        ${HEAD}
+        <rect class="ro" x="22" y="252" width="98" height="24" rx="5"/><text class="ro-t" x="31" y="268" id="l1ro"></text>
+      </svg>`;
+      const q=s=>fig.querySelector(s);
+      const job=laserJob([{k:'raster',x0:140,x1:292,y0:107,y1:190,rows:22,dur:5,ca:q('#l1a'),cb:q('#l1b')},{k:'trace',el:q('#l1hole'),dur:1.1},{k:'trace',el:q('#l1out'),dur:2.6}],[30,30]);
+      const T=job.end+2, g=q('.lz'), part=q('#l1part'), ro=q('#l1ro'), [E,H,O]=job.steps;
+      return anim(t=>{ const s=job.at(t); placeHead(g,s.head,s.on);
+        const engr=t>=E.t0&&t<E.t0+E.dur, cut=(t>=H.t0&&t<H.t0+H.dur)||(t>=O.t0&&t<O.t0+O.dur), done=t>=O.t0+O.dur;
+        const drop=done?cl01((t-O.t0-O.dur)/0.6):0;
+        part.setAttribute('transform',`translate(${(drop*4).toFixed(1)} ${(drop*6).toFixed(1)})`);
+        q('#l1kerf').style.opacity=drop; q('#l1kerfh').style.opacity=drop;
+        ro.textContent=engr?'ENGRAVE':cut?'CUT':done?'DONE':'MOVE';
+        caption(fig,engr?'Engraving: back and forth, one row at a time.':cut?'Cutting: following the red line all the way through.':done?'The tag is cut free from the sheet.':'The head moves with the laser off.');
+      },T); } },
+
+  { label:'Colors', kick:'Lesson 2', title:'Color tells the laser what to do',
+    text:()=>`<p>The laser can't guess which lines you want cut. Every laser program handles this a little differently, but a popular way is to give cut lines their own color and a very thin line weight so they stand apart from the rest of the design.</p>
+      <p>Our <b>Universal</b> and <b>Rayjet</b> lasers look for these settings:</p>
+      <div class="spec">
+        <div><i style="height:3px;background:var(--cut)"></i><span><b>Cut</b> · <code>RGB 255, 0, 0</code> · <code>0.001"</code> line</span><span>Goes all the way through.</span></div>
+        <div><i style="height:3px;background:var(--scratch)"></i><span><b>Scratch</b> · <code>RGB 0, 0, 255</code> · <code>0.001"</code> line</span><span>A vector line that marks the surface without cutting through.</span></div>
+        <div><i style="height:16px;background:var(--burn);border-radius:3px"></i><span><b>Engrave</b> · black</span><span>Everything else, burned in rows.</span></div>
+      </div>
+      <div class="callout">A cut line that's too thick or the wrong red won't cut. The laser treats it as artwork and engraves it. LaserReady sets every color and line weight for you.</div>`,
+    vis(fig){
+      const cols=[{x:75,k:'engrave',name:'ENGRAVE',spec:'black',under:'Burns the surface'},{x:200,k:'scratch',name:'SCRATCH',spec:'0, 0, 255',under:'Thin mark'},{x:325,k:'cut',name:'CUT',spec:'255, 0, 0',under:'Cuts through'}];
+      const top=176, th=46;
+      let s=`<svg class="mv" viewBox="0 0 400 300" role="img" aria-label="Side view of a board: engraving burns the surface, scratching marks a thin line, cutting goes all the way through">`;
+      s+=`<text class="lbl-m" x="16" y="18">SIDE VIEW</text>`;
+      for(const c of cols){ s+=`<text class="lbl" x="${c.x}" y="44" text-anchor="middle" id="l2n${c.k}">${c.name}</text><text class="lbl-m" x="${c.x}" y="60" text-anchor="middle">${c.k==='engrave'?'':'RGB '}${c.spec}</text>`;
+        s+=`<polygon class="beam" id="l2b${c.k}" points="0,0"/><g id="l2h${c.k}"><path class="noz" d="M-10 -22h20l-6 16h-8z"/></g>`; }
+      s+=`<rect class="sheet" x="16" y="${top}" width="368" height="${th}" rx="2"/>`;
+      for(const c of cols) s+=`<rect class="${c.k==='scratch'?'groove-s':'groove'}" id="l2g${c.k}"/>`;
+      s+=`<g class="bed">`; for(let x=24;x<384;x+=14) s+=`<line x1="${x}" y1="${top+th+30}" x2="${x}" y2="${top+th+42}"/>`; s+=`</g><text class="lbl-m" x="200" y="${top+th+58}" text-anchor="middle">honeycomb bed</text>`;
+      for(const c of cols) s+=`<text class="lbl-m" x="${c.x}" y="${top+th+18}" text-anchor="middle" id="l2u${c.k}" style="opacity:0">${c.under}</text>`;
+      s+=`</svg>`; fig.innerHTML=s;
+      const q=x=>fig.querySelector(x), T=8.4, NZ=118;
+      const phase=[{k:'engrave',t0:0.3,dur:2.4},{k:'scratch',t0:3.0,dur:1.4},{k:'cut',t0:4.7,dur:2.2}];
+      return anim(t=>{ let cap='Watch how deep each one goes.';
+        for(const c of cols){ const ph=phase.find(p=>p.k===c.k), u=cl01((t-ph.t0)/ph.dur), act=t>=ph.t0&&t<ph.t0+ph.dur;
+          let hx=c.x, gx=c.x, gw=0, gd=0;
+          if(c.k==='engrave'){ const sweep=(t-ph.t0)/ph.dur*5; const tri=Math.abs(((sweep%2)+2)%2-1); hx=act?c.x-26+52*(1-tri):c.x; gw=u>=1?56:(u>0?56*Math.min(1,u*1.15):0); gx=c.x-28; gd=u>0?6:0; }
+          else if(c.k==='scratch'){ gw=3; gx=c.x-1.5; gd=u*5; }
+          else { gw=3; gx=c.x-1.5; gd=u*th; }
+          q('#l2h'+c.k).setAttribute('transform',`translate(${hx.toFixed(1)} ${NZ})`);
+          setR(q('#l2g'+c.k),gx,top,gw,gd);
+          const tip=c.k==='cut'?top+gd:top+Math.min(gd,6), w=c.k==='scratch'?2:4;
+          q('#l2b'+c.k).setAttribute('points',act?`${hx-4},${NZ-6} ${hx+4},${NZ-6} ${hx+w/4},${tip} ${hx-w/4},${tip}`:'0,0');
+          q('#l2b'+c.k).style.fillOpacity=c.k==='scratch'?.25:.5;
+          q('#l2n'+c.k).style.fill=act?'var(--accent)':''; q('#l2u'+c.k).style.opacity=t>=ph.t0+ph.dur?1:act?.6:0;
+          if(act) cap=c.k==='engrave'?'Engrave: rows of burns make a shallow, wide mark.':c.k==='scratch'?'Scratch: low power, so the line stays on the surface.':'Cut: full power until the beam comes out the bottom.'; }
+        if(t>=6.9) cap='Same laser, three different results.';
+        caption(fig,cap); },T); } },
+
+  { label:'Order', kick:'Lesson 3', title:'Engrave first, cut last',
+    text:()=>`<p>Order matters. Once a part is cut free it can shift or drop into the bed, and anything still left to engrave lands in the wrong spot.</p>
+      <ol><li><b>Engrave</b> the artwork while the sheet is still whole.</li><li><b>Scratch</b> the marked lines.</li><li><b>Cut holes</b> and inside shapes.</li><li><b>Cut the outside</b> last, so the part stays put until the end.</li></ol>
+      <div class="callout">LaserReady saves your file in this order. The settings on the laser computer have the final say, so check them if something cuts early.</div>`,
+    vis(fig){
+      const TAG=rrect(30,70,250,230,24), HOLE=ring(62,150,11), SCR=rrect(90,88,232,212,12);
+      const names=['Engrave','Scratch','Cut holes','Cut outside'];
+      let b=''; names.forEach((n,i)=>{ const y=104+i*36; b+=`<circle class="bd-c" id="l3c${i}" cx="282" cy="${y}" r="12"/><text class="bd-n" id="l3n${i}" x="282" y="${y+4}" text-anchor="middle">${i+1}</text><text class="bd-t" id="l3t${i}" x="302" y="${y+5}">${n}</text>`; });
+      fig.innerHTML=`<svg class="mv" viewBox="0 0 400 300" role="img" aria-label="The laser engraves a name, scratches a border, cuts the hole, then cuts the outside">
+        <defs><clipPath id="l3c"><rect id="l3a"/><rect id="l3b"/></clipPath></defs>
+        <rect class="sheet" x="14" y="14" width="372" height="272" rx="4"/>
+        <path class="kerf" id="l3kerf" d="${TAG}" style="opacity:0"/><path class="kerf" id="l3kerfh" d="${HOLE}" style="opacity:0"/>
+        <g id="l3part">
+          <path class="ghost" d="${TAG}"/><path class="ghost" d="${HOLE}"/><path class="ghost" d="${SCR}"/>
+          <g clip-path="url(#l3c)"><text class="eng-s" x="161" y="162" text-anchor="middle">NAME</text></g>
+          <path class="scrl" id="l3scr" d="${SCR}"/><path class="cutl" id="l3hole" d="${HOLE}"/><path class="cutl" id="l3out" d="${TAG}"/>
+        </g>${b}${HEAD}
+      </svg>`;
+      const q=x=>fig.querySelector(x);
+      const job=laserJob([{k:'raster',x0:112,x1:210,y0:134,y1:164,rows:10,dur:2.2,ca:q('#l3a'),cb:q('#l3b')},{k:'trace',el:q('#l3scr'),dur:1.6},{k:'trace',el:q('#l3hole'),dur:0.9},{k:'trace',el:q('#l3out'),dur:2.2}],[26,30]);
+      const T=job.end+2.2, g=q('.lz'), part=q('#l3part'), last=job.steps[3];
+      const msgs=['1. Engrave while the sheet is whole.','2. Scratch the border.','3. Cut the hole while the part is still held.','4. Cut the outside last.'];
+      return anim(t=>{ const s=job.at(t); placeHead(g,s.head,s.on); let cap='The head moves with the laser off.';
+        job.steps.forEach((st,i)=>{ const on=t>=st.t0&&t<st.t0+st.dur, done=t>=st.t0+st.dur, c=on?'on':done?'done':'';
+          q('#l3c'+i).setAttribute('class','bd-c '+c); q('#l3n'+i).setAttribute('class','bd-n '+c); q('#l3t'+i).setAttribute('class','bd-t '+c);
+          q('#l3n'+i).textContent=done?'✓':String(i+1); if(on) cap=msgs[i]; });
+        const drop=t>=last.t0+last.dur?cl01((t-last.t0-last.dur)/0.6):0;
+        part.setAttribute('transform',`translate(${(drop*4).toFixed(1)} ${(drop*6).toFixed(1)})`); q('#l3kerf').style.opacity=drop; q('#l3kerfh').style.opacity=drop;
+        if(drop>0) cap='Done. Nothing moved until the very last cut.';
+        caption(fig,cap); },T); } },
+
+  { label:'Your file', kick:'Your turn', title:'Bring in your design',
+    text:()=>`<p>Design in <b>Onshape</b> or <b>Illustrator</b>, then bring the file into LaserReady.</p>
+      <h3 class="sub">Onshape → DXF</h3>
+      <ol><li>Set <b>Workspace units</b> to <b>Inch</b> in the document menu (☰).</li><li>Right-click your sketch → <b>Export as DXF/DWG</b> → <b>DXF</b>.</li></ol>
+      <h3 class="sub">Illustrator → SVG or DXF</h3>
+      <ol><li>Select any text → <b>Type → Create Outlines</b>.</li><li><b>File → Save As → SVG</b>, or <b>File → Export → DXF</b>.</li></ol>
+      <h3 class="sub">In LaserReady</h3>
+      <ol><li>Click a shape and press <b>1</b> Cut, <b>2</b> Scratch or <b>3</b> Engrave.</li><li><b>Download SVG</b>, open it in Illustrator and print to the laser.</li></ol>`,
+    vis(fig){
+      const arrow=(x1,y1,x2,y2,lab,lx,ly)=>`<path class="arw" d="M${x1} ${y1}L${x2} ${y2}"/><path class="arw-h" d="M${x2} ${y2}l-8 -4v8z" transform="rotate(${(Math.atan2(y2-y1,x2-x1)*180/Math.PI).toFixed(1)} ${x2} ${y2})"/>${lab?`<text class="lbl-m" x="${lx}" y="${ly}" text-anchor="middle">${lab}</text>`:''}`;
+      fig.innerHTML=`<svg class="mv" viewBox="0 0 400 136" role="img" aria-label="Onshape exports DXF and Illustrator exports SVG or DXF into LaserReady, which saves an SVG you print from Illustrator to the laser">
+        <rect class="box" x="4" y="8" width="96" height="34" rx="6"/><text class="box-t" x="52" y="30" text-anchor="middle">Onshape</text>
+        <rect class="box" x="4" y="94" width="96" height="34" rx="6"/><text class="box-t" x="52" y="116" text-anchor="middle">Illustrator</text>
+        <rect class="tagbox" x="144" y="51" width="112" height="34" rx="8"/><text class="box-t" x="200" y="73" text-anchor="middle">LaserReady</text>
+        <rect class="box" x="296" y="51" width="100" height="34" rx="6"/><text class="box-t" x="346" y="73" text-anchor="middle">Print to laser</text>
+        ${arrow(100,25,141,60,'DXF',126,26)}${arrow(100,111,141,77,'SVG / DXF',118,128)}${arrow(256,68,293,68,'SVG',275,60)}
+      </svg>
+      <div class="dropzone" id="v4dz">
+        <h3>Drop your SVG, DXF or image here</h3>
+        <p class="muted">The bed is ${fmtIn(settings.bedW)} × ${fmtIn(settings.bedH)} in. Laser home (0,0) is the top-left corner.</p>
+        <div class="row2"><button class="primary" type="button" id="v4open">Choose a file</button><button type="button" id="v4sample">Start with the sample tag</button></div>
+      </div>`;
+      caption(fig,'');
+      const dz=fig.querySelector('#v4dz');
+      fig.querySelector('#v4open').onclick=()=>$('file-in').click();
+      fig.querySelector('#v4sample').onclick=()=>{ if(!shapes.length){ shapes=sampleShapes(); isSample=true; afterChange(); } closeWiz(); fit(); setHint(); };
+      dz.addEventListener('dragenter',()=>dz.classList.add('hover')); dz.addEventListener('dragleave',()=>dz.classList.remove('hover')); dz.addEventListener('drop',()=>dz.classList.remove('hover'));
+      return ()=>{}; } }
+];
+function openWiz(i){ $('wiz').hidden=false; goWiz(i||0); }
+function closeWiz(){ if(WZ.stop){ WZ.stop(); WZ.stop=null; } $('wiz').hidden=true; $('wzBody').innerHTML=''; resize(); }
+function goWiz(i){
+  if(WZ.stop){ WZ.stop(); WZ.stop=null; }
+  WZ.step=i; const s=STEPS[i], last=i===STEPS.length-1;
+  $('wzProg').innerHTML=STEPS.map((x,j)=>`<li class="${j===i?'cur':j<i?'done':''}"><button type="button" data-go="${j}"><b>${j+1}</b><span class="lb">${x.label}</span></button></li>`).join('');
+  $('wzBody').innerHTML=`<figure class="wz-vis"><div class="vis"></div><figcaption></figcaption></figure>
+    <div class="wz-q"><div class="kick">${s.kick}</div><h2>${s.title}</h2>${s.text()}
+      <div class="wz-nav"><button type="button" id="wzBack"${i===0?' disabled':''}>← Back</button><span class="dots">${i+1} / ${STEPS.length}</span>
+      ${last?'<button class="primary" type="button" id="wzDone">Go to LaserReady</button>':'<button class="primary" type="button" id="wzNext">Next →</button>'}</div></div>`;
+  const fig=document.querySelector('#wzBody .wz-vis'), inner=fig.querySelector('.vis');
+  const shim={ set innerHTML(v){ inner.innerHTML=v; }, querySelector:sel=>sel==='figcaption'?fig.querySelector('figcaption'):inner.querySelector(sel) };
+  WZ.stop=s.vis(shim);
+  $('wzBack').onclick=()=>goWiz(Math.max(0,i-1));
+  if(last) $('wzDone').onclick=closeWiz; else $('wzNext').onclick=()=>goWiz(i+1);
+  $('wiz').scrollTop=0;
+}
+$('wzProg').addEventListener('click',e=>{ const b=e.target.closest('[data-go]'); if(b) goWiz(+b.dataset.go); });
+$('wzSkip').onclick=closeWiz;
+$('btn-learn').onclick=()=>openWiz(0);
+$('wzNoShow').addEventListener('change',e=>{ try{ if(e.target.checked) localStorage.setItem(WZ_KEY,'1'); else localStorage.removeItem(WZ_KEY); }catch(err){} });
+
 /* ===== Boot ===== */
 load(); bindSettings(); readColors();
 new ResizeObserver(resize).observe(stage);
@@ -1428,5 +1806,7 @@ if(document.fonts){ document.fonts.addEventListener('loadingdone',()=>{ metricCa
   document.fonts.ready.then(()=>{ metricCache.clear(); draw(); renderSummary(); });
   for(const f of FONTS) document.fonts.load(`400 40px "${f.family}"`).catch(()=>{}); document.fonts.load('700 40px "Chakra Petch"').catch(()=>{}); document.fonts.load('700 40px "IBM Plex Sans"').catch(()=>{}); }
 resize(); afterChange(); fit(); setHint(); syncUndo();
+let noShow=false; try{ noShow=localStorage.getItem(WZ_KEY)==='1'; }catch(e){}
+$('wzNoShow').checked=noShow; if(!noShow) openWiz(0);
 })();
 </script>

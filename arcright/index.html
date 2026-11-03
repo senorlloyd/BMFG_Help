@@ -1,3 +1,4 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>ArcRight</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -154,7 +155,7 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
     <div class="group push">
       <label class="name-field"><span>Part</span><input id="part-name" spellcheck="false" autocomplete="off"><em>.dxf</em></label>
       <button id="btn-copy" type="button" title="Copy the DXF text to the clipboard">Copy DXF</button>
-      <button id="btn-dl" type="button" class="primary">Download DXF</button>
+      <button id="btn-dl" type="button" class="primary" title="Opens a Save As box in Chrome and Edge, so you can replace the old file or rename it">Save DXF…</button>
     </div>
   </header>
 
@@ -202,8 +203,12 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
         <div class="fields">
           <div class="field"><label for="s-thick">Plate thickness</label><div class="unit"><input id="s-thick" type="number" step="0.0625" min="0"><i>in</i></div></div>
           <div class="field"><label for="s-ipm">Cut speed</label><div class="unit"><input id="s-ipm" type="number" step="5" min="1"><i style="right:6px">ipm</i></div></div>
-          <div class="field"><label for="s-out">Outside layer</label><input id="s-out" spellcheck="false"></div>
-          <div class="field"><label for="s-in">Inside layer</label><input id="s-in" spellcheck="false"></div>
+          <div class="field full"><label for="s-mode">DXF layers</label><select id="s-mode">
+            <option value="single">One layer · fine detail</option><option value="split">Outside + Inside</option></select></div>
+          <div class="field full" id="f-one"><label for="s-one">Layer name</label><input id="s-one" spellcheck="false"></div>
+          <div class="field" id="f-out"><label for="s-out">Outside layer</label><input id="s-out" spellcheck="false"></div>
+          <div class="field" id="f-in"><label for="s-in">Inside layer</label><input id="s-in" spellcheck="false"></div>
+          <p class="muted tiny field full" id="mode-note"></p>
         </div>
         <div class="row"><label for="s-snap">Snap to grid</label><span class="group"><input type="checkbox" id="s-snap"><select id="s-step" aria-label="Snap spacing">
           <option value="0.0625">1/16"</option><option value="0.125">1/8"</option><option value="0.25">1/4"</option><option value="0.5">1/2"</option><option value="1">1"</option></select></span></div>
@@ -842,7 +847,9 @@ function analyze(shapes,opt){
 function fmt(v){ const s=(Math.abs(v)<5e-7?0:v).toFixed(6); return s.replace(/\.?0+$/,'')||'0'; }
 function layerName(s,fallback){ const t=String(s||'').replace(/[<>\/\\":;?*|=',`]/g,'_').trim(); return t||fallback; }
 function buildDXF(an,opt){
-  const LO=layerName(opt.layerOut,'Outside'), LI=layerName(opt.layerIn,'Inside');
+  // one layer: every cut on a single layer, so one SheetCam operation sorts inside/outside itself
+  const one=opt.mode==='single', L1=layerName(opt.layerOne,'Cut');
+  const LO=one?L1:layerName(opt.layerOut,'Outside'), LI=one?L1:layerName(opt.layerIn,'Inside');
   const bb=an.bb||{x0:0,y0:0,x1:0,y1:0};
   const ox=opt.origin?-bb.x0:0, oy=opt.origin?-bb.y0:0;
   const L=[]; const g=(c,v)=>{ L.push(String(c),String(v)); };
@@ -858,8 +865,9 @@ function buildDXF(an,opt){
   g(0,'TABLE'); g(2,'LTYPE'); g(70,1);
   g(0,'LTYPE'); g(2,'CONTINUOUS'); g(70,0); g(3,'Solid line'); g(72,65); g(73,0); g(40,'0.0');
   g(0,'ENDTAB');
-  g(0,'TABLE'); g(2,'LAYER'); g(70,3);
-  for(const [nm,col] of [['0',7],[LO,1],[LI,5]]){ g(0,'LAYER'); g(2,nm); g(70,0); g(62,col); g(6,'CONTINUOUS'); }
+  const LAYERS=one?[['0',7],[L1,1]]:[['0',7],[LO,1],[LI,5]];
+  g(0,'TABLE'); g(2,'LAYER'); g(70,LAYERS.length);
+  for(const [nm,col] of LAYERS){ g(0,'LAYER'); g(2,nm); g(70,0); g(62,col); g(6,'CONTINUOUS'); }
   g(0,'ENDTAB');
   g(0,'ENDSEC');
   g(0,'SECTION'); g(2,'BLOCKS'); g(0,'ENDSEC');
@@ -906,7 +914,7 @@ function zipOne(name,data){
 const $=id=>document.getElementById(id);
 const STORE='plasmapath-v1';
 let shapes=[], nextId=1, selIds=[], tool='select';
-const settings={thickness:0.25,ipm:100,snap:true,step:0.125,ppi:'auto',layerOut:'Outside',layerIn:'Inside',origin:true,name:'bracket'};
+const settings={thickness:0.25,ipm:100,snap:true,step:0.125,ppi:'auto',layerMode:'single',layerOne:'Cut',layerOut:'Outside',layerIn:'Inside',origin:true,name:'bracket'};
 let view={ox:60,oy:400,z:60}; // screen px of world origin, px per inch
 let an=null, undoStack=[], redoStack=[], isSample=false;
 const cv=$('cv'), stage=$('stage'), ctx=cv.getContext('2d');
@@ -1272,7 +1280,9 @@ function renderPanel(){
   // summary
   const bb=an&&an.bb;
   $('sum-size').innerHTML=bb?`${fmtIn(bb.x1-bb.x0)} × ${fmtIn(bb.y1-bb.y0)}<small>in</small>`:'Empty table';
-  $('sum-layers').innerHTML=`
+  $('sum-layers').innerHTML=settings.layerMode!=='split'?`
+    <div class="layer"><span class="sw" style="background:linear-gradient(90deg,var(--cut-out) 50%,var(--cut-in) 50%)"></span><b>${esc(layerName(settings.layerOne,'Cut'))}</b><span class="n">${an?an.items.length:0} path${an&&an.items.length===1?'':'s'}</span></div>
+    <p class="muted tiny">${an?an.nOut:0} outside, ${an?an.nIn:0} inside. Colors on the table show which is which.</p>`:`
     <div class="layer"><span class="sw" style="background:var(--cut-out)"></span><b>${esc(layerName(settings.layerOut,'Outside'))}</b><span class="n">${an?an.nOut:0} path${an&&an.nOut===1?'':'s'}</span></div>
     <div class="layer"><span class="sw" style="background:var(--cut-in)"></span><b>${esc(layerName(settings.layerIn,'Inside'))}</b><span class="n">${an?an.nIn:0} path${an&&an.nIn===1?'':'s'}</span></div>`;
   const pierces=an?an.items.length:0, len=an?an.len:0, secs=len/Math.max(1,settings.ipm)*60;
@@ -1407,14 +1417,19 @@ $('props').addEventListener('click',e=>{ const b=e.target.closest('[data-act]');
   if(a==='off-apply') return applyOffset(); });
 
 /* ===== Settings ===== */
+function syncLayerMode(){ const one=settings.layerMode!=='split';
+  $('f-one').hidden=!one; $('f-out').hidden=one; $('f-in').hidden=one;
+  $('mode-note').textContent=one?'Use one SheetCam operation with Auto inside/outside. It works out the holes and lead-ins itself.'
+    :'Make one SheetCam operation per layer: outside offset on Outside, inside offset on Inside. Check each one\'s lead-in fits your smallest holes.'; }
 function bindSettings(){
-  const pairs=[['s-thick','thickness',parseFloat],['s-ipm','ipm',parseFloat],['s-out','layerOut',String],['s-in','layerIn',String],['s-step','step',parseFloat],['s-ppi','ppi',String]];
+  const pairs=[['s-thick','thickness',parseFloat],['s-ipm','ipm',parseFloat],['s-out','layerOut',String],['s-in','layerIn',String],['s-one','layerOne',String],['s-mode','layerMode',String],['s-step','step',parseFloat],['s-ppi','ppi',String]];
   for(const [id,key,cast] of pairs){ const el=$(id); el.value=String(settings[key]);
     el.addEventListener('change',()=>{ const v=cast(el.value); if(cast===parseFloat&&!(v>=0)){ el.value=settings[key]; return; } settings[key]=v; afterChange();
       if(key==='ppi'&&lastImport&&lastImport.text) toast('Import the file again to apply the new unit setting.'); }); }
+  syncLayerMode(); $('s-mode').addEventListener('change',syncLayerMode);
   $('s-snap').checked=settings.snap; $('s-snap').addEventListener('change',e=>{ settings.snap=e.target.checked; persist(); });
   $('s-origin').checked=settings.origin; $('s-origin').addEventListener('change',e=>{ settings.origin=e.target.checked; persist(); });
-  $('part-name').value=settings.name; $('part-name').addEventListener('change',e=>{ settings.name=e.target.value.trim()||'part'; e.target.value=settings.name; persist(); });
+  settings.name=cleanName(settings.name); $('part-name').value=settings.name; $('part-name').addEventListener('change',e=>{ settings.name=cleanName(e.target.value); e.target.value=settings.name; persist(); });
 }
 
 /* ===== Import ===== */
@@ -1467,7 +1482,7 @@ function doImport(res,name){
   const w=b.x1-b.x0, h=b.y1-b.y0;
   toast(`Imported ${res.contours.length} path${res.contours.length===1?'':'s'} from ${res.kind} at ${fmtIn(w)} × ${fmtIn(h)} in`
     +(res.note?` (${res.note})`:'')+(res.guessed?'. Wrong size? Type the width in Selection.':'.'));
-  if(name){ const base=name.replace(/\.(svg|dxf|pdf|eps|ai|ps)$/i,''); settings.name=base; $('part-name').value=base; persist(); }
+  if(name){ const base=cleanName(name); settings.name=base; $('part-name').value=base; persist(); }
 }
 $('file-in').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!f) return; e.target.value=''; await importFile(f); });
 $('lbl-import').addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('file-in').click(); } });
@@ -1481,11 +1496,24 @@ window.addEventListener('paste',e=>{ const t=e.target; if(t&&(t.tagName==='INPUT
 
 /* ===== Export ===== */
 function currentDXF(){ const a=analyze(shapes,{thickness:settings.thickness,full:false}); if(!a.items.length) return null;
-  return buildDXF(a,{layerOut:settings.layerOut,layerIn:settings.layerIn,origin:settings.origin}); }
-function fileBase(){ return (settings.name||'part').replace(/[\\/:*?"<>|]+/g,'-').replace(/\.dxf$/i,'')||'part'; }
+  return buildDXF(a,{mode:settings.layerMode,layerOne:settings.layerOne,layerOut:settings.layerOut,layerIn:settings.layerIn,origin:settings.origin}); }
+/* CNC-safe file names: no Windows "(1)" copy tags, brackets, spaces or symbols that SheetCam or the
+   table's controller may refuse. Letters, digits, - _ . only. */
+function cleanName(n){ return String(n||'').replace(/\.(dxf|svg|pdf|eps|ai|ps)$/i,'').replace(/\s*\(\d+\)\s*$/,'')
+  .replace(/[()\[\]{}]/g,' ').trim().replace(/\s+/g,'_').replace(/[^A-Za-z0-9._-]+/g,'-').replace(/[-_.]{2,}/g,m=>m[0]).replace(/^[-_.]+|[-_.]+$/g,'')||'part'; }
+function fileBase(){ return cleanName(settings.name); }
+let saveHandle=null; // last file chosen in the Save As box; the next Save As opens in the same folder
+async function saveAsDialog(base,bytes){
+  const opts={suggestedName:base+'.dxf',types:[{description:'DXF drawing',accept:{'application/dxf':['.dxf']}}],excludeAcceptAllOption:false};
+  if(saveHandle) opts.startIn=saveHandle; else opts.startIn='downloads';
+  const h=await window.showSaveFilePicker(opts); const w=await h.createWritable(); await w.write(bytes); await w.close(); saveHandle=h; return h.name; }
 $('btn-dl').addEventListener('click',async()=>{
   const dxf=currentDXF(); if(!dxf){ toast('Nothing to export yet. Draw or import a part first.'); return; }
   const base=fileBase(), bytes=new TextEncoder().encode(dxf);
+  // Chrome and Edge: a real Save As box, so the file can replace last time's copy or get a new name
+  if(typeof window.showSaveFilePicker==='function'){
+    try{ const nm=await saveAsDialog(base,bytes); if(/[()\s]/.test(nm)) toast(`Saved ${nm}. Its name has parentheses or spaces, which SheetCam may refuse.`); else toast(`Saved ${nm}`); return; }
+    catch(err){ if(err&&err.name==='AbortError') return; /* blocked here (embedded view): fall back to a download */ } }
   if(window.claude&&typeof window.claude.use==='function'){
     let dl=null; try{ dl=await window.claude.use('downloads'); }catch(e){}
     if(dl){ try{ await dl.save({filename:base+'.zip',data:zipOne(base+'.dxf',bytes)}); toast(`Saved ${base}.zip. Unzip it to get ${base}.dxf.`); }
@@ -1494,7 +1522,8 @@ $('btn-dl').addEventListener('click',async()=>{
     toast('Saving is unavailable here. Use Copy DXF and paste into a text file named '+base+'.dxf.'); return;
   }
   const url=URL.createObjectURL(new Blob([bytes],{type:'application/dxf'})); const a=document.createElement('a'); a.href=url; a.download=base+'.dxf';
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); toast(`Downloaded ${base}.dxf`);
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000);
+  toast(`Downloaded ${base}.dxf. If Windows adds (1) to the name, turn on "Ask where to save each file" in your browser's download settings.`);
 });
 $('btn-copy').addEventListener('click',()=>{ const dxf=currentDXF(); if(!dxf){ toast('Nothing to copy yet.'); return; }
   const p=navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(dxf):Promise.reject();
@@ -1520,3 +1549,5 @@ if(document.fonts&&document.fonts.ready) document.fonts.ready.then(draw);
 resize(); afterChange(); fit(); setHint(); syncUndo();
 })();
 </script>
+
+</body></html>

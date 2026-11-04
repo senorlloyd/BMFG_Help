@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TurnReady — HX710 Lathe G-code</title>
+<style>
+:root{
+  --bg:#15171a; --panel:#1e2125; --panel2:#262a2f; --line:#353a41; --text:#e6e8eb; --muted:#9aa3ad;
+  --accent:#f28c28; --accent2:#ffb35c; --blue:#4ea1ff; --green:#4cd38a; --red:#ff5d5d; --yellow:#ffd34d;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.4 "Segoe UI",system-ui,-apple-system,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:8px 14px;background:#101214;border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:20px;letter-spacing:.5px}
+header h1 span{color:var(--accent)}
+header .sub{color:var(--muted);font-size:13px}
+header .spacer{flex:1}
+.layout{display:grid;grid-template-columns:290px 1fr 360px;height:calc(100% - 53px)}
+aside,section{min-height:0}
+aside{overflow:auto;background:var(--panel);border-right:1px solid var(--line);padding:10px 12px}
+aside#right{border-right:0;border-left:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--accent2);margin:14px 0 6px;border-bottom:1px solid var(--line);padding-bottom:3px}
+h2:first-child{margin-top:2px}
+label.f{display:grid;grid-template-columns:1fr 104px;align-items:center;gap:6px;margin:4px 0;color:var(--muted);font-size:13px}
+label.f.wide{grid-template-columns:1fr 150px}
+input,select,button,textarea{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:5px}
+input,select{padding:3px 6px;width:100%}
+input[type=checkbox]{width:auto}
+input:focus,select:focus{outline:1px solid var(--accent);border-color:var(--accent)}
+button{padding:5px 10px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#111;border-color:var(--accent);font-weight:600}
+button.primary:hover{background:var(--accent2)}
+button.on{background:#3a2a17;border-color:var(--accent);color:var(--accent2)}
+.note{color:var(--muted);font-size:12px;margin:4px 0}
+.mat-note{color:var(--yellow);font-size:12px;margin:4px 0 0}
+section#center{display:flex;flex-direction:column;background:#0f1113}
+.toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--line);background:var(--panel)}
+.toolbar .sep{width:1px;height:22px;background:var(--line);margin:0 4px}
+.toolbar label{color:var(--muted);font-size:12px;display:flex;align-items:center;gap:4px}
+.toolbar select{width:auto;max-width:190px}
+#canvasWrap{position:relative;flex:1;min-height:200px}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#readout{position:absolute;left:8px;top:6px;font:12px var(--mono);color:var(--muted);pointer-events:none;background:#0f1113cc;padding:2px 6px;border-radius:4px}
+#legend{position:absolute;right:8px;top:6px;font-size:12px;color:var(--muted);background:#0f1113cc;padding:3px 8px;border-radius:4px}
+#legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin:0 4px 0 8px}
+#simBar{display:none;gap:8px;align-items:center;padding:6px 8px;border-top:1px solid var(--line);background:var(--panel)}
+#simBar input[type=range]{flex:1}
+#profilePane{height:230px;overflow:auto;border-top:1px solid var(--line);background:var(--panel);padding:6px 8px}
+#profilePane .top{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+#profilePane .top b{margin-right:6px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{color:var(--muted);font-weight:500;text-align:left;padding:2px 4px;position:sticky;top:-6px;background:var(--panel)}
+td{padding:2px 4px;border-top:1px solid #2b3036}
+td input{width:86px}
+td select{width:auto}
+tr.sel td{background:#33261a}
+td.idx{color:var(--muted);width:28px}
+.box{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+.warn{margin:4px 0;padding:5px 8px;border-radius:4px;font-size:13px;border-left:3px solid var(--yellow);background:#2a2716}
+.warn.bad{border-left-color:var(--red);background:#2c1818}
+.warn.ok{border-left-color:var(--green);background:#16261c}
+.warn.info{border-left-color:var(--blue);background:#15212e}
+.stats{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:13px}
+.stats span:nth-child(odd){color:var(--muted)}
+#gcode{flex:1;min-height:180px;width:100%;resize:none;font:12px/1.35 var(--mono);background:#0f1113;padding:6px;white-space:pre}
+.row{display:flex;gap:6px}
+.row>*{flex:1}
+details{font-size:13px}
+details summary{cursor:pointer;color:var(--accent2)}
+details ol{padding-left:18px;margin:6px 0}
+details li{margin:3px 0}
+code{font-family:var(--mono);background:#0f1113;padding:0 4px;border-radius:3px;color:var(--accent2)}
+#importOpts{display:none;margin-top:6px}
+#wiz{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:50}
+#wiz .card{width:min(560px,94vw);background:var(--panel);border:1px solid var(--accent);border-radius:10px;padding:18px 20px;box-shadow:0 10px 40px #000}
+#wiz h3{margin:0 0 4px;font-size:20px}
+#wiz .step{color:var(--accent2);font-size:12px;text-transform:uppercase;letter-spacing:1px}
+#wiz .q{color:var(--muted);margin:2px 0 12px}
+#wiz .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+#wiz .pick{padding:10px 8px;text-align:center;border-radius:8px;background:var(--panel2)}
+#wiz .pick small{display:block;color:var(--muted);font-size:11px}
+#wiz .pick.on{border-color:var(--accent);background:#3a2a17}
+#wiz .custom{display:flex;gap:8px;align-items:center;margin-top:12px}
+#wiz .custom input{width:110px} #wiz .custom select{width:auto}
+#wiz .nav button{white-space:nowrap}
+#wiz .nav{display:flex;justify-content:space-between;margin-top:18px;gap:8px}
+#wiz .dots{display:flex;gap:6px;align-items:center}
+#wiz .dots i{width:8px;height:8px;border-radius:50%;background:var(--line)} #wiz .dots i.on{background:var(--accent)}
+#wiz .tip{margin-top:10px;font-size:12px;color:var(--yellow)}
+#learn{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:50}
+#learn .card{width:min(560px,94vw);background:var(--panel);border:1px solid var(--accent);border-radius:10px;padding:18px 20px;box-shadow:0 10px 40px #000}
+#learn h3{margin:0 0 4px;font-size:20px}
+#learn .step{color:var(--accent2);font-size:12px;text-transform:uppercase;letter-spacing:1px}
+#learn .q{color:var(--muted);margin:2px 0 12px}
+#learn .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+#learn .pick{padding:10px 8px;text-align:center;border-radius:8px;background:var(--panel2)}
+#learn .pick small{display:block;color:var(--muted);font-size:11px}
+#learn .pick.on{border-color:var(--accent);background:#3a2a17}
+#learn .custom{display:flex;gap:8px;align-items:center;margin-top:12px}
+#learn .custom input{width:110px} #learn .custom select{width:auto}
+#learn .nav button{white-space:nowrap}
+#learn .nav{display:flex;justify-content:space-between;margin-top:18px;gap:8px}
+#learn .dots{display:flex;gap:6px;align-items:center}
+#learn .dots i{width:8px;height:8px;border-radius:50%;background:var(--line)} #learn .dots i.on{background:var(--accent)}
+#learn .tip{margin-top:10px;font-size:12px;color:var(--yellow)}
+#learn .card{width:min(940px,96vw);max-height:94vh;overflow:auto}
+.tabs{display:flex;gap:6px;margin:8px 0 12px}
+.axes svg{width:100%;height:auto;background:#0f1113;border-radius:8px;border:1px solid var(--line)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px;margin-top:10px}
+.facts div{background:var(--panel2);border-radius:6px;padding:8px 10px;font-size:13px}
+.facts b{color:var(--accent2)}
+.ops{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:10px}
+.op{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px}
+.op svg{width:100%;height:auto;background:#0f1113;border-radius:6px}
+.op h4{margin:6px 0 2px;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.op p{margin:2px 0;font-size:12px;color:var(--muted)}
+.badge{font-size:10px;padding:1px 6px;border-radius:10px;white-space:nowrap;font-weight:600}
+.badge.yes{background:#16341f;color:var(--green)} .badge.no{background:#3a2a17;color:var(--accent2)} .badge.hand{background:#202c3a;color:var(--blue)}
+#tch{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:50}
+#tch .card{width:min(560px,94vw);background:var(--panel);border:1px solid var(--accent);border-radius:10px;padding:18px 20px;box-shadow:0 10px 40px #000}
+#tch h3{margin:0 0 4px;font-size:20px}
+#tch .step{color:var(--accent2);font-size:12px;text-transform:uppercase;letter-spacing:1px}
+#tch .q{color:var(--muted);margin:2px 0 12px}
+#tch .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+#tch .pick{padding:10px 8px;text-align:center;border-radius:8px;background:var(--panel2)}
+#tch .pick small{display:block;color:var(--muted);font-size:11px}
+#tch .pick.on{border-color:var(--accent);background:#3a2a17}
+#tch .custom{display:flex;gap:8px;align-items:center;margin-top:12px}
+#tch .custom input{width:110px} #tch .custom select{width:auto}
+#tch .nav button{white-space:nowrap}
+#tch .nav{display:flex;justify-content:space-between;margin-top:18px;gap:8px}
+#tch .dots{display:flex;gap:6px;align-items:center}
+#tch .dots i{width:8px;height:8px;border-radius:50%;background:var(--line)} #tch .dots i.on{background:var(--accent)}
+#tch .tip{margin-top:10px;font-size:12px;color:var(--yellow)}
+#tch .card{width:min(620px,94vw);max-height:92vh;overflow:auto}
+.tstep{display:grid;grid-template-columns:30px 1fr;gap:10px;margin:12px 0;align-items:start}
+.tstep .n{width:26px;height:26px;border-radius:50%;background:var(--accent);color:#111;font-weight:700;display:flex;align-items:center;justify-content:center}
+.tstep p{margin:0 0 6px}
+.cmd{display:flex;gap:8px;align-items:center;margin-top:4px}
+.cmd code{font-size:16px;padding:4px 10px;flex:1}
+.cmd button{white-space:nowrap}
+#tch .custom{margin-top:4px}
+@media (max-width:1100px){.layout{grid-template-columns:260px 1fr}aside#right{grid-column:1/-1;border-left:0;border-top:1px solid var(--line)}.layout{height:auto}section#center{height:80vh}}
+</style>
+</head>
+<body>
+<header>
+  <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+    <rect width="34" height="34" rx="7" fill="#26201a" stroke="#f28c28"/>
+    <rect x="3" y="9" width="5" height="16" fill="#6b737c"/>
+    <path d="M8 11 H13 L15 13 V15 Q18 15 19 12 H23 Q25 12 25 15 V19 Q25 22 23 22 H19 Q18 19 15 19 V21 L13 23 H8 Z" fill="#f28c28"/>
+    <line x1="2" y1="17" x2="31" y2="17" stroke="#ffd34d" stroke-dasharray="3 2" stroke-width=".8"/>
+    <path d="M27 4 L31 4 L29 9 Z" fill="#cfd5db"/>
+  </svg>
+  <div><h1>Turn<span>Ready</span></h1><div class="sub">Lathe profile → G-code for the HX710 Turning Center (UGS / GRBL)</div></div>
+  <div class="spacer"></div>
+</header>
+
+<div class="layout">
+<!-- LEFT: settings -->
+<aside id="left">
+  <h2>Part</h2>
+  <label class="f wide">Program name<input id="name" value="ROOK"></label>
+  <label class="f wide">Stock bar
+    <select id="stockPick">
+      <option value="12.7">1/2" (12.70 mm)</option>
+      <option value="15.875">5/8" (15.88 mm)</option>
+      <option value="19.05">3/4" (19.05 mm)</option>
+      <option value="22.225" selected>7/8" (22.23 mm)</option>
+      <option value="25.4">1" (25.40 mm)</option>
+      <option value="20">20 mm</option>
+      <option value="25">25 mm</option>
+      <option value="custom">Custom…</option>
+    </select></label>
+  <label class="f">Stock diameter (mm)<input id="stockD" type="number" step="0.01" value="22.225"></label>
+  <label class="f">Bar out of chuck (mm)<input id="stickAvail" type="number" step="1" min="5" value="50.8"></label>
+  <label class="f">Face off (mm)<input id="face" type="number" step="0.1" min="0" value="1"></label>
+  <label class="f">Facing step (mm)<input id="faceStep" type="number" step="0.05" min="0.05" value="0.25"></label>
+  <label class="f">Parting gap (mm)<input id="gap" type="number" step="0.5" min="0" value="4"></label>
+  <div class="note">Parting is by hand. The gap leaves room behind the part for the parting tool.</div>
+
+  <h2>Material &amp; cutting</h2>
+  <label class="f wide">Material<select id="mat"></select></label>
+  <label class="f">Spindle RPM<input id="rpm" type="number" step="50"></label>
+  <label class="f">Rough depth / side (mm)<input id="doc" type="number" step="0.05" min="0.02"></label>
+  <label class="f">Rough feed (mm/min)<input id="roughF" type="number" step="5"></label>
+  <label class="f">Finish feed (mm/min)<input id="finishF" type="number" step="5"></label>
+  <label class="f">Facing feed (mm/min)<input id="faceF" type="number" step="5"></label>
+  <label class="f">Finish allowance (mm)<input id="allow" type="number" step="0.05" min="0"></label>
+  <label class="f">Coolant (M8)<input id="coolant" type="checkbox"></label>
+  <div id="matNote" class="mat-note"></div>
+
+  <h2>Tool</h2>
+  <label class="f wide">Insert<select id="insert">
+    <option value="35">35° (VCMT / VBMT) – profiling</option>
+    <option value="55">55° (DCMT / DCGT)</option>
+    <option value="80">80° (CCMT / CNMG) – roughing</option>
+  </select></label>
+  <label class="f">Nose radius (mm)<select id="nose">
+    <option value="0.1">0.1</option><option value="0.2">0.2</option><option value="0.4" selected>0.4</option><option value="0.8">0.8</option>
+  </select></label>
+  <label class="f">Tool number<input id="tool" type="number" min="1" step="1" value="4"></label>
+  <label class="f wide">Tool post<input id="post" value="FRONT TOOL POST"></label>
+  <div class="note" id="insertNote"></div>
+
+  <h2>Machine</h2>
+  <label class="f">Max RPM for students<input id="rpmCap" type="number" step="100" value="4000"></label>
+  <label class="f">Spindle direction<select id="spindle"><option>M3</option><option>M4</option></select></label>
+  <label class="f">Safe clearance (mm, radius)<input id="safe" type="number" step="0.5" value="1.5"></label>
+  <label class="f">Rapid speed (for time est.)<input id="rapid" type="number" step="100" value="1000"></label>
+  <div class="note">HX710 runs GRBL through UGS: X is <b>radius</b>. The tool is on the front, and +X moves it toward you (bigger radius). Spindle on the left. Feeds are mm/min (G94).</div>
+</aside>
+
+<!-- CENTER: view + profile -->
+<section id="center">
+  <div class="toolbar">
+    <button id="modeEdit" class="on">✏️ Design</button>
+    <button id="modeSim">▶ Simulate</button>
+    <div class="sep"></div>
+    <button id="wizBtn" class="primary">🧙 New part</button>
+    <button id="tchBtn">🎯 Touch off</button>
+    <button id="learnBtn">📘 Lathe basics</button>
+    <div class="sep"></div>
+    <button id="fitBtn">Fit view</button>
+    <label><input type="checkbox" id="snap" checked> snap 0.05</label>
+    <div class="sep"></div>
+    <label>Example
+      <select id="example">
+        <option value="">—</option>
+        <option value="rook">Rook (from student's Fusion file)</option>
+        <option value="woodtest">Wood test piece</option>
+        <option value="pawn">Simple pawn</option>
+        <option value="cyl">Plain cylinder</option>
+      </select></label>
+    <button id="importBtn">Import DXF / SVG…</button>
+    <input type="file" id="fileIn" accept=".dxf,.svg" hidden>
+  </div>
+  <div id="importOpts" class="toolbar">
+    <label>Face end of drawing is on the
+      <select id="impFace"><option value="right">right (like the lathe)</option><option value="left">left</option></select></label>
+    <label>Drawing shows
+      <select id="impKind"><option value="half">top half (axis at bottom)</option><option value="full">full outline (axis in middle)</option></select></label>
+    <label>Units
+      <select id="impUnits"><option value="auto">auto</option><option value="mm">mm</option><option value="in">inches</option><option value="px">px (96/in)</option></select></label>
+    <button id="reimport">Re-import</button>
+    <span class="note" id="impMsg"></span>
+  </div>
+  <div id="canvasWrap">
+    <canvas id="cv"></canvas>
+    <div id="readout"></div>
+    <div id="legend"></div>
+  </div>
+  <div id="simBar">
+    <button id="playBtn">▶ Play</button>
+    <button id="restartBtn">⏮</button>
+    <input type="range" id="simPos" min="0" max="1000" value="0">
+    <label class="note">speed <select id="simSpeed"><option value="0.25">slow</option><option value="1" selected>normal</option><option value="4">fast</option><option value="20">very fast</option></select></label>
+    <button id="endBtn">⏭ Result</button>
+  </div>
+  <div id="profilePane">
+    <div class="top">
+      <b>Profile points</b>
+      <span class="note">Z = distance from the front of the finished part (0, then negative toward the chuck). Ø = diameter. Drag points in the view, double-click to add one.</span>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>Z (mm)</th><th>Ø (mm)</th><th>To next point</th><th>Arc radius</th><th>Arc shape</th><th></th></tr></thead>
+      <tbody id="ptBody"></tbody>
+    </table>
+    <div class="row" style="margin-top:6px;max-width:420px">
+      <button id="addPt">+ Add point at end</button>
+      <button id="revBtn" title="Flip the part front-to-back">⇄ Flip part</button>
+    </div>
+  </div>
+</section>
+
+<!-- RIGHT: results -->
+<aside id="right">
+  <div>
+    <h2>Checks</h2>
+    <div id="warns"></div>
+  </div>
+  <div class="box"><div class="stats" id="stats"></div></div>
+  <div class="row">
+    <button class="primary" id="dlBtn">⬇ Download .nc</button>
+    <button id="copyBtn">Copy G-code</button>
+  </div>
+  <textarea id="gcode" readonly spellcheck="false"></textarea>
+  <button id="tchBtn2">🎯 Touch-off helper (set X and Z zero)</button>
+  <details>
+    <summary>How to run it on the HX710 (UGS)</summary>
+    <ol>
+      <li>Chuck the stock with at least the <b>stick-out</b> shown above.</li>
+      <li><b>Set X and Z zero</b> with the 🎯 Touch-off helper. It writes the exact <code>G10</code> lines for UGS.</li>
+      <li><b>Air cut first:</b> the helper has an air-cut option that sets Z so the whole program runs 20&nbsp;mm in front of the stock.</li>
+      <li>The program stops at <code>M0</code> so you can check the tool. Press <b>Resume / Cycle start</b> in UGS.</li>
+      <li>When it finishes, part off by hand in the parting gap.</li>
+    </ol>
+    <p class="note">The program homes with <code>G28 G91 X0.</code> / <code>Z0.</code> just like the student's Fusion files, so it uses the G28 position saved on the controller.</p>
+  </details>
+</aside>
+</div>
+
+<div id="learn"><div class="card">
+  <div class="step">Lathe basics</div>
+  <h3>How the HX710 moves, and what a lathe can do</h3>
+  <div class="tabs"><button class="on" data-tab="axes">Axes &amp; zero</button><button data-tab="ops">Tools &amp; operations</button></div>
+  <div id="learnAxes" class="axes"></div>
+  <div id="learnOps" class="ops" style="display:none"></div>
+  <div class="nav"><span class="note">On a lathe the <b>part</b> spins and the tool only moves in two directions.</span><button id="learnClose" class="primary">Got it</button></div>
+</div></div>
+
+<div id="tch"><div class="card">
+  <div class="step">Touch-off helper · HX710 in UGS</div>
+  <h3>Set X and Z zero</h3>
+  <div class="q">Touch off with the tool that will cut. If you loosen, move or change the insert, do this again.</div>
+
+  <div class="tstep"><div class="n">1</div><div>
+    <p><b>Skim the outside.</b> Start the spindle. Jog the tool in until it just takes a light cut on the outside of the bar, then move it in Z only (along the bar) for a few mm. <b>Don't move X after that.</b> Back off in Z, stop the spindle.</p>
+  </div></div>
+
+  <div class="tstep"><div class="n">2</div><div>
+    <p><b>Measure the skimmed diameter</b> with calipers and type it here:</p>
+    <div class="custom"><input id="tD" type="number" step="0.01" min="0.5" placeholder="e.g. 21.80"><select id="tU"><option value="mm">mm</option><option value="in">inches</option></select><span class="note" id="tDmsg"></span></div>
+  </div></div>
+
+  <div class="tstep"><div class="n">3</div><div>
+    <p><b>Set X.</b> With X still where it was when it made the cut, paste this into the UGS console:</p>
+    <div class="cmd"><code id="tX">enter a diameter first</code><button data-copy="tX">Copy</button></div>
+    <p class="note">X is the <b>radius</b>, so this is half of what you measured. It tells GRBL the tool tip is that far from the center of the spindle. UGS should now show that number for X.</p>
+  </div></div>
+
+  <div class="tstep"><div class="n">4</div><div>
+    <p><b>Set Z.</b> Jog the tool until it just touches the <b>end</b> of the bar (a paper shim helps), then paste:</p>
+    <label class="note" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="checkbox" id="tAir"> Air cut: run the whole program <input id="tAirD" type="number" value="20" step="5" min="5" style="width:60px"> mm in front of the stock</label>
+    <div class="cmd"><code id="tZ">G10 L20 P1 Z0</code><button data-copy="tZ">Copy</button></div>
+    <p class="note" id="tZnote"></p>
+  </div></div>
+
+  <div class="tstep"><div class="n">5</div><div>
+    <p><b>Check it.</b> Jog the tool well out in X, with Z over the bar, then type <code>G0 X<span id="tChk">…</span></code>. The tip should stop about 1 mm outside the bar. If it doesn't, redo steps 1–3.</p>
+  </div></div>
+
+  <div class="nav"><span></span><button id="tchClose" class="primary">Done</button></div>
+</div></div>
+
+<div id="wiz"><div class="card">
+  <div class="step" id="wizStep"></div>
+  <h3 id="wizTitle"></h3>
+  <div class="q" id="wizQ"></div>
+  <div id="wizBody"></div>
+  <div class="nav">
+    <button id="wizBack">← Back</button>
+    <div class="dots" id="wizDots"></div>
+    <div class="row" style="flex:0 0 auto"><button id="wizSkip">Skip</button><button id="wizNext" class="primary">Next →</button></div>
+  </div>
+</div></div>
+
+<script>
+"use strict";
+/* ================= DATA ================= */
+const MATERIALS = {
+  wood:   {name:'Wood (hardwood)',        rpm:2500, doc:0.5, rough:300, finish:150, allow:0.2,  coolant:false, note:'Use a sharp tool and run a vacuum or dust collection. No coolant.'},
+  delrin: {name:'Delrin / acetal',        rpm:3500, doc:0.5, rough:350, finish:175, allow:0.15, coolant:false, note:'Machines cleanly. Light or no coolant.'},
+  nylon:  {name:'Nylon / HDPE / UHMW',    rpm:3000, doc:0.5, rough:300, finish:150, allow:0.2,  coolant:false, note:'Makes long stringy chips that wrap the part. Pause and clear them.'},
+  alum:   {name:'Aluminum 6061',          rpm:4000, doc:0.3, rough:320, finish:160, allow:0.1,  coolant:true,  note:'Coolant or mist helps stop chips from welding to the insert.'},
+  brass:  {name:'Brass 360',              rpm:3000, doc:0.3, rough:210, finish:105, allow:0.1,  coolant:false, note:'Free-cutting. Chips are sharp, so wear eye protection.'},
+  steel:  {name:'Mild steel (12L14/1018)',rpm:1800, doc:0.2, rough:125, finish:75,  allow:0.1,  coolant:true,  note:'12L14 cuts much better than 1018. Keep stick-out short.'},
+  custom: {name:'Custom', note:''}
+};
+const INSERTS = {
+  35:{lead:87, trail:52, label:'35° insert in a 93° holder'},
+  55:{lead:87, trail:32, label:'55° insert in a 93° holder'},
+  80:{lead:85, trail:5,  label:'80° insert in a 95° holder'}
+};
+const EXAMPLES = {
+  // Rook rebuilt from the student's Fusion finishing pass (BigOlRookDiDook.nc), shifted so the part front is Z0
+  rook:{name:'ROOK', stockD:22.225, face:1.5, pts:[
+    [0,12.64,'arc',0.76,1],[-0.76,14.16,'line'],[-5.007,14.16,'line'],[-9.597,8.86,'arc',44.84,0],
+    [-20.281,11.554,'line'],[-20.738,12.6,'line'],[-22.227,12.6,'line'],[-22.405,12.394,'arc',1.54,1],
+    [-24.228,12.814,'line'],[-24.258,12.78,'arc',7.963,1],[-26.303,17.542,'arc',1.84,1],
+    [-28.14,17.538,'line'],[-28.508,17.114,'arc',1.643,1],[-30.785,18.434,'line'],[-32.04,16.984,'line']]},
+  woodtest:{name:'WOODTEST', stockD:25.4, face:1, pts:[
+    [0,12,'line'],[-3,18,'line'],[-10,18,'line'],[-10,22,'line'],[-16,22,'arc',8,0],[-26,22,'line'],
+    [-30,22,'line'],[-34,16,'line']]},
+  pawn:{name:'PAWN', stockD:19.05, face:1, pts:[
+    [0,6,'arc',4.5,1],[-6,9,'line'],[-8.5,6,'line'],[-9.5,6,'line'],[-9.5,11,'line'],[-10.5,11,'line'],
+    [-13,7,'arc',30,0],[-23,11,'line'],[-24,13,'arc',2.5,1],[-27.5,16,'line'],[-30,16,'line']]},
+  cyl:{name:'CYLINDER', stockD:19.05, face:1, pts:[[0,15,'line'],[-0.5,16,'line'],[-20,16,'line']]}
+};
+
+/* ================= STATE ================= */
+const S = {
+  name:'ROOK', stockD:22.225, stickAvail:50.8, face:1.5, faceStep:0.25, gap:4,
+  mat:'wood', rpm:2500, doc:0.5, roughF:300, finishF:150, faceF:240, allow:0.2, coolant:false,
+  insert:35, nose:0.4, tool:4, post:'FRONT TOOL POST',
+  rpmCap:4000, spindle:'M3', safe:1.5, rapid:1000,
+  points:[]
+};
+let mode='edit', selPt=-1, RES=null, SIM=null, GCODE='';
+const D2R=Math.PI/180;
+
+/* ================= HELPERS ================= */
+const $=s=>document.querySelector(s);
+function fmt(v){ if(Math.abs(v)<0.0005) v=0; let s=v.toFixed(3).replace(/0+$/,''); if(s==='-0.') s='0.'; return s; }
+function nf(v){ return String(parseFloat((+v).toFixed(2))); }
+function fz(v){ return (Math.abs(v)<0.005?0:v).toFixed(2); }
+function r3(v){ return Math.round(v*1000)/1000; }
+function asciiUpper(s){ return String(s).toUpperCase().replace(/[^A-Z0-9 .\/\-_]/g,' ').replace(/\s+/g,' ').trim(); }
+function fileSafe(s){ return String(s).replace(/[^A-Za-z0-9_\-]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'') || 'PART'; }
+function lowerBound(a,v){ let lo=0,hi=a.length; while(lo<hi){const m=(lo+hi)>>1; if(a[m]<v) lo=m+1; else hi=m;} return lo; }
+
+function simplify(pts,tol){
+  if(pts.length<3) return pts.slice();
+  const keep=new Uint8Array(pts.length); keep[0]=keep[pts.length-1]=1;
+  const st=[[0,pts.length-1]];
+  while(st.length){
+    const [a,b]=st.pop(); const az=pts[a][0],ax=pts[a][1],dz=pts[b][0]-az,dx=pts[b][1]-ax; const L=Math.hypot(dz,dx);
+    let md=0,mi=-1;
+    for(let i=a+1;i<b;i++){
+      const d = L<1e-12 ? Math.hypot(pts[i][0]-az,pts[i][1]-ax) : Math.abs((pts[i][0]-az)*dx-(pts[i][1]-ax)*dz)/L;
+      if(d>md){md=d;mi=i;}
+    }
+    if(md>tol){keep[mi]=1; st.push([a,mi],[mi,b]);}
+  }
+  return pts.filter((_,i)=>keep[i]);
+}
+
+/* ================= PROFILE GEOMETRY ================= */
+function getPts(){
+  const P=S.points, z0=P.length?P[0].z:0;
+  return P.map(p=>({z:p.z-z0, x:Math.max(0,p.d/2), type:p.type, rad:p.rad, conv:p.conv}));
+}
+function arcCenter(a,b,rad,conv){
+  const dz=b.z-a.z, dx=b.x-a.x, c=Math.hypot(dz,dx);
+  if(!(rad>0) || c<1e-9 || rad<c/2-1e-9) return null;
+  const h=Math.sqrt(Math.max(0,rad*rad-c*c/4)), mz=(a.z+b.z)/2, mx=(a.x+b.x)/2;
+  const nz=-dx/c, nx=dz/c;              // left normal of travel direction (toward the material/axis side)
+  const s=conv?1:-1;                    // convex: center on material side, bulge outward
+  return {z:mz+s*h*nz, x:mx+s*h*nx};
+}
+function segSamples(a,b,step,warns,i){
+  const out=[];
+  if(a.type==='arc'){
+    const c=arcCenter(a,b,a.rad,a.conv);
+    if(c){
+      const a0=Math.atan2(a.x-c.x,a.z-c.z), a1=Math.atan2(b.x-c.x,b.z-c.z);
+      let d=a1-a0; while(d>Math.PI) d-=2*Math.PI; while(d<=-Math.PI) d+=2*Math.PI;
+      const n=Math.max(2,Math.ceil(Math.abs(d)*a.rad/step));
+      for(let k=1;k<=n;k++){const t=a0+d*k/n; out.push([c.z+a.rad*Math.cos(t), c.x+a.rad*Math.sin(t)]);}
+      return out;
+    }
+    warns.push({lvl:'bad',msg:`Arc from point ${i+1} to ${i+2}: the radius is too small for the gap between the points. It needs to be at least ${fmt(Math.hypot(b.z-a.z,b.x-a.x)/2)} mm. It was drawn as a straight line.`});
+  }
+  const n=Math.max(1,Math.ceil(Math.hypot(b.z-a.z,b.x-a.x)/step));
+  for(let k=1;k<=n;k++) out.push([a.z+(b.z-a.z)*k/n, a.x+(b.x-a.x)*k/n]);
+  return out;
+}
+function sampleProfile(step){
+  const pts=getPts(), warns=[], Z=[], X=[], part=[];
+  if(pts.length<2) return null;
+  const n0=Math.max(1,Math.ceil(pts[0].x/step));
+  for(let k=0;k<=n0;k++){Z.push(0);X.push(pts[0].x*k/n0);}
+  part.push([0,pts[0].x]);
+  for(let i=0;i<pts.length-1;i++){
+    if(pts[i+1].z>pts[i].z+1e-6) warns.push({lvl:'bad',msg:`Point ${i+2} is in front of point ${i+1}. That makes an undercut the lathe tool can't reach.`});
+    for(const s of segSamples(pts[i],pts[i+1],step,warns,i)){Z.push(s[0]);X.push(s[1]);part.push(s);}
+  }
+  const last=pts[pts.length-1]; const zEnd=Math.min(...pts.map(p=>p.z));
+  const top=S.stockD/2+3;
+  const nb=Math.max(1,Math.ceil((top-last.x)/step));
+  for(let k=1;k<=nb;k++){Z.push(last.z);X.push(last.x+(top-last.x)*k/nb);}
+  for(let z=last.z;z>=last.z-15;z-=0.05){Z.push(z);X.push(top);}
+  return {Z,X,part,zEnd,warns,pts,L:-zEnd};
+}
+function binMax(Z,X,res){
+  const m=new Map();
+  for(let i=0;i<Z.length;i++){const k=Math.round(Z[i]/res); const v=m.get(k); if(v===undefined||X[i]>v) m.set(k,X[i]);}
+  const keys=[...m.keys()].sort((a,b)=>a-b);
+  return {zs:Float64Array.from(keys,k=>k*res), xs:Float64Array.from(keys,k=>m.get(k))};
+}
+// Tool tip (imaginary point) boundary: nose center stays `off` away from the part; tip = center - r in X and Z.
+function offsetCurve(bins,off,n,dz,r){
+  const {zs,xs}=bins, out=new Float64Array(n), off2=off*off;
+  for(let k=0;k<n;k++){
+    const zc=-k*dz+r; let best=-Infinity;
+    for(let j=lowerBound(zs,zc-off); j<zs.length && zs[j]<=zc+off; j++){
+      const d=zs[j]-zc; const v=xs[j]+Math.sqrt(Math.max(0,off2-d*d)); if(v>best) best=v;
+    }
+    out[k]=best-r;
+  }
+  return out;
+}
+
+/* ================= TOOLPATH GENERATION ================= */
+function generate(){
+  const prof=sampleProfile(0.01);
+  if(!prof) return null;
+  const warns=[...prof.warns];
+  const r=+S.nose, Rs=S.stockD/2, face=Math.max(0,+S.face), safeX=r3(Rs+Math.max(0.5,+S.safe));
+  const allow=Math.max(0,+S.allow), doc=Math.max(0.02,+S.doc);
+  const bins=binMax(prof.Z,prof.X,0.002);
+  const dz=0.01, offR=allow+r;
+  const n=Math.ceil((prof.L+offR+1)/dz)+1;
+  const B=offsetCurve(bins,offR,n,dz,r), F=offsetCurve(bins,r,n,dz,r);
+  const ZT=k=>-k*dz-face;
+  const kOf=z=>Math.round((-z-face)/dz);
+  const mv=[]; const start={x:safeX+5,z:5}; let cx=start.x, cz=start.z;
+  const G0=(x,z,op)=>{ if(x===undefined)x=cx; if(z===undefined)z=cz; x=r3(x); z=r3(z); if(x===cx&&z===cz) return; mv.push({g:0,x,z,op}); cx=x; cz=z; };
+  const G1=(x,z,f,op)=>{ if(x===undefined)x=cx; if(z===undefined)z=cz; x=r3(x); z=r3(z); if(x===cx&&z===cz) return; mv.push({g:1,x,z,f,op}); cx=x; cz=z; };
+  const chain=(pts,f,op)=>{ for(const p of simplify(pts,0.002)) G1(p[1],p[0],f,op); };
+  const info={facePasses:0, roughPasses:0};
+
+  // ---- FACING
+  if(face>0){
+    const step=Math.max(0.02,+S.faceStep), steps=Math.ceil(face/step-1e-9);
+    for(let j=1;j<=steps;j++){
+      const zj=-Math.min(face,j*step);
+      G0(safeX,undefined,'face'); G0(undefined,zj,'face'); G0(Rs+0.5,undefined,'face');
+      G1(-r,zj,S.faceF,'face'); G1(-r+0.7,zj+0.7,S.faceF,'face'); G0(safeX,undefined,'face');
+      info.facePasses++;
+    }
+  }
+
+  // ---- ROUGHING (straight passes at each depth, follows the boundary into valleys and up shoulders)
+  let minB=Infinity; for(let k=0;k<n;k++) if(B[k]<minB) minB=B[k];
+  const floor=Math.max(minB,-r);
+  const levels=[];
+  for(let x=Rs-doc; x>floor+1e-4; x-=doc) levels.push(x);
+  const lastL=levels.length?levels[levels.length-1]:Rs;
+  if(lastL-floor>0.05) levels.push(floor+0.003);
+  for(let i=0;i<levels.length;i++){
+    const X=levels[i], Xp=i?levels[i-1]:Rs;
+    let k=0;
+    while(k<n){
+      if(!(B[k]<X)){k++;continue;}
+      const ka=k; while(k<n && B[k]<X) k++; const kb=k-1;
+      const pts=[];
+      if(ka===0){ G0(safeX,undefined,'rough'); G0(undefined,ZT(0)+0.5,'rough'); G0(X,undefined,'rough'); pts.push([ZT(0),X]); }
+      else{
+        let ke=ka; while(ke>0 && B[ke-1]<Xp && B[ke-1]>=B[ke]) ke--;
+        if(ke===0){ const x0=Math.min(B[0],Xp); G0(safeX,undefined,'rough'); G0(undefined,ZT(0)+0.5,'rough'); G0(x0,undefined,'rough'); pts.push([ZT(0),x0]); }
+        else{ G0(safeX,undefined,'rough'); G0(undefined,ZT(ke),'rough'); G0(Math.min(Xp+0.3,safeX),undefined,'rough'); pts.push([ZT(ke),B[ke]]); }
+        for(let q=ke+1;q<ka;q++) pts.push([ZT(q),B[q]]);
+        pts.push([ZT(ka),X]);
+      }
+      pts.push([ZT(kb),X]);
+      let q=kb+1, lastZ=ZT(kb);
+      while(q<n && B[q]<Xp){ if(B[q]<X-1e-9) break; pts.push([ZT(q),B[q]]); lastZ=ZT(q); q++; }
+      let endX=pts[pts.length-1][1];
+      if(q<n && B[q]>=Xp){ pts.push([lastZ,Xp]); endX=Xp; }
+      chain(pts,S.roughF,'rough');
+      // 45° pull-out away from the part, shortened if something is in the way
+      let d=0.5;
+      for(; d>0.04; d-=0.05){ const kk=kOf(lastZ+d); if(kk<0 || kk>=n || B[kk]<=endX+d) break; }
+      if(d>0.04) G1(endX+d,lastZ+d,S.roughF,'rough'); else G1(Math.min(endX+0.3,safeX),lastZ,S.roughF,'rough');
+      G0(safeX,undefined,'rough');
+      info.roughPasses++;
+    }
+  }
+
+  // ---- FINISHING (nose-radius compensated)
+  G0(safeX,undefined,'finish'); G0(undefined,ZT(0)+0.5,'finish'); G0(F[0],undefined,'finish');
+  const fp=[[ZT(0),F[0]]]; let k=1;
+  while(k<n && F[k]<Rs+0.3){ fp.push([ZT(k),F[k]]); k++; }
+  fp.push([ZT(k-1),Rs+0.5]);
+  const fps=simplify(fp,0.002);
+  for(const p of fps) G1(p[1],p[0],S.finishF,'finish');
+  G0(safeX,undefined,'finish'); G0(undefined,5,'finish');
+
+  // ---- trailing-edge (plunge angle) check on the finish path
+  const maxPl=INSERTS[S.insert].trail-2; const steep=[];
+  for(let i=1;i<fps.length;i++){
+    const [z0,x0]=fps[i-1],[z1,x1]=fps[i];
+    if(z1<z0-1e-6 && x1<x0-1e-6){ const ang=Math.atan2(x0-x1,z0-z1)/D2R; if(ang>maxPl+0.5) steep.push({z:(z0+z1)/2+face, ang}); }
+  }
+  if(steep.length){
+    const worst=steep.reduce((a,b)=>b.ang>a.ang?b:a);
+    warns.push({lvl:'bad',msg:`The profile drops toward the chuck at ${worst.ang.toFixed(0)}° near Z ${fz(worst.z)}. The ${INSERTS[S.insert].label} can only go down about ${maxPl}° before its back edge rubs. Use a 35° insert or make that slope gentler.`});
+  }
+  return {moves:mv,start,warns,prof,info,safeX,Rs,face,r};
+}
+
+/* ================= G-CODE OUTPUT (matches the student's Fusion/HX710 files) ================= */
+function effRPM(){ return Math.min(+S.rpm, +S.rpmCap); }
+function emit(res){
+  const L=[]; let N=10; const add=s=>L.push(`N${N++} ${s}`);
+  const name=asciiUpper(S.name)||'PART';
+  L.push(`(${name})`);
+  L.push(`(TURNREADY FOR HX710 - ${asciiUpper(MATERIALS[S.mat].name)})`);
+  L.push(`(STOCK DIA ${fmt(+S.stockD)} MM - Z0 = RAW STOCK FACE - X IS RADIUS)`);
+  add('G90 G94'); add('G18'); add('G21'); add('G28 G91 X0.'); add('G28 G91 Z0.'); add('G90');
+  L.push('');
+  L.push(`(CHANGE TO T${S.tool} ON ${asciiUpper(S.post)||'TOOL POST'})`);
+  add('M0'); add(`T${S.tool}`); add('G54'); if(S.coolant) add('M8');
+  add(`S${Math.round(effRPM())} ${S.spindle}`); add('G94');
+  const opName={face:'FACE',rough:'PROFILE ROUGHING',finish:'PROFILE FINISHING'};
+  let op=null, g=null, lx=null, lz=null, lf=null;
+  for(const m of res.moves){
+    if(m.op!==op){ op=m.op; L.push(''); L.push(`(${opName[op]})`); }
+    const parts=[];
+    if(m.g!==g){ parts.push('G'+m.g); g=m.g; }
+    if(m.x!==lx){ parts.push('X'+fmt(m.x)); lx=m.x; }
+    if(m.z!==lz){ parts.push('Z'+fmt(m.z)); lz=m.z; }
+    if(m.g===1 && m.f!==lf){ parts.push('F'+fmt(+m.f)); lf=m.f; }
+    if(parts.length) add(parts.join(' '));
+  }
+  L.push('');
+  if(S.coolant) add('M9');
+  add('M5'); add('G28 G91 X0.'); add('G28 G91 Z0.'); add('G90'); add('M30');
+  return L.join('\r\n')+'\r\n';
+}
+
+/* ================= SIMULATION ================= */
+function insertPoly(){
+  const t=INSERTS[S.insert], r=+S.nose, E=6, tl=t.lead*D2R, tt=t.trail*D2R;
+  const aL=tl+Math.PI/2; let a1=tt-Math.PI/2; while(a1<aL) a1+=2*Math.PI;
+  const poly=[]; const TL=[r*Math.cos(aL),r*Math.sin(aL)];
+  poly.push([TL[0]+E*Math.cos(tl),TL[1]+E*Math.sin(tl)]);
+  for(let i=0;i<=30;i++){const a=aL+(a1-aL)*i/30; poly.push([r*Math.cos(a),r*Math.sin(a)]);}
+  const TT=poly[poly.length-1]; poly.push([TT[0]+E*Math.cos(tt),TT[1]+E*Math.sin(tt)]);
+  return poly; // [z,x] relative to nose center
+}
+function buildSim(res){
+  const r=res.r, Rs=res.Rs, face=res.face, L=res.prof.L;
+  const zChuck=-(face+L+Math.max(0,+S.gap));
+  const dzb=0.02, zMin=zChuck-2, zMax=3, nb=Math.ceil((zMax-zMin)/dzb)+1;
+  const zOf=b=>zMin+b*dzb;
+  const M0=new Float32Array(nb); for(let b=0;b<nb;b++) M0[b]= zOf(b)>0?0:Rs;
+  // insert lower envelope
+  const poly=insertPoly(); const lo=new Map(); let hmin=Infinity;
+  for(let i=0;i<poly.length;i++){
+    const a=poly[i], b=poly[(i+1)%poly.length]; const len=Math.hypot(b[0]-a[0],b[1]-a[1]); const s=Math.max(1,Math.ceil(len/0.01));
+    for(let k=0;k<=s;k++){const z=a[0]+(b[0]-a[0])*k/s, x=a[1]+(b[1]-a[1])*k/s; const j=Math.round(z/dzb); const v=lo.get(j); if(v===undefined||x<v) lo.set(j,x); if(x<hmin)hmin=x;}
+  }
+  const js=[...lo.keys()].sort((a,b)=>a-b), j0=js[0], H=new Float32Array(js[js.length-1]-j0+1).fill(1e9);
+  for(const j of js) H[j-j0]=lo.get(j);
+  const toolMinZ=j0*dzb;
+  // samples of nose-center positions
+  const cz=[],cx=[],rap=[],moveAt=[]; let px=res.start.x, pz=res.start.z;
+  res.moves.forEach((m,mi)=>{
+    const len=Math.hypot(m.x-px,m.z-pz), s=Math.max(1,Math.ceil(len/0.04));
+    for(let k=1;k<=s;k++){ cz.push(pz+(m.z-pz)*k/s + r); cx.push(px+(m.x-px)*k/s + r); rap.push(m.g===0?1:0); moveAt.push(mi); }
+    px=m.x; pz=m.z;
+  });
+  const sim={r,Rs,face,zChuck,dzb,zMin,nb,zOf,M0,H,j0,hmin,toolMinZ,poly,
+    cz:Float32Array.from(cz),cx:Float32Array.from(cx),rap:Uint8Array.from(rap),moveAt:Int32Array.from(moveAt),
+    N:cz.length, idx:0, M:null, playing:false, crash:[], chuck:[]};
+  sim.apply=function(M,from,to,record){
+    for(let i=from;i<to;i++){
+      const z=this.cz[i], x=this.cx[i];
+      if(x+this.hmin>this.Rs+0.01) continue;
+      const b0=Math.round((z-this.zMin)/this.dzb)+this.j0;
+      if(record && z+this.toolMinZ<this.zChuck+0.2 && x+this.hmin<this.Rs+6) this.chuck.push(z);
+      const H=this.H;
+      for(let j=0;j<H.length;j++){
+        const b=b0+j; if(b<0||b>=this.nb) continue;
+        const v=x+H[j];
+        if(v<M[b]){ if(record && this.rap[i] && M[b]-v>0.05) this.crash.push(this.zOf(b)); M[b]=v<0?0:v; }
+      }
+    }
+  };
+  // full run for checks
+  const Mf=new Float32Array(M0); sim.apply(Mf,0,sim.N,true); sim.Mf=Mf;
+  // compare with true part
+  const lo2=new Float32Array(nb).fill(NaN), hi2=new Float32Array(nb).fill(NaN);
+  for(const [zp,x] of res.prof.part){ const b=Math.round((zp-face-zMin)/dzb); if(b<0||b>=nb) continue; if(isNaN(lo2[b])||x<lo2[b]) lo2[b]=x; if(isNaN(hi2[b])||x>hi2[b]) hi2[b]=x; }
+  const zFront=-face, zBack=-(face+L);
+  const gou=[], exc=[];
+  for(let b=1;b<nb-1;b++){
+    const z=zOf(b); if(z>zFront-0.06 || z<zBack+0.06) continue;
+    let mn=Infinity, mx=-Infinity;
+    for(let q=b-1;q<=b+1;q++){ if(!isNaN(lo2[q])){mn=Math.min(mn,lo2[q]);mx=Math.max(mx,hi2[q]);} }
+    if(mn===Infinity) continue;
+    if(Mf[b]<mn-0.02) gou.push([z,mn-Mf[b]]);
+    else if(Mf[b]>mx+0.05 && z>zBack+r+0.4) exc.push([z,Mf[b]-mx]);   // back corner is removed when parting
+  }
+  sim.gouges=ranges(gou); sim.excess=ranges(exc).filter(g=>g.z1-g.z0>0.08);
+  sim.M=new Float32Array(M0); sim.idx=0;
+  return sim;
+}
+function ranges(list){
+  const out=[]; let cur=null;
+  for(const [z,d] of list){
+    if(cur && z-cur.z1<0.07){ cur.z1=z; cur.d=Math.max(cur.d,d); }
+    else { cur={z0:z,z1:z,d}; out.push(cur); }
+  }
+  return out;
+}
+
+/* ================= REGENERATE ================= */
+function regen(){
+  RES=generate();
+  if(!RES){ $('#gcode').value=''; return; }
+  GCODE=emit(RES);
+  SIM=buildSim(RES);
+  showResults();
+  if(mode==='sim'){ SIM.idx=SIM.N; SIM.M=new Float32Array(SIM.Mf); }
+  updateSimBar();
+  draw();
+}
+function showResults(){
+  const w=[...RES.warns];
+  const face=RES.face, L=RES.prof.L, Rs=RES.Rs;
+  const stick=face+L+(+S.gap);
+  if(+S.rpm>+S.rpmCap) w.push({lvl:'info',msg:`The RPM is capped at ${S.rpmCap} (the material preset asks for ${S.rpm}). Change "Max RPM for students" to allow more.`});
+  const maxD=Math.max(...getPts().map(p=>p.x))*2;
+  if(maxD>+S.stockD+1e-6) w.push({lvl:'bad',msg:`The part is ${nf(maxD)} mm across, bigger than the ${nf(S.stockD)} mm stock.`});
+  if(stick>+S.stickAvail+1e-6) w.push({lvl:'bad',msg:`The program needs ${nf(stick)} mm of bar out of the chuck, but only ${nf(S.stickAvail)} mm is out. Pull more bar out, or shorten the part or the parting gap.`});
+  const ratio=stick/+S.stockD;
+  if(ratio>4) w.push({lvl:'bad',msg:`Stick-out is ${ratio.toFixed(1)}× the stock diameter. Expect chatter, and the part could bend or pull out. Use bigger stock, a shorter part, or the tailstock.`});
+  else if(ratio>3) w.push({lvl:'warn',msg:`Stick-out is ${ratio.toFixed(1)}× the stock diameter. Use lighter cuts if it chatters.`});
+  if(SIM.crash.length) w.push({lvl:'bad',msg:`A rapid (G0) move runs into material near Z ${fz(SIM.crash[0]+face)}. Check the profile.`});
+  if(SIM.chuck.length) w.push({lvl:'bad',msg:`The tool gets within 0.2 mm of the chuck. Increase the parting gap or the stick-out.`});
+  for(const g of SIM.gouges) w.push({lvl:'bad',msg:`Gouge: the tool cuts up to ${g.d.toFixed(2)} mm too deep from Z ${fz(g.z1+face)} to ${fz(g.z0+face)}. A slope is too steep for this insert.`});
+  if(SIM.excess.length){
+    const list=SIM.excess.slice(0,4).map(g=>`Z ${fz(g.z1+face)} to ${fz(g.z0+face)} (${g.d.toFixed(2)} mm)`).join(', ');
+    w.push({lvl:'info',msg:`Material is left where the tool can't reach: ${list}${SIM.excess.length>4?' …':''}. Small amounts in sharp inside corners are normal (they match the ${S.nose} mm nose radius).`});
+  }
+  if(!w.some(x=>x.lvl==='bad')) w.unshift({lvl:'ok',msg:'No gouges, crashes or impossible shapes found. Air-cut it once before the first real part.'});
+  $('#warns').innerHTML=w.map(x=>`<div class="warn ${x.lvl==='warn'?'':x.lvl}">${x.msg}</div>`).join('');
+  // stats
+  let tFeed=0,tRap=0,px=RES.start.x,pz=RES.start.z;
+  for(const m of RES.moves){ const d=Math.hypot(m.x-px,m.z-pz); if(m.g===0) tRap+=d/(+S.rapid||1000); else tFeed+=d/m.f; px=m.x; pz=m.z; }
+  const mins=tFeed+tRap; const mm=Math.floor(mins), ss=Math.round((mins-mm)*60);
+  const lines=GCODE.split('\n').length;
+  $('#stats').innerHTML=`
+    <span>Finished part</span><span>Ø${nf(maxD)} × ${nf(L)} mm</span>
+    <span>Stick-out needed</span><span><b>${nf(stick)} mm</b> (${(stick/25.4).toFixed(2)}")</span>
+    <span>Spindle</span><span>S${Math.round(effRPM())} ${S.spindle}${S.coolant?' + M8':''}</span>
+    <span>Passes</span><span>${RES.info.facePasses} face · ${RES.info.roughPasses} rough · 1 finish</span>
+    <span>Estimated cycle time</span><span>${mm}:${String(ss).padStart(2,'0')}</span>
+    <span>G-code lines</span><span>${lines}</span>`;
+  $('#gcode').value=GCODE;
+}
+
+/* ================= VIEW ================= */
+const cv=$('#cv'), ctx=cv.getContext('2d');
+let view={scale:10, ox:0, oy:0}, W=0, Hh=0, DPR=1;
+function resize(){
+  const r=cv.getBoundingClientRect(); DPR=window.devicePixelRatio||1; W=r.width; Hh=r.height;
+  cv.width=Math.round(W*DPR); cv.height=Math.round(Hh*DPR); draw();
+}
+function worldBox(){
+  const Rs=S.stockD/2, face=+S.face, prof=RES?RES.prof:null, L=prof?prof.L:30;
+  const zc=-(L+(+S.gap)); // part coords
+  return {z0:zc-10, z1:face+4, x0:-(Rs+4), x1:Rs+(+S.safe)+7};
+}
+function fit(){
+  const b=worldBox(); const m=30;
+  const sc=Math.min((W-2*m)/(b.z1-b.z0),(Hh-2*m)/(b.x1-b.x0));
+  view.scale=Math.max(1,sc); view.ox=m+(W-2*m-(b.z1-b.z0)*view.scale)/2-b.z0*view.scale;
+  view.oy=m+(Hh-2*m-(b.x1-b.x0)*view.scale)/2+b.x1*view.scale; draw();
+}
+const sx=z=>view.ox+z*view.scale, sy=x=>view.oy-x*view.scale;
+const wz=px=>(px-view.ox)/view.scale, wx=py=>(view.oy-py)/view.scale;
+
+function matColor(){ return {wood:'#b0834f',delrin:'#e9e6dc',nylon:'#e6e1c8',alum:'#b9c2cc',brass:'#d4b04a',steel:'#8f979f',custom:'#a7b0b8'}[S.mat]||'#a7b0b8'; }
+function draw(){
+  if(!W) return;
+  ctx.setTransform(DPR,0,0,DPR,0,0); ctx.clearRect(0,0,W,Hh);
+  const Rs=S.stockD/2, face=+S.face, prof=RES?RES.prof:null, L=prof?prof.L:0;
+  const zChuckP=-(L+(+S.gap));
+  // grid ticks
+  ctx.font='11px Consolas, monospace'; ctx.textAlign='center';
+  const step=view.scale>18?2:view.scale>8?5:10;
+  for(let z=Math.ceil(wz(0)/step)*step; z<wz(W); z+=step){
+    ctx.strokeStyle=z===0?'#4a4f56':'#23272c'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(sx(z),0); ctx.lineTo(sx(z),Hh); ctx.stroke();
+    ctx.fillStyle='#6c757e'; ctx.fillText(String(z),sx(z),Hh-24);
+  }
+  // chuck
+  ctx.fillStyle='#3a3f46'; ctx.strokeStyle='#59616b';
+  const jw=8, jh=6;
+  ctx.fillRect(sx(zChuckP-40),sy(Rs+jh+8),sx(zChuckP-jw)-sx(zChuckP-40),(2*(Rs+jh+8))*view.scale);
+  for(const s of [1,-1]){ const y0=s>0?sy(Rs+jh):sy(-Rs); ctx.fillStyle='#4b525b'; ctx.fillRect(sx(zChuckP-jw),y0,jw*view.scale,jh*view.scale); ctx.strokeRect(sx(zChuckP-jw),y0,jw*view.scale,jh*view.scale); }
+  // material
+  const col=matColor();
+  if(mode==='sim' && SIM){
+    const M=SIM.M; ctx.fillStyle=col;
+    ctx.beginPath(); let started=false;
+    const bStart=0, bEnd=SIM.nb-1;
+    for(let b=bStart;b<=bEnd;b++){ const zp=SIM.zOf(b)+face; if(zp<zChuckP-jw) continue; const y=sy(M[b]); if(!started){ctx.moveTo(sx(zp),sy(0));started=true;} ctx.lineTo(sx(zp),y); }
+    for(let b=bEnd;b>=bStart;b--){ const zp=SIM.zOf(b)+face; if(zp<zChuckP-jw) continue; ctx.lineTo(sx(zp),sy(-M[b])); }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#00000030'; ctx.fillRect(sx(-1e3),sy(0),5e4,Math.max(0,sy(-Rs)-sy(0)));
+  } else {
+    ctx.fillStyle=col+'40'; ctx.fillRect(sx(zChuckP-jw),sy(Rs),sx(face)-sx(zChuckP-jw),2*Rs*view.scale);
+    ctx.strokeStyle=col; ctx.lineWidth=1; ctx.strokeRect(sx(zChuckP-jw),sy(Rs),sx(face)-sx(zChuckP-jw),2*Rs*view.scale);
+    // face-off zone hatch
+    if(face>0){ ctx.save(); ctx.beginPath(); ctx.rect(sx(0),sy(Rs),face*view.scale,2*Rs*view.scale); ctx.clip(); ctx.strokeStyle='#f28c2870';
+      for(let t=-Hh;t<W+Hh;t+=7){ctx.beginPath();ctx.moveTo(t,0);ctx.lineTo(t+Hh,Hh);ctx.stroke();} ctx.restore(); }
+    // parting gap
+    ctx.fillStyle='#ffffff10'; ctx.fillRect(sx(zChuckP),sy(Rs),(+S.gap)*view.scale,2*Rs*view.scale);
+    // part fill
+    if(prof){ ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(sx(0),sy(0));
+      for(const [z,x] of prof.part) ctx.lineTo(sx(z),sy(x));
+      for(let i=prof.part.length-1;i>=0;i--) ctx.lineTo(sx(prof.part[i][0]),sy(-prof.part[i][1]));
+      ctx.lineTo(sx(0),sy(0)); ctx.closePath(); ctx.fill(); }
+  }
+  // part outline
+  if(prof){
+    ctx.lineWidth=1.5; ctx.strokeStyle=mode==='sim'?'#ffffffaa':'#fff'; if(mode==='sim') ctx.setLineDash([4,3]);
+    for(const s of [1,-1]){ ctx.beginPath(); ctx.moveTo(sx(0),sy(0)); for(const [z,x] of prof.part) ctx.lineTo(sx(z),sy(s*x)); ctx.lineTo(sx(-L),sy(0)); ctx.stroke(); }
+    ctx.setLineDash([]);
+  }
+  // centerline
+  ctx.strokeStyle='#ffd34d'; ctx.lineWidth=1; ctx.setLineDash([12,4,2,4]); ctx.beginPath(); ctx.moveTo(0,sy(0)); ctx.lineTo(W,sy(0)); ctx.stroke(); ctx.setLineDash([]);
+
+  if(mode==='sim' && SIM && RES){ drawPaths(); drawGouges(); drawTool(); }
+  if(mode==='edit') drawHandles();
+  // labels
+  ctx.fillStyle='#9aa3ad'; ctx.font='12px Segoe UI, sans-serif'; ctx.textAlign='left';
+  ctx.fillText('CHUCK', sx(zChuckP-jw)+2, sy(Rs+jh)-4);
+  ctx.textAlign='right'; ctx.fillText('↑ +X = bigger radius   Z0 = part front', W-10, Hh-8);
+}
+function drawHandles(){
+  const pts=S.points; if(!pts.length) return;
+  const z0=pts[0].z;
+  pts.forEach((p,i)=>{ const x=sx(p.z-z0), y=sy(p.d/2);
+    ctx.beginPath(); ctx.arc(x,y,i===selPt?6:4.5,0,2*Math.PI); ctx.fillStyle=i===selPt?'#f28c28':'#15171a'; ctx.fill(); ctx.strokeStyle='#f28c28'; ctx.lineWidth=2; ctx.stroke();
+    ctx.fillStyle='#ffb35c'; ctx.font='11px Segoe UI'; ctx.textAlign='center'; ctx.fillText(String(i+1),x,y-9);
+  });
+}
+function drawPaths(){
+  const face=RES.face, mv=RES.moves; const done=SIM.idx>0?SIM.moveAt[Math.min(SIM.idx,SIM.N)-1]:-1;
+  const colors={face:'#ffb35c',rough:'#4ea1ff',finish:'#4cd38a'};
+  let px=RES.start.x, pz=RES.start.z;
+  ctx.lineWidth=1;
+  for(let i=0;i<mv.length;i++){
+    const m=mv[i]; const isDone=i<=done;
+    ctx.beginPath(); ctx.moveTo(sx(pz+face),sy(px)); ctx.lineTo(sx(m.z+face),sy(m.x));
+    if(m.g===0){ ctx.setLineDash([3,3]); ctx.strokeStyle=isDone?'#ff5d5d99':'#ff5d5d22'; }
+    else { ctx.setLineDash([]); ctx.strokeStyle=isDone?colors[m.op]:colors[m.op]+'30'; }
+    ctx.stroke(); px=m.x; pz=m.z;
+  }
+  ctx.setLineDash([]);
+  $('#legend').innerHTML=`<i style="background:#ffb35c"></i>face<i style="background:#4ea1ff"></i>rough<i style="background:#4cd38a"></i>finish<i style="background:#ff5d5d"></i>rapid`;
+}
+function drawGouges(){
+  if(SIM.idx<SIM.N) return;
+  const face=RES.face;
+  for(const g of SIM.gouges){ ctx.fillStyle='#ff5d5d66'; ctx.fillRect(sx(g.z0+face),0,Math.max(3,(g.z1-g.z0)*view.scale),Hh); }
+  for(const g of SIM.excess){ ctx.fillStyle='#ffd34d33'; ctx.fillRect(sx(g.z0+face),sy(S.stockD/2+2),Math.max(3,(g.z1-g.z0)*view.scale),(S.stockD+4)*view.scale); }
+}
+function drawTool(){
+  const i=Math.min(Math.max(SIM.idx-1,0),SIM.N-1); if(SIM.N===0) return;
+  const cz=SIM.cz[i]+RES.face, cx=SIM.cx[i];
+  const poly=SIM.poly;
+  // holder
+  ctx.fillStyle='#4b525b'; const top=Math.max(...poly.map(p=>p[1]));
+  ctx.fillRect(sx(cz-1.5),sy(cx+top+12),5.5*view.scale,12*view.scale);
+  ctx.beginPath(); poly.forEach((p,k)=>{ const X=sx(cz+p[0]), Y=sy(cx+p[1]); k?ctx.lineTo(X,Y):ctx.moveTo(X,Y); }); ctx.closePath();
+  ctx.fillStyle='#d9a13b'; ctx.fill(); ctx.strokeStyle='#222'; ctx.lineWidth=1; ctx.stroke();
+}
+
+/* ================= SIM CONTROLS ================= */
+let raf=null;
+function updateSimBar(){ if(!SIM) return; $('#simPos').max=SIM.N; $('#simPos').value=SIM.idx; $('#playBtn').textContent=SIM.playing?'⏸ Pause':'▶ Play'; }
+function simTo(target){
+  target=Math.max(0,Math.min(SIM.N,target|0));
+  if(target<SIM.idx){ SIM.M=new Float32Array(SIM.M0); SIM.apply(SIM.M,0,target,false); }
+  else SIM.apply(SIM.M,SIM.idx,target,false);
+  SIM.idx=target; updateSimBar(); draw();
+}
+function loop(){
+  if(!SIM||!SIM.playing){raf=null;return;}
+  const sp=+$('#simSpeed').value; const per=Math.max(1,Math.round(40*sp));
+  simTo(SIM.idx+per);
+  if(SIM.idx>=SIM.N){ SIM.playing=false; updateSimBar(); }
+  raf=requestAnimationFrame(loop);
+}
+$('#playBtn').onclick=()=>{ if(!SIM) return; if(SIM.idx>=SIM.N) simTo(0); SIM.playing=!SIM.playing; updateSimBar(); if(SIM.playing&&!raf) raf=requestAnimationFrame(loop); };
+$('#restartBtn').onclick=()=>{ if(!SIM) return; SIM.playing=false; simTo(0); };
+$('#endBtn').onclick=()=>{ if(!SIM) return; SIM.playing=false; SIM.M=new Float32Array(SIM.Mf); SIM.idx=SIM.N; updateSimBar(); draw(); };
+$('#simPos').oninput=e=>{ if(!SIM) return; SIM.playing=false; simTo(+e.target.value); };
+function setMode(m){
+  mode=m; $('#modeEdit').classList.toggle('on',m==='edit'); $('#modeSim').classList.toggle('on',m==='sim');
+  $('#simBar').style.display=m==='sim'?'flex':'none'; $('#legend').style.display=m==='sim'?'block':'none';
+  if(m==='sim'&&SIM){ SIM.playing=false; simTo(0); SIM.playing=true; updateSimBar(); if(!raf) raf=requestAnimationFrame(loop); }
+  else if(SIM) SIM.playing=false;
+  requestAnimationFrame(resize);
+}
+$('#modeEdit').onclick=()=>setMode('edit'); $('#modeSim').onclick=()=>setMode('sim');
+$('#fitBtn').onclick=fit;
+
+/* ================= CANVAS INTERACTION ================= */
+let drag=null;
+function hitPoint(mx,my){ const pts=S.points; if(!pts.length) return -1; const z0=pts[0].z; let best=-1,bd=10;
+  pts.forEach((p,i)=>{ const d=Math.hypot(sx(p.z-z0)-mx, sy(p.d/2)-my); if(d<bd){bd=d;best=i;} }); return best; }
+function snapV(v){ return $('#snap').checked? Math.round(v/0.05)*0.05 : r3(v); }
+cv.addEventListener('mousedown',e=>{
+  const r=cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  if(mode==='edit' && e.button===0){ const h=hitPoint(mx,my); if(h>=0){ drag={type:'pt',i:h}; selPt=h; renderTable(); draw(); return; } }
+  drag={type:'pan',x:mx,y:my,ox:view.ox,oy:view.oy};
+});
+window.addEventListener('mousemove',e=>{
+  const r=cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  if(mx>=0&&my>=0&&mx<=W&&my<=Hh){ const z=wz(mx), x=wx(my); $('#readout').textContent=`Z ${z.toFixed(2)}   Ø ${(Math.abs(x)*2).toFixed(2)}   (G-code Z ${(z-(+S.face)).toFixed(2)}  X ${Math.abs(x).toFixed(2)})`; }
+  if(!drag) return;
+  if(drag.type==='pan'){ view.ox=drag.ox+(mx-drag.x); view.oy=drag.oy+(my-drag.y); draw(); return; }
+  const p=S.points[drag.i], z0=S.points[0].z;
+  let z=snapV(wz(mx)+z0), d=snapV(Math.max(0,Math.abs(wx(my))*2));
+  if(drag.i===0) z=p.z;          // front point stays at Z0
+  p.z=r3(z); p.d=r3(Math.min(d,S.stockD));
+  const row=$(`#ptBody tr[data-i="${drag.i}"]`); if(row){ row.querySelector('[data-f=z]').value=p.z; row.querySelector('[data-f=d]').value=p.d; }
+  RES=generateQuick(); draw();
+});
+window.addEventListener('mouseup',()=>{ if(drag&&drag.type==='pt'){ drag=null; renderTable(); regen(); } drag=null; });
+function generateQuick(){ const prof=sampleProfile(0.05); return prof?Object.assign({},RES||{}, {prof}):RES; }
+cv.addEventListener('wheel',e=>{ e.preventDefault(); const r=cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  const z=wz(mx), x=wx(my); const f=e.deltaY<0?1.15:1/1.15; view.scale=Math.min(400,Math.max(1,view.scale*f)); view.ox=mx-z*view.scale; view.oy=my+x*view.scale; draw(); },{passive:false});
+cv.addEventListener('dblclick',e=>{
+  if(mode!=='edit') return; const r=cv.getBoundingClientRect(); const mx=e.clientX-r.left, my=e.clientY-r.top;
+  const pts=S.points, z0=pts[0].z; const z=snapV(wz(mx)+z0), d=snapV(Math.abs(wx(my))*2);
+  let at=pts.length; for(let i=0;i<pts.length;i++){ if(pts[i].z<z){ at=i; break; } }
+  if(at===0) at=1;
+  pts.splice(at,0,{z:r3(z),d:r3(Math.min(d,S.stockD)),type:'line',rad:5,conv:true}); selPt=at; renderTable(); regen();
+});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+
+/* ================= PROFILE TABLE ================= */
+function renderTable(){
+  const pts=S.points, last=pts.length-1;
+  $('#ptBody').innerHTML=pts.map((p,i)=>`<tr data-i="${i}" class="${i===selPt?'sel':''}">
+    <td class="idx">${i+1}</td>
+    <td><input type="number" step="0.1" data-f="z" value="${p.z}" ${i===0?'disabled title="The first point is the front of the part (Z0)"':''}></td>
+    <td><input type="number" step="0.1" min="0" data-f="d" value="${p.d}"></td>
+    <td>${i<last?`<select data-f="type"><option value="line" ${p.type==='line'?'selected':''}>Straight line</option><option value="arc" ${p.type==='arc'?'selected':''}>Arc</option></select>`:'<span class="note">end of part</span>'}</td>
+    <td>${i<last&&p.type==='arc'?`<input type="number" step="0.1" min="0" data-f="rad" value="${p.rad}">`:''}</td>
+    <td>${i<last&&p.type==='arc'?`<select data-f="conv"><option value="1" ${p.conv?'selected':''}>Convex (bulges out)</option><option value="0" ${!p.conv?'selected':''}>Concave (cove)</option></select>`:''}</td>
+    <td>${pts.length>2?'<button data-del title="Delete point">✕</button>':''}</td></tr>`).join('');
+}
+$('#ptBody').addEventListener('change',e=>{
+  const tr=e.target.closest('tr'); if(!tr) return; const i=+tr.dataset.i, p=S.points[i], f=e.target.dataset.f; if(!f) return;
+  if(f==='type') p.type=e.target.value;
+  else if(f==='conv') p.conv=e.target.value==='1';
+  else { const v=parseFloat(e.target.value); if(isNaN(v)) return; p[f]= f==='d'? Math.max(0,v) : v; }
+  renderTable(); regen();
+});
+$('#ptBody').addEventListener('click',e=>{
+  const tr=e.target.closest('tr'); if(!tr) return; const i=+tr.dataset.i;
+  if(e.target.matches('[data-del]')){ S.points.splice(i,1); if(i===0) S.points[0].z=0; selPt=-1; renderTable(); regen(); return; }
+  if(selPt!==i){ selPt=i; $('#ptBody').querySelectorAll('tr').forEach(r=>r.classList.toggle('sel',+r.dataset.i===i)); draw(); }
+});
+$('#addPt').onclick=()=>{ const l=S.points[S.points.length-1]; S.points.push({z:r3(l.z-5),d:l.d,type:'line',rad:5,conv:true}); selPt=S.points.length-1; renderTable(); regen(); fit(); };
+$('#revBtn').onclick=()=>{
+  const P=S.points; const zEnd=P[P.length-1].z;
+  const rev=P.slice().reverse().map(p=>({z:r3(zEnd-p.z),d:p.d,type:'line',rad:5,conv:true}));
+  for(let i=0;i<P.length-1;i++){ const src=P[P.length-2-i]; rev[i].type=src.type; rev[i].rad=src.rad; rev[i].conv=src.conv; }
+  S.points=rev; selPt=-1; renderTable(); regen(); fit();
+};
+
+/* ================= SETTINGS BINDING ================= */
+const numKeys=['stickAvail','stockD','face','faceStep','gap','rpm','doc','roughF','finishF','faceF','allow','tool','rpmCap','safe','rapid'];
+function loadForm(){
+  for(const k of numKeys) $('#'+k).value=S[k];
+  $('#name').value=S.name; $('#mat').value=S.mat; $('#coolant').checked=S.coolant; $('#insert').value=S.insert; $('#nose').value=S.nose;
+  $('#post').value=S.post; $('#spindle').value=S.spindle;
+  const opt=[...$('#stockPick').options].find(o=>Math.abs(+o.value-S.stockD)<1e-3); $('#stockPick').value=opt?opt.value:'custom';
+  $('#matNote').textContent=MATERIALS[S.mat].note||'';
+  $('#insertNote').textContent=`${INSERTS[S.insert].label}: profile slopes can drop toward the chuck at up to about ${INSERTS[S.insert].trail-2}°.`;
+}
+$('#mat').innerHTML=Object.entries(MATERIALS).map(([k,m])=>`<option value="${k}">${m.name}</option>`).join('');
+function applyMaterial(k){ const m=MATERIALS[k]; S.mat=k; if(k!=='custom'){ S.rpm=m.rpm; S.doc=m.doc; S.roughF=m.rough; S.finishF=m.finish; S.faceF=Math.round(m.rough*0.8); S.allow=m.allow; S.coolant=m.coolant; } }
+document.querySelectorAll('#left input, #left select').forEach(el=>{
+  el.addEventListener('change',()=>{
+    const id=el.id;
+    if(id==='mat'){ applyMaterial(el.value); loadForm(); }
+    else if(id==='stockPick'){ if(el.value!=='custom'){ S.stockD=+el.value; } loadForm(); }
+    else if(numKeys.includes(id)){ const v=parseFloat(el.value); if(isNaN(v)) return; S[id]=v;
+      if(['rpm','doc','roughF','finishF','faceF','allow'].includes(id) && S.mat!=='custom'){ S.mat='custom'; MATERIALS.custom.note='Custom values. Pick a material to reset.'; }
+      loadForm(); }
+    else if(id==='coolant') S.coolant=el.checked;
+    else if(id==='insert'){ S.insert=+el.value; loadForm(); }
+    else if(id==='nose') S.nose=+el.value;
+    else if(id==='name') S.name=el.value;
+    else if(id==='post') S.post=el.value;
+    else if(id==='spindle') S.spindle=el.value;
+    regen(); if(['stockD','stockPick','face','gap','safe','stickAvail'].includes(id)) fit();
+  });
+});
+
+/* ================= EXAMPLES ================= */
+function loadExample(key){
+  const ex=EXAMPLES[key]; if(!ex) return;
+  S.name=ex.name; S.stockD=ex.stockD; S.face=ex.face;
+  S.points=ex.pts.map(a=>({z:a[0],d:a[1],type:a[2],rad:a[3]||5,conv:a[4]===undefined?true:!!a[4]}));
+  selPt=-1; loadForm(); renderTable(); regen(); fit();
+}
+$('#example').onchange=e=>{ loadExample(e.target.value); e.target.value=''; };
+
+/* ================= IMPORT (DXF / SVG) ================= */
+let lastImport=null;
+$('#importBtn').onclick=()=>$('#fileIn').click();
+$('#fileIn').onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return; const text=await f.text();
+  lastImport={name:f.name,text,ext:f.name.toLowerCase().endsWith('.svg')?'svg':'dxf'};
+  $('#importOpts').style.display='flex'; doImport(); e.target.value='';
+};
+$('#reimport').onclick=()=>{ if(lastImport) doImport(); };
+['#impFace','#impKind','#impUnits'].forEach(s=>$(s).onchange=()=>{ if(lastImport) doImport(); });
+function doImport(){
+  try{
+    const {polys,scale,unitMsg}= lastImport.ext==='svg'? svgPolys(lastImport.text,$('#impUnits').value) : dxfPolys(lastImport.text,$('#impUnits').value);
+    if(!polys.length) throw new Error('No lines or curves were found in the file.');
+    const pts=envelopeToPoints(polys.map(pl=>pl.map(p=>[p[0]*scale,p[1]*scale])),$('#impFace').value,$('#impKind').value);
+    S.points=pts; S.name=asciiUpper(lastImport.name.replace(/\.[^.]+$/,'')).replace(/ /g,'_').slice(0,20)||'PART';
+    const maxD=Math.max(...pts.map(p=>p.d));
+    if(maxD>S.stockD){ const bar=[12.7,15.875,19.05,22.225,25.4,31.75,38.1].find(v=>v>=maxD+0.5); if(bar) S.stockD=bar; }
+    selPt=-1; loadForm(); renderTable(); regen(); fit();
+    $('#impMsg').textContent=`${lastImport.name}: ${pts.length} points, ${(-pts[pts.length-1].z).toFixed(1)} mm long, max Ø${maxD.toFixed(2)}. ${unitMsg}`;
+  }catch(err){ $('#impMsg').textContent='Import failed: '+err.message; console.error(err); }
+}
+function envelopeToPoints(polys,faceSide,kind){
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  for(const pl of polys) for(const [x,y] of pl){ minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y); }
+  const axis= kind==='full'?(minY+maxY)/2:minY, len=maxX-minX, res=0.02, nb=Math.round(len/res)+1;
+  const env=new Float64Array(nb).fill(-Infinity);
+  const toZ=x=> faceSide==='right'? x-maxX : minX-x;
+  for(const pl of polys) for(let i=0;i<pl.length-1;i++){
+    const [x0,y0]=pl[i],[x1,y1]=pl[i+1]; const s=Math.max(1,Math.ceil(Math.hypot(x1-x0,y1-y0)/0.005));
+    for(let k=0;k<=s;k++){ const x=x0+(x1-x0)*k/s, y=y0+(y1-y0)*k/s; const b=Math.round(-toZ(x)/res); if(b>=0&&b<nb){ const r=kind==='full'?Math.abs(y-axis):y-axis; if(r>env[b]) env[b]=r; } }
+  }
+  // fill gaps
+  let lastI=-1;
+  for(let b=0;b<nb;b++){ if(env[b]>-Infinity){ if(lastI>=0 && b-lastI>1){ for(let q=lastI+1;q<b;q++) env[q]=env[lastI]+(env[b]-env[lastI])*(q-lastI)/(b-lastI);} lastI=b; } }
+  for(let b=0;b<nb;b++) if(env[b]===-Infinity) env[b]=0;
+  const raw=[]; for(let b=0;b<nb;b++) raw.push([-b*res,Math.max(0,env[b])]);
+  const simp=simplify(raw,0.01);
+  return simp.map(([z,r])=>({z:r3(z),d:r3(2*r),type:'line',rad:5,conv:true}));
+}
+function dxfPolys(text,unitSel){
+  const lines=text.split(/\r?\n/); const pairs=[];
+  for(let i=0;i+1<lines.length;i+=2) pairs.push([parseInt(lines[i].trim(),10),lines[i+1].trim()]);
+  let ins=null;
+  for(let i=0;i<pairs.length-1;i++) if(pairs[i][0]===9 && pairs[i][1]==='$INSUNITS'){ ins=parseInt(pairs[i+1][1],10); break; }
+  let i=pairs.findIndex((p,j)=>p[0]===2&&p[1]==='ENTITIES'&&pairs[j-1]&&pairs[j-1][1]==='SECTION');
+  if(i<0) throw new Error('This DXF has no ENTITIES section.');
+  const ents=[]; let cur=null;
+  for(i=i+1;i<pairs.length;i++){ const [c,v]=pairs[i]; if(c===0){ if(v==='ENDSEC') break; cur={type:v,c:[]}; ents.push(cur); } else if(cur) cur.c.push([c,v]); }
+  const polys=[]; const g=(e,c)=>{const p=e.c.find(q=>q[0]===c); return p?parseFloat(p[1]):0;};
+  const arcPts=(cx,cy,r,a0,a1)=>{ while(a1<=a0) a1+=360; const n=Math.max(8,Math.ceil((a1-a0)/2)); const o=[]; for(let k=0;k<=n;k++){const a=(a0+(a1-a0)*k/n)*D2R; o.push([cx+r*Math.cos(a),cy+r*Math.sin(a)]);} return o; };
+  const bulge=(p0,p1,b)=>{ if(Math.abs(b)<1e-9) return [p1]; const th=4*Math.atan(b), c=Math.hypot(p1[0]-p0[0],p1[1]-p0[1]); const r=c/(2*Math.sin(th/2));
+    const mx=(p0[0]+p1[0])/2,my=(p0[1]+p1[1])/2, d=Math.sqrt(Math.max(0,r*r-c*c/4))*(Math.abs(th)>Math.PI?-1:1)*Math.sign(b);
+    const ux=(p1[0]-p0[0])/c,uy=(p1[1]-p0[1])/c; const cx=mx-uy*d, cy=my+ux*d;
+    const a0=Math.atan2(p0[1]-cy,p0[0]-cx); const n=Math.max(4,Math.ceil(Math.abs(th)/0.05)); const o=[];
+    for(let k=1;k<=n;k++){ const a=a0+th*k/n; o.push([cx+Math.abs(r)*Math.cos(a),cy+Math.abs(r)*Math.sin(a)]); } return o; };
+  for(let ei=0;ei<ents.length;ei++){
+    const e=ents[ei];
+    if(e.type==='LINE') polys.push([[g(e,10),g(e,20)],[g(e,11),g(e,21)]]);
+    else if(e.type==='ARC') polys.push(arcPts(g(e,10),g(e,20),g(e,40),g(e,50),g(e,51)));
+    else if(e.type==='CIRCLE') polys.push(arcPts(g(e,10),g(e,20),g(e,40),0,360));
+    else if(e.type==='LWPOLYLINE'){
+      const vs=[]; let v=null; let closed=(g(e,70)&1)===1;
+      for(const [c,val] of e.c){ if(c===10){v={x:+val,y:0,b:0};vs.push(v);} else if(c===20&&v) v.y=+val; else if(c===42&&v) v.b=+val; }
+      const pl=[]; if(vs.length){ pl.push([vs[0].x,vs[0].y]); const m=closed?vs.length:vs.length-1;
+        for(let k=0;k<m;k++){ const a=vs[k], b=vs[(k+1)%vs.length]; pl.push(...bulge([a.x,a.y],[b.x,b.y],a.b)); } polys.push(pl); }
+    }
+    else if(e.type==='POLYLINE'){
+      const vs=[]; let closed=(g(e,70)&1)===1; let j=ei+1;
+      for(;j<ents.length && ents[j].type==='VERTEX';j++) vs.push({x:g(ents[j],10),y:g(ents[j],20),b:g(ents[j],42)});
+      ei=j; const pl=[]; if(vs.length){ pl.push([vs[0].x,vs[0].y]); const m=closed?vs.length:vs.length-1;
+        for(let k=0;k<m;k++){ const a=vs[k], b=vs[(k+1)%vs.length]; pl.push(...bulge([a.x,a.y],[b.x,b.y],a.b)); } polys.push(pl); }
+    }
+    else if(e.type==='SPLINE'){
+      const deg=g(e,71)||3; const knots=e.c.filter(q=>q[0]===40).map(q=>+q[1]); const cps=[], fit=[]; let v=null, fv=null;
+      for(const [c,val] of e.c){ if(c===10){v=[+val,0];cps.push(v);} else if(c===20&&v) v[1]=+val; else if(c===11){fv=[+val,0];fit.push(fv);} else if(c===21&&fv) fv[1]=+val; }
+      if(cps.length>deg && knots.length===cps.length+deg+1){
+        const pl=[]; const t0=knots[deg], t1=knots[cps.length]; const n=Math.max(40,cps.length*12);
+        for(let k=0;k<=n;k++) pl.push(deBoor(Math.min(t0+(t1-t0)*k/n,t1-1e-9*(k===n?0:1)),deg,cps,knots));
+        polys.push(pl);
+      } else if(fit.length>1) polys.push(fit); else if(cps.length>1) polys.push(cps);
+    }
+    else if(e.type==='ELLIPSE'){
+      const cx=g(e,10),cy=g(e,20),mx=g(e,11),my=g(e,21),ratio=g(e,40)||1; let p0=g(e,41),p1=e.c.some(q=>q[0]===42)?g(e,42):2*Math.PI;
+      while(p1<=p0) p1+=2*Math.PI; const pl=[]; const n=Math.max(16,Math.ceil((p1-p0)/0.03));
+      for(let k=0;k<=n;k++){ const t=p0+(p1-p0)*k/n; pl.push([cx+mx*Math.cos(t)-my*ratio*Math.sin(t), cy+my*Math.cos(t)+mx*ratio*Math.sin(t)]); }
+      polys.push(pl);
+    }
+  }
+  let scale=1, unitMsg='';
+  if(unitSel==='mm'){scale=1;unitMsg='Units: mm.';}
+  else if(unitSel==='in'){scale=25.4;unitMsg='Units: inches → mm.';}
+  else if(unitSel==='px'){scale=25.4/96;unitMsg='Units: px.';}
+  else if(ins===1){scale=25.4;unitMsg='DXF says inches → converted to mm.';}
+  else if(ins===4){scale=1;unitMsg='DXF says mm.';}
+  else if(ins===5){scale=10;unitMsg='DXF says cm.';}
+  else { let mx=0; for(const pl of polys) for(const p of pl) mx=Math.max(mx,Math.abs(p[0]),Math.abs(p[1]));
+    let ext=0; { let a=Infinity,b=-Infinity; for(const pl of polys) for(const p of pl){a=Math.min(a,p[0]);b=Math.max(b,p[0]);} ext=b-a; }
+    if(ext<6){scale=25.4;unitMsg='No units in the file. It looks small, so it was read as inches. Change Units if that is wrong.';} else unitMsg='No units in the file, so it was read as mm. Change Units if that is wrong.'; }
+  return {polys,scale,unitMsg};
+}
+function deBoor(t,p,P,U){
+  let k=p; while(k<P.length-1 && !(t>=U[k]&&t<U[k+1])) k++;
+  const d=[]; for(let j=0;j<=p;j++) d.push(P[j+k-p].slice());
+  for(let r=1;r<=p;r++) for(let j=p;j>=r;j--){ const a=(t-U[j+k-p])/((U[j+1+k-r]-U[j+k-p])||1e-12); d[j]=[(1-a)*d[j-1][0]+a*d[j][0],(1-a)*d[j-1][1]+a*d[j][1]]; }
+  return d[p];
+}
+function svgPolys(text,unitSel){
+  const holder=document.createElement('div'); holder.style.cssText='position:absolute;left:-10000px;top:0;width:10px;height:10px;overflow:hidden';
+  holder.innerHTML=text; document.body.appendChild(holder);
+  try{
+    const svg=holder.querySelector('svg'); if(!svg) throw new Error('Not an SVG file.');
+    const wAttr=svg.getAttribute('width')||'', vb=(svg.getAttribute('viewBox')||'').trim().split(/[\s,]+/).map(Number);
+    let mmPerUnit=25.4/96, unitMsg='SVG read as px (96 per inch).';
+    const m=wAttr.match(/^([\d.]+)\s*(mm|cm|in|pt|px)?$/);
+    if(m){ const val=+m[1], u=m[2]||'px'; const mm={mm:1,cm:10,in:25.4,pt:25.4/72,px:25.4/96}[u]*val; const units=vb.length===4?vb[2]:val; mmPerUnit=mm/units; unitMsg=`SVG width ${wAttr}.`; }
+    if(unitSel==='mm'){mmPerUnit=1;unitMsg='SVG units read as mm.';} else if(unitSel==='in'){mmPerUnit=25.4;unitMsg='SVG units read as inches.';} else if(unitSel==='px'){mmPerUnit=25.4/96;unitMsg='SVG read as px.';}
+    if(vb.length===4){ svg.setAttribute('width',vb[2]); svg.setAttribute('height',vb[3]); }
+    const root=svg.getScreenCTM().inverse(); const polys=[];
+    svg.querySelectorAll('path,line,polyline,polygon,rect,circle,ellipse').forEach(el=>{
+      if(el.closest('defs,clipPath,mask')) return;
+      let len=0; try{ len=el.getTotalLength(); }catch(_){ return; } if(!(len>0)) return;
+      const mtx=root.multiply(el.getScreenCTM()); const n=Math.min(6000,Math.max(2,Math.ceil(len*mmPerUnit/0.05))); const pl=[];
+      for(let k=0;k<=n;k++){ const p=el.getPointAtLength(len*k/n); const q=new DOMPoint(p.x,p.y).matrixTransform(mtx); pl.push([q.x,-q.y]); }
+      polys.push(pl);
+    });
+    return {polys,scale:mmPerUnit,unitMsg};
+  } finally { holder.remove(); }
+}
+
+/* ================= OUTPUT BUTTONS ================= */
+$('#dlBtn').onclick=()=>{ const b=new Blob([GCODE],{type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=fileSafe(asciiUpper(S.name))+'.nc'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); };
+$('#copyBtn').onclick=async()=>{ try{ await navigator.clipboard.writeText(GCODE); $('#copyBtn').textContent='Copied ✓'; }catch(_){ $('#gcode').select(); document.execCommand('copy'); $('#copyBtn').textContent='Copied ✓'; } setTimeout(()=>$('#copyBtn').textContent='Copy G-code',1500); };
+
+/* ================= NEW PART WIZARD ================= */
+const BARS=[['1/2"',12.7],['5/8"',15.875],['3/4"',19.05],['7/8"',22.225],['1"',25.4],['1-1/4"',31.75],['20 mm',20],['25 mm',25]];
+const WZ={step:0, mat:'wood', d:19.05, stick:50, start:'cyl', custU:'in'};
+const WSTEPS=[
+  {t:'What material?', q:'This sets the starting speeds and feeds. You can change them later.', body(){
+    return `<div class="grid">${Object.entries(MATERIALS).filter(([k])=>k!=='custom').map(([k,m])=>`<button class="pick ${WZ.mat===k?'on':''}" data-mat="${k}">${m.name}<small>${m.rpm} RPM</small></button>`).join('')}</div>
+      <div class="tip">${MATERIALS[WZ.mat].note}</div>`; }},
+  {t:'How big is the bar?', q:'Measure the stock diameter with calipers, or pick a standard size.', body(){
+    const isStd=BARS.some(b=>Math.abs(b[1]-WZ.d)<1e-3);
+    const cv=WZ.custU==='in'?(WZ.d/25.4).toFixed(3):WZ.d.toFixed(2);
+    return `<div class="grid">${BARS.map(([l,v])=>`<button class="pick ${Math.abs(v-WZ.d)<1e-3?'on':''}" data-d="${v}">${l}<small>${v.toFixed(2)} mm</small></button>`).join('')}</div>
+      <div class="custom"><span class="note">Measured / other:</span><input id="wzD" type="number" step="0.01" min="1" value="${cv}"><select id="wzU"><option value="in" ${WZ.custU==='in'?'selected':''}>inches</option><option value="mm" ${WZ.custU==='mm'?'selected':''}>mm</option></select>${isStd?'':'<span class="note">✓ using this</span>'}</div>
+      <div class="tip">${WZ.d>32?'Larger than 1-1/4" is a big job for a desktop lathe. Check that it fits the chuck.':'Diameter is all you need. The program converts it to radius for X.'}</div>`; }},
+  {t:'How much bar sticks out of the chuck?', q:'Measure from the chuck jaws to the end of the bar.', body(){
+    const cv=WZ.custU==='in'?(WZ.stick/25.4).toFixed(2):WZ.stick.toFixed(1);
+    const ratio=WZ.stick/WZ.d;
+    const msg= ratio>4?`⚠ That's ${ratio.toFixed(1)}× the diameter, which is long and thin. It will chatter and could bend or pull out. Use less stick-out or the tailstock.`
+             : ratio>3?`${ratio.toFixed(1)}× the diameter. That's OK, but use lighter cuts if it chatters.`
+             : `${ratio.toFixed(1)}× the diameter. Nice and rigid.`;
+    return `<div class="custom" style="margin-top:0"><input id="wzS" type="number" step="0.1" min="1" value="${cv}"><select id="wzSU"><option value="in" ${WZ.custU==='in'?'selected':''}>inches</option><option value="mm" ${WZ.custU==='mm'?'selected':''}>mm</option></select></div>
+      <div class="tip">${msg}</div>
+      <p class="note">The longest part you can make is about <b>${nf(Math.max(0,WZ.stick-1-4))} mm</b> (${((WZ.stick-5)/25.4).toFixed(2)}"). That leaves 1 mm for facing and a 4 mm parting gap.</p>`; }},
+  {t:'How do you want to start?', q:'Choose a starting shape. You can edit any of them.', body(){
+    const opts=[['cyl','Plain cylinder','Sized to your bar'],['import','Import DXF / SVG','From Onshape or Illustrator'],['rook','Rook example','From the Fusion file'],['woodtest','Wood test piece','Good first cut'],['keep','Keep current shape','Only change the stock']];
+    return `<div class="grid">${opts.map(([k,l,sm])=>`<button class="pick ${WZ.start===k?'on':''}" data-start="${k}">${l}<small>${sm}</small></button>`).join('')}</div>`; }}
+];
+function wizRender(){
+  const st=WSTEPS[WZ.step];
+  $('#wizStep').textContent=`New part · step ${WZ.step+1} of ${WSTEPS.length}`;
+  $('#wizTitle').textContent=st.t; $('#wizQ').textContent=st.q; $('#wizBody').innerHTML=st.body();
+  $('#wizDots').innerHTML=WSTEPS.map((_,i)=>`<i class="${i<=WZ.step?'on':''}"></i>`).join('');
+  $('#wizBack').style.visibility=WZ.step?'visible':'hidden';
+  $('#wizNext').textContent=WZ.step===WSTEPS.length-1?'Finish ✓':'Next →';
+}
+function wizOpen(){ WZ.step=0; WZ.mat=S.mat==='custom'?'wood':S.mat; WZ.d=+S.stockD; WZ.stick=+S.stickAvail; $('#wiz').style.display='flex'; wizRender(); }
+function wizClose(){ $('#wiz').style.display='none'; }
+$('#wizBody').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.mat){ WZ.mat=b.dataset.mat; }
+  if(b.dataset.d){ WZ.d=+b.dataset.d; }
+  if(b.dataset.start){ WZ.start=b.dataset.start; }
+  wizRender();
+});
+$('#wizBody').addEventListener('change',e=>{
+  const id=e.target.id;
+  if(id==='wzU'||id==='wzSU'){ WZ.custU=e.target.value; }
+  if(id==='wzD'){ const v=parseFloat(e.target.value); if(v>0) WZ.d=r3(WZ.custU==='in'?v*25.4:v); }
+  if(id==='wzS'){ const v=parseFloat(e.target.value); if(v>0) WZ.stick=r3(WZ.custU==='in'?v*25.4:v); }
+  wizRender();
+});
+$('#wizBack').onclick=()=>{ if(WZ.step>0){WZ.step--; wizRender();} };
+$('#wizSkip').onclick=wizClose;
+$('#wizNext').onclick=()=>{
+  const inp=$('#wzD')||$('#wzS'); if(inp) inp.dispatchEvent(new Event('change',{bubbles:true}));
+  if(WZ.step<WSTEPS.length-1){ WZ.step++; wizRender(); return; }
+  wizFinish();
+};
+document.addEventListener('keydown',e=>{ if($('#wiz').style.display==='flex'){ if(e.key==='Escape') wizClose(); else if(e.key==='Enter' && !(e.target.tagName==='SELECT')) $('#wizNext').click(); } });
+function wizFinish(){
+  wizClose();
+  const start=WZ.start;
+  if(start==='rook'||start==='woodtest') loadExample(start);   // sets its own suggested stock, then we override with the user's bar
+  applyMaterial(WZ.mat);
+  S.stockD=WZ.d; S.stickAvail=WZ.stick;
+  if(S.face>2) S.face=1;
+  const maxLen=Math.max(3,WZ.stick-S.face-S.gap);
+  if(start==='cyl'){
+    const D=r3(Math.max(1,WZ.d-1)), L=r3(Math.min(30,maxLen));
+    S.name='PART';
+    S.points=[{z:0,d:r3(D-1),type:'line',rad:5,conv:true},{z:-0.5,d:D,type:'line',rad:5,conv:true},{z:-L,d:D,type:'line',rad:5,conv:true}];
+  }
+  selPt=-1; loadForm(); renderTable(); regen(); fit();
+  if(start==='import') $('#importBtn').click();
+}
+$('#wizBtn').onclick=wizOpen;
+
+/* ================= LATHE BASICS ================= */
+const AXES_SVG=`<svg viewBox="0 0 660 330" font-family="Segoe UI, sans-serif">
+ <defs><marker id="ah" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker>
+ <pattern id="hat" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#f28c2880" stroke-width="2"/></pattern></defs>
+ <text x="12" y="22" fill="#9aa3ad" font-size="12">Looking down at the HX710 from above. You stand at the bottom.</text>
+ <line x1="160" y1="62" x2="330" y2="62" stroke="#4ea1ff" stroke-width="3" marker-end="url(#ah)"/>
+ <text x="160" y="50" fill="#4ea1ff" font-size="15" font-weight="700">+Z</text><text x="188" y="50" fill="#9aa3ad" font-size="11">away from the chuck.  −Z goes toward the chuck, into the part.</text>
+ <rect x="20" y="70" width="70" height="170" rx="6" fill="#3a3f46" stroke="#59616b"/><text x="55" y="88" fill="#9aa3ad" font-size="12" text-anchor="middle">CHUCK</text>
+ <rect x="90" y="105" width="26" height="22" fill="#4b525b"/><rect x="90" y="183" width="26" height="22" fill="#4b525b"/>
+ <rect x="90" y="127" width="380" height="56" fill="#b0834f"/>
+ <rect x="456" y="127" width="14" height="56" fill="url(#hat)"/>
+ <path d="M60 155 A22 22 0 1 1 61 180" fill="none" stroke="#ffd34d" stroke-width="1.5" marker-end="url(#ah)"/>
+ <line x1="10" y1="155" x2="600" y2="155" stroke="#ffd34d" stroke-dasharray="14 4 3 4"/>
+ <text x="478" y="148" fill="#ffd34d" font-size="12">X0 = center of the spindle</text>
+ <line x1="470" y1="85" x2="470" y2="255" stroke="#f28c28" stroke-dasharray="4 3"/>
+ <text x="476" y="100" fill="#f28c28" font-size="12">Z0 = end of the bar</text><text x="476" y="114" fill="#9aa3ad" font-size="11">(you touch off here)</text>
+ <polygon points="385,188 368,222 402,222" fill="#d9a13b" stroke="#222"/><rect x="368" y="222" width="34" height="34" fill="#4b525b"/>
+ <text x="362" y="246" fill="#cfd5db" font-size="12" text-anchor="end">Tool on the front tool post</text>
+ <line x1="290" y1="155" x2="290" y2="181" stroke="#fff" stroke-width="1.5" marker-end="url(#ah)"/><text x="160" y="173" fill="#fff" font-size="12">X = radius (X10 = Ø20)</text>
+ <line x1="645" y1="70" x2="645" y2="280" stroke="#4cd38a" stroke-width="3" marker-end="url(#ah)"/>
+ <text x="622" y="250" fill="#4cd38a" font-size="15" font-weight="700" text-anchor="end">+X</text><text x="622" y="266" fill="#9aa3ad" font-size="11" text-anchor="end">toward you,</text><text x="622" y="280" fill="#9aa3ad" font-size="11" text-anchor="end">bigger radius</text>
+ <text x="18" y="270" fill="#ffd34d" font-size="12">Spindle turns the bar</text>
+ <rect x="230" y="298" width="200" height="22" rx="4" fill="#26201a" stroke="#f28c28"/><text x="330" y="313" fill="#ffb35c" font-size="12" text-anchor="middle">YOU STAND HERE (front)</text>
+</svg>`;
+const AXES_FACTS=`<div class="facts">
+ <div><b>Z runs along the bar.</b> Z0 is the end of the bar. Cutting into the part goes in <b>−Z</b>, toward the chuck. Moving away from the part is +Z.</div>
+ <div><b>X runs across the bar.</b> X0 is the exact center the bar spins around. The tool is on the <b>front</b>, so +X moves it <b>toward you</b>, away from the center. To check, jog +X in UGS: the tool should come toward you.</div>
+ <div><b>X is a radius, not a diameter.</b> A 20 mm part is cut at X10. TurnReady converts this for you, so you design in diameter (Ø).</div>
+ <div><b>TurnReady draws it like a part drawing.</b> In the design view +X points <b>up</b> and the tool is drawn above the part. It's the same lathe, just flipped so it reads like Onshape or Fusion.</div>
+ <div><b>No Y axis.</b> The part spins, so any cut you make all the way around comes out round. You only control the outline (the profile).</div>
+</div>`;
+const B=`<rect x="0" y="12" width="22" height="86" fill="#3a3f46"/><line x1="0" y1="55" x2="200" y2="55" stroke="#ffd34d" stroke-dasharray="8 3 2 3" stroke-width=".8"/>`;
+const TOOL=(x,y,rot=0)=>`<g transform="translate(${x} ${y}) rotate(${rot})"><rect x="-6" y="-34" width="12" height="20" fill="#4b525b"/><polygon points="0,0 -7,-15 7,-15" fill="#d9a13b" stroke="#222" stroke-width=".6"/></g>`;
+const ARW=(x1,y1,x2,y2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#4cd38a" stroke-width="2.2" marker-end="url(#ah2)"/>`;
+const DEF=`<defs><marker id="ah2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#4cd38a"/></marker></defs>`;
+const LW='#b0834f', GH='#b0834f40';
+const OPS=[
+ {n:'Facing',b:'yes',d:'Cuts the end of the bar flat and square. The tool moves straight across toward the center (−X).',t:'Turning tool',
+  s:`${B}<rect x="22" y="33" width="140" height="44" fill="${LW}"/><rect x="162" y="33" width="8" height="44" fill="${GH}"/>${TOOL(166,30)}${ARW(186,22,186,52)}`},
+ {n:'Turning',b:'yes',d:'Moves along the bar (−Z) to make a smaller, straight diameter. Several roughing passes, then a finishing pass.',t:'Turning tool',
+  s:`${B}<rect x="22" y="33" width="80" height="44" fill="${LW}"/><rect x="102" y="41" width="70" height="28" fill="${LW}"/><rect x="102" y="33" width="70" height="8" fill="${GH}"/><rect x="102" y="69" width="70" height="8" fill="${GH}"/>${TOOL(106,40)}${ARW(170,20,120,20)}`},
+ {n:'Profiling / contour',b:'yes',d:'The tool follows a curved outline with tapers, coves and beads. This is what made the rook. A pointed 35° insert gets into the valleys.',t:'35° profiling tool',
+  s:`${B}<path d="M22 33 H60 Q80 33 90 45 Q110 60 130 42 L160 38 V72 L130 68 Q110 50 90 65 Q80 77 60 77 H22 Z" fill="${LW}"/><path d="M60 33 Q80 33 90 45 Q110 60 130 42 L160 38" fill="none" stroke="#4cd38a" stroke-dasharray="3 2"/>${TOOL(110,52)}`},
+ {n:'Taper & chamfer',b:'yes',d:'An angled line in the profile. Chamfers break sharp edges, and tapers make cones.',t:'Turning tool',
+  s:`${B}<path d="M22 33 H110 L165 45 V65 L110 77 H22 Z" fill="${LW}"/><path d="M110 33 L165 33 V45 Z M110 77 L165 77 V65 Z" fill="${GH}"/>${TOOL(140,39)}${ARW(172,30,120,18)}`},
+ {n:'Grooving',b:'no',d:'A square-ended tool plunges straight in (−X) to cut a slot, such as an O-ring groove.',t:'Grooving tool (flat tip)',
+  s:`${B}<rect x="22" y="33" width="150" height="44" fill="${LW}"/><rect x="100" y="33" width="10" height="10" fill="#0f1113"/><rect x="100" y="67" width="10" height="10" fill="#0f1113"/><rect x="100" y="8" width="10" height="35" fill="#d9a13b" stroke="#222" stroke-width=".6"/>${ARW(125,10,125,38)}`},
+ {n:'Parting off',b:'hand',d:'A thin blade cuts all the way to the center to separate the part from the bar. Done by hand for now, in the parting gap.',t:'Parting blade',
+  s:`${B}<rect x="22" y="33" width="150" height="44" fill="${LW}"/><rect x="58" y="33" width="5" height="22" fill="#0f1113"/><rect x="58" y="4" width="5" height="51" fill="#cfd5db" stroke="#222" stroke-width=".6"/>${ARW(76,8,76,48)}`},
+ {n:'Threading',b:'no',d:'A 60° pointed tool makes several passes along the bar, timed to the spindle, to cut screw threads.',t:'60° threading tool',
+  s:`${B}<rect x="22" y="33" width="80" height="44" fill="${LW}"/><path d="M102 37 l5 -4 l5 4 l5 -4 l5 4 l5 -4 l5 4 l5 -4 l5 4 l5 -4 l5 4 l5 -4 l5 4 V73 l-5 4 l-5 -4 l-5 4 l-5 -4 l-5 4 l-5 -4 l-5 4 l-5 -4 l-5 4 l-5 -4 l-5 4 l-5 -4 Z" fill="${LW}"/>${TOOL(147,33)}${ARW(170,16,128,16)}`},
+ {n:'Center drill & drilling',b:'hand',d:'A drill in the tailstock feeds into the end of the spinning bar to make a hole on the exact center.',t:'Drill in the tailstock',
+  s:`${B}<rect x="22" y="33" width="140" height="44" fill="${LW}"/><rect x="120" y="49" width="42" height="12" fill="#0f1113"/><path d="M128 49 H195 V61 H128 L120 55 Z" fill="#cfd5db" stroke="#222" stroke-width=".6"/>${ARW(196,30,150,30)}`},
+ {n:'Boring',b:'no',d:'A small boring bar goes inside a drilled hole to make it bigger and more accurate.',t:'Boring bar',
+  s:`${B}<rect x="22" y="33" width="140" height="44" fill="${LW}"/><rect x="105" y="45" width="57" height="20" fill="#0f1113"/><rect x="118" y="50" width="80" height="6" fill="#4b525b"/><polygon points="118,50 112,46 118,44" fill="#d9a13b"/>${ARW(190,30,140,30)}`},
+ {n:'Knurling',b:'no',d:'Hardened wheels press a diamond grip pattern into the surface. No chips, just pressure.',t:'Knurling tool',
+  s:`${B}<rect x="22" y="33" width="150" height="44" fill="${LW}"/><rect x="70" y="33" width="60" height="44" fill="url(#kn)"/><defs><pattern id="kn" width="7" height="7" patternUnits="userSpaceOnUse"><path d="M0 0 L7 7 M7 0 L0 7" stroke="#6b4a26" stroke-width="1.2"/></pattern></defs><circle cx="100" cy="20" r="12" fill="#cfd5db" stroke="#222"/>`}
+];
+const BADGE={yes:['yes','TurnReady does this'],no:['no','Not in TurnReady'],hand:['hand','By hand for now']};
+function learnBuild(){
+  $('#learnAxes').innerHTML=AXES_SVG+AXES_FACTS;
+  $('#learnOps').innerHTML=OPS.map(o=>`<div class="op"><svg viewBox="0 0 200 110">${DEF}${o.s}</svg>
+    <h4>${o.n}<span class="badge ${BADGE[o.b][0]}">${BADGE[o.b][1]}</span></h4><p>${o.d}</p><p><b style="color:#cfd5db">Tool:</b> ${o.t}</p></div>`).join('');
+}
+function learnTab(t){ document.querySelectorAll('#learn .tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t)); $('#learnAxes').style.display=t==='axes'?'block':'none'; $('#learnOps').style.display=t==='ops'?'grid':'none'; }
+$('#learn .tabs').addEventListener('click',e=>{ const b=e.target.closest('[data-tab]'); if(b) learnTab(b.dataset.tab); });
+$('#learnBtn').onclick=()=>{ if(!$('#learnOps').innerHTML) learnBuild(); learnTab('axes'); $('#learn').style.display='flex'; };
+$('#learnClose').onclick=()=>$('#learn').style.display='none';
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') $('#learn').style.display='none'; });
+
+/* ================= TOUCH-OFF HELPER ================= */
+function tchUpdate(){
+  const v=parseFloat($('#tD').value), u=$('#tU').value;
+  const dmm= v>0 ? (u==='in'? v*25.4 : v) : NaN;
+  if(dmm>0){
+    const rad=dmm/2;
+    $('#tX').textContent='G10 L20 P1 X'+fmt(r3(rad));
+    $('#tChk').textContent=fmt(r3(rad+1));
+    const diff=dmm-(+S.stockD);
+    $('#tDmsg').textContent= u==='in'?`= ${dmm.toFixed(3)} mm`:'';
+    if(Math.abs(diff)>1.5) $('#tDmsg').textContent+=`  ⚠ That's ${Math.abs(diff).toFixed(2)} mm ${diff>0?'bigger':'smaller'} than the ${nf(S.stockD)} mm stock in the app. Check the reading or change Stock diameter.`;
+  } else { $('#tX').textContent='enter a diameter first'; $('#tChk').textContent='…'; $('#tDmsg').textContent=''; }
+  const air=$('#tAir').checked, ad=Math.max(1,parseFloat($('#tAirD').value)||20);
+  $('#tZ').textContent= air? `G10 L20 P1 Z-${fmt(ad)}` : 'G10 L20 P1 Z0';
+  $('#tZnote').innerHTML= air
+    ? `This makes the end of the bar Z-${nf(ad)}, so the program's Z0 is ${nf(ad)} mm out in the air. The whole program, including facing, cuts nothing. <b>For the real part, touch the end again and use <code>G10 L20 P1 Z0</code>.</b>`
+    : `The end of the raw bar becomes Z0. The program faces off ${nf(S.face)} mm, so the finished part starts at Z-${nf(S.face)}.`;
+}
+function tchOpen(){ $('#tch').style.display='flex'; tchUpdate(); }
+['#tD','#tU','#tAir','#tAirD'].forEach(id=>{ $(id).addEventListener('input',tchUpdate); $(id).addEventListener('change',tchUpdate); });
+$('#tch').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-copy]'); if(!b) return;
+  const txt=$('#'+b.dataset.copy).textContent; if(!/^G10/.test(txt)) return;
+  try{ await navigator.clipboard.writeText(txt); }catch(_){ const t=document.createElement('textarea'); t.value=txt; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+  b.textContent='Copied ✓'; setTimeout(()=>b.textContent='Copy',1200);
+});
+$('#tchBtn').onclick=tchOpen; $('#tchBtn2').onclick=tchOpen;
+$('#tchClose').onclick=()=>$('#tch').style.display='none';
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && $('#tch').style.display==='flex') $('#tch').style.display='none'; });
+
+/* ================= INIT ================= */
+new ResizeObserver(()=>{ const first=!W; resize(); if(first) fit(); }).observe($('#canvasWrap'));
+applyMaterial('wood');
+loadExample('rook');
+wizOpen();
+</script>
+</body>
+</html>

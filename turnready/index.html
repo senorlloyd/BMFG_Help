@@ -210,6 +210,8 @@ code{font-family:var(--mono);background:#0f1113;padding:0 4px;border-radius:3px;
   <label class="f">Max RPM for students<input id="rpmCap" type="number" step="100" value="4000"></label>
   <label class="f">Spindle direction<select id="spindle"><option>M3</option><option>M4</option></select></label>
   <label class="f">Safe clearance (mm, radius)<input id="safe" type="number" step="0.5" value="1.5"></label>
+  <label class="f">Park outside stock (mm)<input id="park" type="number" step="1" min="1" value="5"></label>
+  <label class="f">Use G28 homing instead<input id="useG28" type="checkbox"></label>
   <label class="f">Rapid speed (for time est.)<input id="rapid" type="number" step="100" value="1000"></label>
   <div class="note">HX710 runs GRBL through UGS: X is <b>radius</b>. The tool is on the front, and +X moves it toward you (bigger radius). Spindle on the left. Feeds are mm/min (G94).</div>
 </aside>
@@ -298,7 +300,7 @@ code{font-family:var(--mono);background:#0f1113;padding:0 4px;border-radius:3px;
       <li>The program stops at <code>M0</code> so you can check the tool. Press <b>Resume / Cycle start</b> in UGS.</li>
       <li>When it finishes, part off by hand in the parting gap.</li>
     </ol>
-    <p class="note">The program homes with <code>G28 G91 X0.</code> / <code>Z0.</code> just like the student's Fusion files, so it uses the G28 position saved on the controller.</p>
+    <p class="note">The program starts and ends <b>parked</b>: X at the stock radius + 5&nbsp;mm (outside the bar) and Z 5&nbsp;mm in front of it. These are measured from your touch-off, so they don't depend on a saved G28 position. X moves out first, then Z, and the spindle only starts once the tool is parked. Tick "Use G28 homing instead" to go back to <code>G28</code> like the Fusion files.</p>
   </details>
 </aside>
 </div>
@@ -396,7 +398,7 @@ const S = {
   name:'ROOK', stockD:22.225, stickAvail:50.8, face:1.5, faceStep:0.25, gap:4,
   mat:'wood', rpm:2500, doc:0.5, roughF:300, finishF:150, faceF:240, allow:0.2, coolant:false,
   insert:35, nose:0.4, tool:4, post:'FRONT TOOL POST',
-  rpmCap:4000, spindle:'M3', safe:1.5, rapid:1000,
+  rpmCap:4000, spindle:'M3', safe:1.5, rapid:1000, park:5, useG28:false,
   points:[]
 };
 let mode='edit', selPt=-1, RES=null, SIM=null, GCODE='';
@@ -507,7 +509,8 @@ function generate(){
   const B=offsetCurve(bins,offR,n,dz,r), F=offsetCurve(bins,r,n,dz,r);
   const ZT=k=>-k*dz-face;
   const kOf=z=>Math.round((-z-face)/dz);
-  const mv=[]; const start={x:safeX+5,z:5}; let cx=start.x, cz=start.z;
+  const parkX=r3(Rs+Math.max(1,+S.park)), parkZ=r3(Math.max(1,+S.park));
+  const mv=[]; const start={x:parkX,z:parkZ}; let cx=start.x, cz=start.z;
   const G0=(x,z,op)=>{ if(x===undefined)x=cx; if(z===undefined)z=cz; x=r3(x); z=r3(z); if(x===cx&&z===cz) return; mv.push({g:0,x,z,op}); cx=x; cz=z; };
   const G1=(x,z,f,op)=>{ if(x===undefined)x=cx; if(z===undefined)z=cz; x=r3(x); z=r3(z); if(x===cx&&z===cz) return; mv.push({g:1,x,z,f,op}); cx=x; cz=z; };
   const chain=(pts,f,op)=>{ for(const p of simplify(pts,0.002)) G1(p[1],p[0],f,op); };
@@ -568,7 +571,7 @@ function generate(){
   fp.push([ZT(k-1),Rs+0.5]);
   const fps=simplify(fp,0.002);
   for(const p of fps) G1(p[1],p[0],S.finishF,'finish');
-  G0(safeX,undefined,'finish'); G0(undefined,5,'finish');
+  G0(safeX,undefined,'finish'); G0(Math.max(parkX,safeX),undefined,'finish'); G0(undefined,parkZ,'finish');
 
   // ---- trailing-edge (plunge angle) check on the finish path
   const maxPl=INSERTS[S.insert].trail-2; const steep=[];
@@ -580,7 +583,7 @@ function generate(){
     const worst=steep.reduce((a,b)=>b.ang>a.ang?b:a);
     warns.push({lvl:'bad',msg:`The profile drops toward the chuck at ${worst.ang.toFixed(0)}° near Z ${fz(worst.z)}. The ${INSERTS[S.insert].label} can only go down about ${maxPl}° before its back edge rubs. Use a 35° insert or make that slope gentler.`});
   }
-  return {moves:mv,start,warns,prof,info,safeX,Rs,face,r};
+  return {moves:mv,start,warns,prof,info,safeX,Rs,face,r,parkX,parkZ};
 }
 
 /* ================= G-CODE OUTPUT (matches the student's Fusion/HX710 files) ================= */
@@ -591,13 +594,15 @@ function emit(res){
   L.push(`(${name})`);
   L.push(`(TURNREADY FOR HX710 - ${asciiUpper(MATERIALS[S.mat].name)})`);
   L.push(`(STOCK DIA ${fmt(+S.stockD)} MM - Z0 = RAW STOCK FACE - X IS RADIUS)`);
-  add('G90 G94'); add('G18'); add('G21'); add('G28 G91 X0.'); add('G28 G91 Z0.'); add('G90');
+  add('G90 G94'); add('G18'); add('G21'); if(S.useG28){ add('G28 G91 X0.'); add('G28 G91 Z0.'); add('G90'); }
   L.push('');
   L.push(`(CHANGE TO T${S.tool} ON ${asciiUpper(S.post)||'TOOL POST'})`);
-  add('M0'); add(`T${S.tool}`); add('G54'); if(S.coolant) add('M8');
+  add('M0'); add(`T${S.tool}`); add('G54');
+  if(!S.useG28){ L.push(`(PARK ${nf(S.park)} MM OUTSIDE THE STOCK BEFORE THE SPINDLE STARTS)`); add('G0 X'+fmt(res.parkX)); add('G0 Z'+fmt(res.parkZ)); }
+  if(S.coolant) add('M8');
   add(`S${Math.round(effRPM())} ${S.spindle}`); add('G94');
   const opName={face:'FACE',rough:'PROFILE ROUGHING',finish:'PROFILE FINISHING'};
-  let op=null, g=null, lx=null, lz=null, lf=null;
+  let op=null, g=S.useG28?null:0, lx=S.useG28?null:res.parkX, lz=S.useG28?null:res.parkZ, lf=null;
   for(const m of res.moves){
     if(m.op!==op){ op=m.op; L.push(''); L.push(`(${opName[op]})`); }
     const parts=[];
@@ -609,7 +614,7 @@ function emit(res){
   }
   L.push('');
   if(S.coolant) add('M9');
-  add('M5'); add('G28 G91 X0.'); add('G28 G91 Z0.'); add('G90'); add('M30');
+  add('M5'); if(S.useG28){ add('G28 G91 X0.'); add('G28 G91 Z0.'); add('G90'); } add('M30');
   return L.join('\r\n')+'\r\n';
 }
 
@@ -953,10 +958,10 @@ $('#revBtn').onclick=()=>{
 };
 
 /* ================= SETTINGS BINDING ================= */
-const numKeys=['stickAvail','stockD','face','faceStep','gap','rpm','doc','roughF','finishF','faceF','allow','tool','rpmCap','safe','rapid'];
+const numKeys=['park','stickAvail','stockD','face','faceStep','gap','rpm','doc','roughF','finishF','faceF','allow','tool','rpmCap','safe','rapid'];
 function loadForm(){
   for(const k of numKeys) $('#'+k).value=S[k];
-  $('#name').value=S.name; $('#mat').value=S.mat; $('#coolant').checked=S.coolant; $('#insert').value=S.insert; $('#nose').value=S.nose;
+  $('#useG28').checked=S.useG28; $('#name').value=S.name; $('#mat').value=S.mat; $('#coolant').checked=S.coolant; $('#insert').value=S.insert; $('#nose').value=S.nose;
   $('#post').value=S.post; $('#spindle').value=S.spindle;
   const opt=[...$('#stockPick').options].find(o=>Math.abs(+o.value-S.stockD)<1e-3); $('#stockPick').value=opt?opt.value:'custom';
   $('#matNote').textContent=MATERIALS[S.mat].note||'';
@@ -973,6 +978,7 @@ document.querySelectorAll('#left input, #left select').forEach(el=>{
       if(['rpm','doc','roughF','finishF','faceF','allow'].includes(id) && S.mat!=='custom'){ S.mat='custom'; MATERIALS.custom.note='Custom values. Pick a material to reset.'; }
       loadForm(); }
     else if(id==='coolant') S.coolant=el.checked;
+    else if(id==='useG28') S.useG28=el.checked;
     else if(id==='insert'){ S.insert=+el.value; loadForm(); }
     else if(id==='nose') S.nose=+el.value;
     else if(id==='name') S.name=el.value;

@@ -61,6 +61,28 @@ To change a course, drop its `.golfcourse` file back into the builder, edit it, 
 Tick **Start a fresh leaderboard** if the holes changed enough that old scores aren't comparable.
 To take a course off the menu, click **Remove** next to it in the builder, download the updated course list, and upload it.
 
+## Part names the game understands
+
+Students name parts in Onshape and the game does the rest. Capital letters don't matter, and the word can be part of a longer name ("big spinner 20rpm").
+
+| Name contains | What it does |
+| --- | --- |
+| `tee` | Where the ball starts |
+| `cup` or `hole` | The hole |
+| `spinner`, `windmill` | Spins upright like a revolving door, around a part named `hub` if one sits on it. Add a speed: `spinner 20rpm` |
+| `rotisserie`, `roller`, `barrel` | Spins around its own long axis, like a rotisserie |
+| `wheel`, `paddle` | Spins around its own short axis, like a wheel |
+| `axle` | A rod through a sideways-spinning part: the part turns on it |
+| `slider`, `gate` | Slides side to side. Add an angle: `slider 45deg` |
+| `lift`, `drawbridge` | Sinks into the floor and rises again |
+| `sand`, `bunker` | Slows the ball down fast |
+| `ice` | The ball keeps sliding |
+| `water`, `pond` | One penalty stroke, and the ball goes back |
+| `decal`, `logo` | Shows the student's picture on top |
+
+Every one of these can also be set by hand in the game, under **Moving parts and surfaces**, including speed, travel, angle, spin axis and direction.
+A perfectly round roller won't move the ball, because the ball only reacts to being pushed. Give spinning parts paddles or flat faces.
+
 ## How scoring works
 
 - Each hole is scored against its par. The course total is strokes and strokes over or under par.

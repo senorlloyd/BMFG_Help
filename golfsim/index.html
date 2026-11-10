@@ -12,17 +12,17 @@
 /* Layout: one-screen app. Slim header, 3D stage on the left, import report as a drafting-style side sheet. Stacks on phones. */
 :root{
   --bg:#eaefe6; --panel:#fafcf7; --ink:#15241b; --muted:#59695e; --line:#cfd8cb;
-  --felt:#2f7d4f; --accent:#d94f27; --sky:#dde8e2; --ok:#2a7a4b; --warn:#a96a12; --fail:#b83a2b;
+  --felt:#2f7d4f; --accent:#d94f27; --sky:#dde8e2; --sky-top:#c6dbea; --ok:#2a7a4b; --warn:#a96a12; --fail:#b83a2b;
   --display:"Bricolage Grotesque","Trebuchet MS",sans-serif;
   --body:"IBM Plex Sans",system-ui,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --bg:#0f1612; --panel:#17201b; --ink:#e7efe9; --muted:#93a498; --line:#2a372f;
-  --felt:#46a26b; --accent:#ff7c50; --sky:#0b120f; --ok:#5fc48a; --warn:#e2ad4f; --fail:#f27664; color-scheme:dark } }
+  --felt:#46a26b; --accent:#ff7c50; --sky:#0b120f; --sky-top:#101d26; --ok:#5fc48a; --warn:#e2ad4f; --fail:#f27664; color-scheme:dark } }
 :root[data-theme="dark"]{
   --bg:#0f1612; --panel:#17201b; --ink:#e7efe9; --muted:#93a498; --line:#2a372f;
-  --felt:#46a26b; --accent:#ff7c50; --sky:#0b120f; --ok:#5fc48a; --warn:#e2ad4f; --fail:#f27664; color-scheme:dark }
+  --felt:#46a26b; --accent:#ff7c50; --sky:#0b120f; --sky-top:#101d26; --ok:#5fc48a; --warn:#e2ad4f; --fail:#f27664; color-scheme:dark }
 
 html,body{height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
@@ -65,6 +65,7 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 320px;
 .stage.drag::after{content:"Drop a hole (.golfhole or glTF), a flag picture or a MIDI tune";position:absolute;inset:8px;display:grid;place-items:center;
   border:2px dashed var(--accent);border-radius:6px;background:color-mix(in srgb,var(--panel) 85%,transparent);
   font:600 1.1rem var(--display);color:var(--ink);pointer-events:none}
+#fx{pointer-events:none}
 .score{position:absolute;left:12px;top:10px;pointer-events:none}
 .score b{display:block;font:800 3rem/0.9 var(--display);font-variant-numeric:tabular-nums}
 .score small,.label{font:500 .7rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
@@ -109,6 +110,11 @@ h2{font:600 1.05rem var(--display);margin:0}
 .mrow label{grid-column:1/-1;display:grid;grid-template-columns:3.6em minmax(0,1fr) 4.2em;gap:8px;align-items:center;font-size:.8rem;color:var(--muted)}
 .mrow output{font:400 .78rem var(--mono);text-align:right;font-variant-numeric:tabular-nums}
 .mrow input[type=range]{width:100%;min-width:0;accent-color:var(--accent)}
+.mrow label.wide{grid-template-columns:3.6em minmax(0,1fr)}
+.mrow label.wide select{min-width:0;width:100%}
+.mrow label.check{display:flex;gap:8px;align-items:center}
+.mrow label.check input{accent-color:var(--accent);width:16px;height:16px;margin:0}
+.mrow label[hidden]{display:none}
 .app.play .edit{display:none!important}
 .card{display:grid;gap:6px;padding-bottom:12px;border-bottom:1px solid var(--line)}
 .card h2{font:800 1.5rem/1.05 var(--display);text-wrap:balance}
@@ -137,13 +143,18 @@ h2{font:600 1.05rem var(--display);margin:0}
 .lb{display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:left;min-width:min(340px,70vw)}
 .lb ol{margin:4px 0 0;padding-left:1.5em;font:400 .85rem var(--mono);font-variant-numeric:tabular-nums}
 .lb li.me{color:var(--accent);font-weight:500}
+kbd{font:500 .72rem var(--mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--bg);color:var(--ink)}
 .rules{margin:0;padding-left:1.1em;color:var(--muted);font-size:.875rem;display:flex;flex-direction:column;gap:4px}
 @media (max-width:760px){
   html,body{height:auto}
   .app{height:auto}
   main{grid-template-columns:minmax(0,1fr)}
   .stage{height:min(68vh,520px)}
-  .tools{margin-left:0}
+  .tools{margin-left:0;gap:6px}
+  .tools button,.tools .filebtn{padding:5px 9px;font-size:.8rem}
+  .tools .ico{width:22px;height:22px}
+  .iconbtn .ico{width:26px;height:26px}
+  .toggles{padding-left:0;border-left:0}
 }
 </style>
 
@@ -156,7 +167,7 @@ h2{font:600 1.05rem var(--display);margin:0}
       <button id="btnQuit" type="button" class="coursebtn"><i class="ico i-quit" aria-hidden="true"></i>Quit course</button>
       <button id="btnSample" type="button" class="solo" title="Build a new random sample hole"><i class="ico i-sample" aria-hidden="true"></i>Sample hole</button>
       <button id="btnReset" type="button" class="solo"><i class="ico i-restart" aria-hidden="true"></i>Restart</button>
-      <button id="btnView" type="button"><i class="ico i-overview" aria-hidden="true"></i>Overview</button>
+      <button id="btnView" type="button" title="Switch between the overview and the view from behind the ball (V)"><i class="ico i-overview" aria-hidden="true"></i><span id="viewLbl">Overview</span></button>
       <div class="toggles">
         <button id="btnSound" type="button" class="iconbtn" aria-pressed="false" title="Sound on"><i class="ico i-sound" aria-hidden="true"></i><span class="lbl">Sound on</span></button>
         <button id="btnMusic" type="button" class="iconbtn" aria-pressed="false" title="Music on"><i class="ico i-music" aria-hidden="true"></i><span class="lbl">Music on</span></button>
@@ -168,7 +179,7 @@ h2{font:600 1.05rem var(--display);margin:0}
   </header>
   <main>
     <div class="stage" id="stage">
-      <canvas id="view"></canvas>
+      <canvas id="view" role="img" aria-label="3D view of the mini golf hole. Drag back from the ball to putt."></canvas>
       <div class="score"><small>Strokes</small><b id="strokes">0</b><span class="clock" id="clock">0:00.0</span></div>
       <div class="foot">
         <div class="hint" id="hint">Loading…</div>
@@ -185,6 +196,7 @@ h2{font:600 1.05rem var(--display);margin:0}
         <ul class="clist" id="plist"></ul>
         <div class="row"><label class="filebtn">Open a course file<input id="cfile" type="file" accept=".golfcourse,.json"></label><button id="btnPickClose" type="button">Close</button></div>
       </div></div>
+      <canvas id="fx" aria-hidden="true"></canvas>
     </div>
     <aside>
       <div class="card" id="courseCard" hidden>
@@ -218,7 +230,7 @@ h2{font:600 1.05rem var(--display);margin:0}
         <p class="names" id="shareNote">Saves one .golfhole file with the model, moving parts, tee and cup, and flag picture. Anyone can open it here to play your hole exactly as you set it up.</p>
       </div>
       <div class="edit">
-        <div class="label">Moving parts</div>
+        <div class="label">Moving parts and surfaces</div>
         <div class="motion" id="motion"></div>
       </div>
       <div class="edit">
@@ -239,11 +251,14 @@ h2{font:600 1.05rem var(--display);margin:0}
         <ul class="rules">
           <li>Drag back from the ball and let go to putt. Drag anywhere else to orbit, scroll to zoom.</li>
           <li>A part with <b>tee</b> in its name marks the start. One with <b>cup</b> or <b>hole</b> marks the hole. Everything else is solid.</li>
-          <li>Parts named <b>spinner</b> or <b>windmill</b> spin, around a part named <b>hub</b> if one sits on them. Add a speed like “spinner 20rpm”. Parts named <b>slider</b> or <b>gate</b> slide across the hole; add an angle like “slider 45deg” to turn the path. Parts named <b>lift</b> or <b>drawbridge</b> sink into the floor and rise again. Change any part under Moving parts.</li>
+          <li>Parts named <b>spinner</b> or <b>windmill</b> spin like a revolving door, around a part named <b>hub</b> if one sits on them. Add a speed like “spinner 20rpm”. Parts named <b>rotisserie</b> or <b>roller</b> spin around their own long axis, and parts named <b>wheel</b> around their short one.</li>
+          <li>Parts named <b>slider</b> or <b>gate</b> slide across the hole; add an angle like “slider 45deg” to turn the path. Parts named <b>lift</b> or <b>drawbridge</b> sink into the floor and rise again.</li>
+          <li>Parts named <b>sand</b> slow the ball, <b>ice</b> lets it slide, and <b>water</b> costs a stroke. Change any part under Moving parts and surfaces.</li>
           <li>Drop a PNG or JPG to put it on the flag. It also prints on top of any part named <b>decal</b>.</li>
           <li>Open or drop a <b>.golfhole</b> file to play a hole someone shared.</li>
           <li>Ball is 42.7 mm, cup is 108 mm, same for every hole.</li>
           <li>Off the course costs one stroke. The hole ends after 8.</li>
+          <li>Keys: <kbd>R</kbd> restart, <kbd>V</kbd> switch view, <kbd>M</kbd> music, <kbd>Esc</kbd> cancel a putt.</li>
           <li>The clock starts on your first putt. Scores rank by fewest strokes, then fastest time, and are saved on this device.</li>
         </ul>
         <p class="names" id="engine"></p>
@@ -410,16 +425,47 @@ controls.enableDamping=true;controls.maxPolarAngle=Math.PI/2-.03;controls.minDis
 scene.add(new THREE.HemisphereLight(0xeef4ff,0x2a3328,.3));
 const fill=new THREE.DirectionalLight(0xdfe8ff,.22);scene.add(fill,fill.target);
 const sun=new THREE.DirectionalLight(0xfff4e2,1.0);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0005;sun.shadow.normalBias=.02;scene.add(sun,sun.target);
-function themeScene(){scene.background=new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--sky').trim()||'#dde8e2')}
+// backdrop: a soft top-to-bottom fade in the page's own sky colours, and an unseen floor that catches the course's shadow
+let skyTex=null;
+function themeScene(){
+  const cs=getComputedStyle(document.documentElement),top=cs.getPropertyValue('--sky-top').trim()||'#c6dbea',bot=cs.getPropertyValue('--sky').trim()||'#dde8e2';
+  const cv=document.createElement('canvas');cv.width=2;cv.height=256;const g=cv.getContext('2d'),gr=g.createLinearGradient(0,0,0,256);
+  gr.addColorStop(0,top);gr.addColorStop(.6,bot);gr.addColorStop(1,bot);g.fillStyle=gr;g.fillRect(0,0,2,256);
+  if(skyTex)skyTex.dispose();skyTex=new THREE.CanvasTexture(cv);skyTex.encoding=THREE.sRGBEncoding;scene.background=skyTex;
+}
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.ShadowMaterial({opacity:.17}));
+ground.rotation.x=-Math.PI/2;ground.position.y=-.004;ground.receiveShadow=true;ground.raycast=()=>{};scene.add(ground);
 themeScene();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',themeScene);
 new MutationObserver(themeScene).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
 new ResizeObserver(resize).observe(stage);resize();
 
-const ball=new THREE.Mesh(new THREE.SphereGeometry(BALL_R,24,16),new THREE.MeshStandardMaterial({color:0xffffff,roughness:.35}));
+// The ball has faint dimples and an alignment stripe, so you can see it roll.
+function ballTexture(){
+  const cv=document.createElement('canvas');cv.width=256;cv.height=128;const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,256,128);
+  g.fillStyle='rgba(30,55,45,.11)';
+  for(let r=0;r<9;r++){const y=8+r*14,n=Math.max(6,Math.round(22*Math.sin(Math.PI*y/128)));for(let k=0;k<n;k++){g.beginPath();g.arc((k+(r%2)/2)*256/n,y,2.7,0,7);g.fill()}}
+  g.fillStyle='#e4572e';g.fillRect(98,60,60,7);
+  const t=new THREE.CanvasTexture(cv);t.encoding=THREE.sRGBEncoding;t.anisotropy=4;return t;
+}
+const ball=new THREE.Mesh(new THREE.SphereGeometry(BALL_R,32,20),new THREE.MeshStandardMaterial({color:0xffffff,roughness:.35,map:ballTexture()}));
 ball.castShadow=true;scene.add(ball);
-const arrow=new THREE.Mesh(new THREE.BoxGeometry(.012,.004,1),new THREE.MeshBasicMaterial({color:0xe4572e}));arrow.visible=false;scene.add(arrow);
+const lastBall=new V3(),rollAxis=new V3(),rollQ=new THREE.Quaternion();
+function rollBall(){ // turn the ball by how far it just moved
+  rollAxis.set(ball.position.z-lastBall.z,0,lastBall.x-ball.position.x);const d=rollAxis.length();
+  if(d>1e-6&&d<.2){rollQ.setFromAxisAngle(rollAxis.multiplyScalar(1/d),d/BALL_R);ball.quaternion.premultiply(rollQ)}
+  lastBall.copy(ball.position);
+}
+// aim arrow: a shaft that grows with power and a head, shading from green to red as the putt gets harder
+const arrowMat=new THREE.MeshBasicMaterial({color:0xe4572e}),arrow=new THREE.Group(),HEAD=.05;
+const shaft=new THREE.Mesh(new THREE.BoxGeometry(.012,.004,1).translate(0,0,.5),arrowMat);
+const head=new THREE.Mesh(new THREE.BufferGeometry().setAttribute('position',new THREE.Float32BufferAttribute([-.024,0,0, .024,0,0, 0,0,HEAD],3)),arrowMat);
+arrowMat.side=THREE.DoubleSide;arrow.add(shaft,head);arrow.visible=false;scene.add(arrow);
+// a soft ring around the ball whenever it is ready to be hit
+const ready=new THREE.Mesh(new THREE.RingGeometry(BALL_R*2.3,BALL_R*2.75,40),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.5,depthWrite:false}));
+ready.rotation.x=-Math.PI/2;ready.visible=false;ready.raycast=()=>{};scene.add(ready);
+const calm=matchMedia('(prefers-reduced-motion: reduce)');
 // The flag: plain orange, or a student's picture. Front and back are separate faces so the picture reads
 // the right way round from either side, and the cloth ripples a little in the wind.
 const flagGroup=new THREE.Group();let flagGeo=null,flagX=null;
@@ -450,6 +496,11 @@ teeMark.rotation.x=-Math.PI/2;scene.add(teeMark);
 let course=null,simT=0; // simT is the clock that drives moving parts
 const TEE_RE=/(^|[^a-z])tee([^a-z]|$)/i, CUP_RE=/(^|[^a-z])(cup|hole)([^a-z]|$)/i;
 const SPIN_RE=/(^|[^a-z])(spin|rotat|windmill|propeller|turbine|fan(?![a-z]))/i, SLIDE_RE=/(^|[^a-z])(slid|gate|piston|shuttle)/i, LIFT_RE=/(^|[^a-z])(lift|elevator|riser|drawbridge)/i;
+const ROLL_RE=/(^|[^a-z])(rotisserie|roller|barrel)/i, WHEEL_RE=/(^|[^a-z])(wheel|ferris|paddle)/i;
+const SAND_RE=/(^|[^a-z])(sand|bunker)/i, WATER_RE=/(^|[^a-z])(water|pond|lake|river)/i, ICE_RE=/(^|[^a-z])ice([^a-z]|$)/i;
+// surfaces are parts that stay put but change how the ball behaves on top of them
+const SURF={sand:{k1:2,k0:2.5,say:'is sand, so the ball slows down fast'},ice:{k1:.04,k0:.05,say:'is ice, so the ball keeps sliding'},water:{say:'is water: one penalty stroke and the ball goes back'}};
+const AXES={up:'upright',long:'around its long axis',short:'around its short axis',mid:'around its third axis'};
 const HUB_RE=/(^|[^a-z])(hub|pivot|axle)([^a-z]|$)/i, DECAL_RE=/(^|[^a-z])(decal|logo|sticker|image)/i;
 const fmt=n=>n>=100?n.toFixed(0):n>=10?n.toFixed(1):n.toFixed(2);
 
@@ -492,7 +543,7 @@ function loadCourse(object,src,opt){
     if(TEE_RE.test(part)){tees.push(m);teeName=part}else if(CUP_RE.test(part)){cups.push(m);cupName=part}else solids.push(m);
   }
   if(!solids.length){solids=meshes.slice();tees.length=cups.length=0;report.push({l:'warn',t:'<b>Names.</b> Every part matched “tee” or “cup”, so the names were ignored.'})}
-  for(const m of meshes){m.castShadow=m.receiveShadow=true;if(!m.geometry.attributes.normal)m.geometry.computeVertexNormals();m.visible=solids.includes(m);addEdges(m)}
+  for(const m of meshes){if(!m.userData.mat0)m.userData.mat0=m.material;else m.material=m.userData.mat0;m.castShadow=m.receiveShadow=true;if(!m.geometry.attributes.normal)m.geometry.computeVertexNormals();m.visible=solids.includes(m);addEdges(m)}
   // tee and cup
   const along=size.x>=size.z?'x':'z',top=box.max.y;
   function spot(list,frac){
@@ -526,28 +577,41 @@ function loadCourse(object,src,opt){
   if(opt.motions){for(const [n,c] of Object.entries(opt.motions))if(parts.has(n)&&c.type!=='fixed')motions[n]=c}
   else for(const n of parts.keys()){
     let cfg=null;
-    if(SPIN_RE.test(n)){const r=n.match(/(\d+(?:\.\d+)?)\s*rpm/i);cfg={type:'spin',speed:r?Math.max(1,Math.min(10,Math.round(+r[1]/3))):4,dist:40}}
+    if(SPIN_RE.test(n)||ROLL_RE.test(n)||WHEEL_RE.test(n)){const r=n.match(/(\d+(?:\.\d+)?)\s*rpm/i);
+      cfg={type:'spin',speed:r?Math.max(1,Math.min(10,Math.round(+r[1]/3))):4,dist:40,axis:ROLL_RE.test(n)?'long':WHEEL_RE.test(n)?'short':'up'}}
+    else if(SAND_RE.test(n))cfg={type:'sand'};else if(WATER_RE.test(n))cfg={type:'water'};else if(ICE_RE.test(n))cfg={type:'ice'}
     else if(LIFT_RE.test(n))cfg={type:'lift',speed:3,dist:30,ang:0};
     else if(SLIDE_RE.test(n)){const a=n.match(/(-?\d+)\s*(?:deg|°)/i);cfg={type:'across',speed:3,dist:40,ang:a?Math.max(-90,Math.min(90,+a[1])):0}}
     if(saved[n])cfg=saved[n];
     if(cfg&&cfg.type!=='fixed')motions[n]=cfg;
   }
   const boxOf=ms=>{const b=new THREE.Box3();ms.forEach(m=>b.expandByObject(m));return b};
-  const hubs=[...parts].filter(([n])=>HUB_RE.test(n)&&!motions[n]).map(([,ms])=>boxOf(ms).getCenter(new V3()));
-  const movers=[],movingMeshes=new Set();
+  const hubs=[...parts].filter(([n])=>HUB_RE.test(n)&&!motions[n]).map(([,ms])=>({c:boxOf(ms).getCenter(new V3()),ms}));
+  const movers=[],movingMeshes=new Set(),zones=[],guides=new THREE.Group();
   for(const [n,cfg] of Object.entries(motions)){
     const ms=parts.get(n),b=boxOf(ms),c=b.getCenter(new V3()),pivot=c.clone();
-    let hubNote='';
-    if(cfg.type==='spin'&&hubs.length){ // spin around the nearest hub or pivot part that sits over this part
-      const h=hubs.reduce((a,x)=>Math.hypot(x.x-c.x,x.z-c.z)<Math.hypot(a.x-c.x,a.z-c.z)?x:a);
-      if(h.x>=b.min.x&&h.x<=b.max.x&&h.z>=b.min.z&&h.z<=b.max.z){pivot.x=h.x;pivot.z=h.z;hubNote=' around the hub'}
+    if(SURF[cfg.type]){ // a surface: still solid, but the ball reacts to it
+      ms.forEach(m=>{m.material=surfaceMaterial(m.userData.mat0,cfg.type)});
+      zones.push({type:cfg.type,meshes:ms,box:b.clone().expandByScalar(BALL_R+.02)});
+      report.push({l:'ok',t:`<b>Surface.</b> “${esc(n)}” ${SURF[cfg.type].say}.`});continue}
+    let hubNote='';const axisKind=cfg.type==='spin'&&AXES[cfg.axis]?cfg.axis:'up';
+    const axis=cfg.type==='spin'?spinAxis(axisKind,triangles(ms),fwd):new V3(0,1,0);
+    if(cfg.type==='spin'&&hubs.length){ // spin around the nearest hub, pivot or axle part that sits in this part
+      const h=hubs.reduce((a,x)=>x.c.distanceTo(c)<a.c.distanceTo(c)?x:a);
+      if(h.c.x>=b.min.x&&h.c.x<=b.max.x&&h.c.z>=b.min.z&&h.c.z<=b.max.z){
+        if(axisKind==='up'){pivot.x=h.c.x;pivot.z=h.c.z;hubNote=' around the hub'}
+        else if(h.c.y>=b.min.y&&h.c.y<=b.max.y){ // a sideways spin uses the hub only when it is a rod lying along the spin axis: an axle
+          const ha=ownAxes(triangles(h.ms));
+          if(ha[0].val>2*ha[1].val&&Math.abs(ha[0].vec.dot(axis))>.94){axis.copy(ha[0].vec).multiplyScalar(Math.sign(ha[0].vec.dot(axis)));pivot.copy(h.c);hubNote=', on its axle'}}
+      }
     }
     const tv=triangles(ms,pivot),group=new THREE.Group();group.position.copy(pivot);group.updateMatrixWorld(true);
     const keep=ms.map(m=>({mesh:m,parent:m.parent}));ms.forEach(m=>{group.attach(m);movingMeshes.add(m)});scene.add(group);
-    movers.push({name:n,type:cfg.type,group,keep,pivot,verts:tv.verts,idx:tv.idx,rad:tv.rad,
-      dir:slideDir(cfg,fwd),omega:cfg.speed*3*Math.PI/30,A:cfg.dist/200,period:12/cfg.speed,
-      p:pivot.clone(),q:new THREE.Quaternion(),lv:new V3(),av:new V3()});
-    report.push({l:'ok',t:`<b>Moving part.</b> “${esc(n)}” ${cfg.type==='spin'?`spins at ${cfg.speed*3} rpm${hubNote}`:cfg.type==='lift'?`sinks ${cfg.dist} cm and rises again`:`slides ${cfg.dist} cm ${cfg.type}${cfg.ang?`, turned ${cfg.ang}°`:''}`}.`});
+    const mv={name:n,type:cfg.type,group,keep,pivot,verts:tv.verts,idx:tv.idx,rad:tv.rad,axis,
+      dir:slideDir(cfg,fwd),omega:cfg.speed*3*Math.PI/30*(cfg.rev?-1:1),A:cfg.dist/200,period:12/cfg.speed,
+      p:pivot.clone(),q:new THREE.Quaternion(),lv:new V3(),av:new V3()};
+    movers.push(mv);guides.add(guideFor(mv));
+    report.push({l:'ok',t:`<b>Moving part.</b> “${esc(n)}” ${cfg.type==='spin'?`spins at ${cfg.speed*3} rpm ${AXES[axisKind]}${cfg.rev?', reversed':''}${hubNote}`:cfg.type==='lift'?`sinks ${cfg.dist} cm and rises again`:`slides ${cfg.dist} cm ${cfg.type}${cfg.ang?`, turned ${cfg.ang}°`:''}`}.`});
   }
   const st=triangles(solids.filter(m=>!movingMeshes.has(m)));
   const tris=(st.idx.length+movers.reduce((a,m)=>a+m.idx.length,0))/3;
@@ -567,10 +631,10 @@ function loadCourse(object,src,opt){
     (mv?mv.group:scene).attach(plane);decals.push(plane);
   }
 
-  scene.add(root);
-  const sig=Object.entries(motions).sort().map(([n,c])=>`${n}:${c.type}:${c.speed}:${c.type==='spin'?'':c.dist}${c.ang&&c.type!=='spin'&&c.type!=='lift'?':a'+c.ang:''}`).join(',');
+  scene.add(root,guides);guides.visible=false;
+  const sig=Object.entries(motions).sort().map(([n,c])=>`${n}:${c.type}:${SURF[c.type]?'':c.speed}:${c.type==='spin'||SURF[c.type]?'':c.dist}${c.ang&&(c.type==='across'||c.type==='along')?':a'+c.ang:''}${c.type==='spin'&&c.axis&&c.axis!=='up'?':x'+c.axis:''}${c.type==='spin'&&c.rev?':r':''}`).join(',');
   course={key,custom:false,forceUp,bytes:opt.bytes||null,fileName:opt.fileName||'',place:{tee:opt.tee||null,cup:opt.cup||null},pkg:opt.pkg||null,decalURL:null,sig,root,object,solids,size,box,tee,cup,zUp,src,realHole,onshape:opt.onshape,
-    cupR:Math.max(CUP_R,realHole?c0.half:0),movers,decals,parts:[...parts.keys()],motions,fwd};
+    cupR:Math.max(CUP_R,realHole?c0.half:0),movers,zones,guides,decals,parts:[...parts.keys()],motions,fwd};
   course.scoreKey=scoreKeyFor(course);
   engine.setCourse(st.verts,st.idx,Math.max(size.x,size.z),movers);
   const span=Math.max(size.x,size.z,1);
@@ -579,6 +643,7 @@ function loadCourse(object,src,opt){
   const side=new V3(-fwd.z,0,fwd.x);
   sun.position.copy(side).multiplyScalar(span*.55).addScaledVector(fwd,span*.6).setY(span*.75);sun.target.position.set(0,0,0);
   fill.position.copy(side).multiplyScalar(-span).addScaledVector(fwd,-span*.4).setY(span*.5);
+  ground.scale.setScalar(span*6);
   Object.assign(sun.shadow.camera,{left:-span*.8,right:span*.8,top:span*.8,bottom:-span*.8,near:.1,far:span*4});sun.shadow.camera.updateProjectionMatrix();
   $('src').textContent=src;
   $('checks').innerHTML=report.map(r=>`<li><span class="tag ${r.l}">${r.l==='ok'?'OK':r.l==='warn'?'Check':'Fix'}</span><p>${r.t}</p></li>`).join('');
@@ -660,7 +725,7 @@ function teardown(c){ // put moved meshes back where the file had them, so the c
   for(const m of c.movers){m.group.position.copy(m.pivot);m.group.quaternion.identity();m.group.updateMatrixWorld(true);
     for(const k of m.keep)k.parent.attach(k.mesh);scene.remove(m.group)}
   for(const d of c.decals)if(d.parent)d.parent.remove(d);
-  scene.remove(c.root);
+  scene.remove(c.root,c.guides);c.guides.traverse(o=>{if(o.geometry)o.geometry.dispose()});
 }
 function reload(extra){const c=course;loadCourse(c.object,c.src,Object.assign({onshape:c.onshape,key:c.key,forceUp:c.forceUp,keepView:true,bytes:c.bytes,fileName:c.fileName,
   motions:c.motions,tee:c.place.tee,cup:c.place.cup,pkg:c.pkg,decal:c.decalURL},extra))}
@@ -670,8 +735,76 @@ const UP=new V3(0,1,0);
 // slide direction: across or along the hole, turned by ang degrees around the up axis; lift goes straight down
 function slideDir(cfg,fwd){if(cfg.type==='lift')return new V3(0,-1,0);
   const d=cfg.type==='along'?fwd.clone():new V3(-fwd.z,0,fwd.x);return cfg.ang?d.applyAxisAngle(new V3(0,1,0),cfg.ang*Math.PI/180):d}
+// A part's own axes, found from its shape (area-weighted, so it works at any angle on the course):
+// the direction it is longest in, the direction it is thinnest in, and the one left over.
+function eig3(m){ // eigenvectors of a symmetric 3x3 matrix by Jacobi rotations, largest eigenvalue first
+  const a=m.map(r=>r.slice()),v=[[1,0,0],[0,1,0],[0,0,1]];
+  for(let it=0;it<32;it++){
+    let p=0,q=1,mx=Math.abs(a[0][1]);
+    if(Math.abs(a[0][2])>mx){mx=Math.abs(a[0][2]);p=0;q=2}
+    if(Math.abs(a[1][2])>mx){mx=Math.abs(a[1][2]);p=1;q=2}
+    if(mx<1e-14)break;
+    const th=.5*Math.atan2(2*a[p][q],a[q][q]-a[p][p]),c=Math.cos(th),s=Math.sin(th);
+    for(let k=0;k<3;k++){const x=a[k][p],y=a[k][q];a[k][p]=c*x-s*y;a[k][q]=s*x+c*y}
+    for(let k=0;k<3;k++){const x=a[p][k],y=a[q][k];a[p][k]=c*x-s*y;a[q][k]=s*x+c*y}
+    for(let k=0;k<3;k++){const x=v[k][p],y=v[k][q];v[k][p]=c*x-s*y;v[k][q]=s*x+c*y}
+  }
+  return [0,1,2].map(k=>({val:a[k][k],vec:new V3(v[0][k],v[1][k],v[2][k]).normalize()})).sort((x,y)=>y.val-x.val);
+}
+function ownAxes(tv){
+  const V=tv.verts,I=tv.idx,a=new V3(),b=new V3(),c=new V3(),g=new V3(),mean=new V3(),step=Math.max(1,Math.floor(I.length/3/20000))*3;let A=0;const cen=[];
+  for(let t=0;t+2<I.length;t+=step){a.fromArray(V,I[t]*3);b.fromArray(V,I[t+1]*3);c.fromArray(V,I[t+2]*3);
+    const ar=b.clone().sub(a).cross(c.clone().sub(a)).length()/2;if(!(ar>0))continue;
+    g.copy(a).add(b).add(c).multiplyScalar(1/3);cen.push(g.x,g.y,g.z,ar);mean.addScaledVector(g,ar);A+=ar}
+  if(!A)return [new V3(1,0,0),new V3(0,0,1),new V3(0,1,0)].map(vec=>({val:0,vec}));
+  mean.multiplyScalar(1/A);const m=[[0,0,0],[0,0,0],[0,0,0]];
+  for(let k=0;k<cen.length;k+=4){const d=[cen[k]-mean.x,cen[k+1]-mean.y,cen[k+2]-mean.z],w=cen[k+3];for(let i=0;i<3;i++)for(let j=0;j<3;j++)m[i][j]+=w*d[i]*d[j]}
+  return eig3(m);
+}
+function spinAxis(kind,tv,fwd){
+  if(kind==='up')return new V3(0,1,0);
+  const ax=ownAxes(tv),a=ax[kind==='long'?0:kind==='short'?2:1].vec.clone();
+  for(const w of [new V3(1,0,0),new V3(0,1,0),new V3(0,0,1)])if(Math.abs(a.dot(w))>.9994)a.copy(w).multiplyScalar(Math.sign(a.dot(w))); // within 2 degrees of square: make it exact
+  // pick the turning direction: an upright axis turns the usual way, a sideways one sweeps its underside toward the cup
+  const roll=new V3().crossVectors(a,UP).dot(fwd);
+  if(Math.abs(a.y)>.9){if(a.y<0)a.negate()}
+  else if(Math.abs(roll)>1e-3){if(roll>0)a.negate()}
+  else if(a.x+a.z<0)a.negate();
+  return a;
+}
+// a dashed line showing where a moving part's axis or path is, drawn while its settings are being changed
+const GUIDE_MAT=new THREE.LineDashedMaterial({color:0xe4572e,dashSize:.03,gapSize:.02,depthTest:false,transparent:true,opacity:.9});
+function guideFor(m){
+  const a=m.pivot.clone(),b=m.pivot.clone();
+  if(m.type==='spin'){const L=Math.max(.12,m.rad*1.15);a.addScaledVector(m.axis,-L);b.addScaledVector(m.axis,L)}
+  else if(m.type==='lift')b.addScaledVector(m.dir,2*m.A);
+  else{a.addScaledVector(m.dir,-m.A);b.addScaledVector(m.dir,m.A)}
+  const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),GUIDE_MAT);l.computeLineDistances();l.renderOrder=9;l.raycast=()=>{};return l;
+}
+// sand, water and ice keep the part's own colour and change only how shiny it is
+const surfMats=new Map();
+function surfaceMaterial(mat,type){
+  if(Array.isArray(mat))return mat.map(x=>surfaceMaterial(x,type));
+  if(!mat||!mat.isMeshStandardMaterial)return mat;
+  const k=mat.uuid+type;if(surfMats.has(k))return surfMats.get(k);
+  const m=mat.clone();
+  if(type==='water'){m.roughness=.08;m.metalness=.05;m.transparent=true;m.opacity=Math.min(mat.opacity,.86)}
+  else if(type==='ice'){m.roughness=.07;m.metalness=.12}
+  else m.roughness=1;
+  surfMats.set(k,m);return m;
+}
+// which surface is right under the ball, if any
+const zoneRay=new THREE.Raycaster(),DOWN=new V3(0,-1,0);
+function zoneAt(p){
+  for(const z of course.zones){
+    if(!z.box.containsPoint(p))continue;
+    zoneRay.set(p,DOWN);zoneRay.far=BALL_R+.012;
+    if(zoneRay.intersectObjects(z.meshes,false).length)return z.type;
+  }
+  return null;
+}
 function moverAt(m,t){
-  if(m.type==='spin'){const a=m.omega*t;m.q.setFromAxisAngle(UP,a);m.p.copy(m.pivot);m.lv.set(0,0,0);m.av.set(0,m.omega,0)}
+  if(m.type==='spin'){const a=m.omega*t;m.q.setFromAxisAngle(m.axis,a);m.p.copy(m.pivot);m.lv.set(0,0,0);m.av.copy(m.axis).multiplyScalar(m.omega)}
   else if(m.type==='lift'){const k=2*Math.PI/m.period,D=2*m.A;m.q.identity(); // modeled position is the top; it sinks D and comes back
     m.p.copy(m.pivot).addScaledVector(m.dir,D*(1-Math.cos(k*t))/2);m.lv.copy(m.dir).multiplyScalar(D*k*Math.sin(k*t)/2);m.av.set(0,0,0)}
   else{const k=2*Math.PI/m.period;m.q.identity();m.p.copy(m.pivot).addScaledVector(m.dir,m.A*Math.sin(k*t));m.lv.copy(m.dir).multiplyScalar(m.A*k*Math.cos(k*t));m.av.set(0,0,0)}
@@ -759,18 +892,22 @@ function randomHole(seed){
     const fx=cp[0]-tp[0],fz=cp[1]-tp[1],fl=Math.hypot(fx,fz)||1;
     const nearTurn=e=>turns.some(t=>Math.abs(t.i-e.i)+Math.abs(t.j-e.j)<=HW+2);
     const spots=center.filter((e,n)=>n>4&&n<center.length-5&&!nearTurn(e));
-    const want=2+Math.floor(rnd()*3),used=[];let made=0,gates=0,spins=0;
+    const want=2+Math.floor(rnd()*3),used=[];let made=0,gates=0,spins=0,rolls=0;
     for(let tries=0;tries<60&&made<want&&spots.length;tries++){
       const e=pick(spots);if(used.some(u=>Math.abs(u.i-e.i)+Math.abs(u.j-e.j)<6))continue;
       const [px,pz]=cc(e.i,e.j),[dx,dz]=DIRS[e.d],qx=-dz,qz=dx,ry=Math.atan2(-qz,qx); // ry turns a box's long side across the fairway
       const along=Math.abs(dx*fx/fl+dz*fz/fl)>.7;
-      const kinds=['bumper','posts','hill',spins<1?'spinner':'bumper',along&&gates<1?'gate':'posts'],kind=pick(kinds);
+      const kinds=['bumper','posts','hill',spins<1?'spinner':'bumper',along&&gates<1?'gate':'posts','sand',rolls<1?'rotisserie':'sand'],kind=pick(kinds);
       if(kind==='bumper'){const sd=rnd()<.5?-1:1;box('bumper',accent,px+qx*sd*.28,H/2,pz+qz*sd*.28,.44,H,.08,ry)}
       else if(kind==='posts'){for(const o of [-.3,0,.3]){const p=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.1,16),accent);p.name='post';p.position.set(px+qx*o+dx*(o===0?.15:0),.05,pz+qz*o+dz*(o===0?.15:0));g.add(p)}}
       else if(kind==='hill'){ // a smooth 4 cm hump across the fairway, shaped like a speed bump
         const hg=new THREE.PlaneGeometry((HW*2+1)*C,.8,1,24);hg.rotateX(-Math.PI/2);const pa=hg.attributes.position;
         for(let n=0;n<pa.count;n++){const zz=pa.getZ(n);pa.setY(n,.04*.5*(1+Math.cos(Math.PI*zz/.4)))}
         hg.computeVertexNormals();const h=new THREE.Mesh(hg,felt);h.name='hill';h.rotation.y=ry;h.position.set(px,.001,pz);g.add(h)}
+      else if(kind==='sand'){const sd=rnd()<.5?-1:1,sg=new THREE.PlaneGeometry(.62,.5);sg.rotateX(-Math.PI/2);
+        const sm=new THREE.Mesh(sg,mat(0xdcc68d));sm.name='sand trap';sm.rotation.y=ry;sm.position.set(px+qx*sd*.17,.0015,pz+qz*sd*.17);g.add(sm)}
+      else if(kind==='rotisserie'){ // four paddles on a sideways axle: time the putt to slip under it
+        box('rotisserie',accent,px,.115,pz,.5,.22,.02,ry);box('rotisserie',accent,px,.115,pz,.5,.02,.22,ry);rolls++}
       else if(kind==='spinner'){box('spinner',accent,px,.045,pz,.62,.07,.05,ry);const hub=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,.1,20),wallM);hub.name='hub';hub.position.set(px,.05,pz);g.add(hub);spins++}
       else{box('slider gate',accent,px,H/2,pz,.3,H,.08,ry);gates++}
       used.push(e);made++;
@@ -802,6 +939,7 @@ const sfx={
   knock(t,v){burst(t,.05,950,3,Math.min(.5,v*.12));tone(t,.07,190,120,Math.min(.3,v*.08),'triangle')},
   drop(t){for(let i=0;i<4;i++)burst(t+i*.075,.045,1900-i*260,7,.32-i*.05);tone(t+.3,.18,320,150,.18)},
   penalty(t){tone(t,.3,210,90,.18,'sawtooth')},
+  splash(t){burst(t,.4,650,.8,.4,'lowpass');burst(t+.04,.28,2600,1.5,.14);tone(t,.22,280,80,.14)},
   over(t){tone(t,.25,330,220,.15,'triangle');tone(t+.25,.4,247,150,.15,'triangle')},
   cheer(t,big){
     if(clap){ // recorded golf clap: full clip for a hole in one, a shorter one otherwise
@@ -844,27 +982,39 @@ function saveScore(name){
 $('saveForm').addEventListener('submit',ev=>{ev.preventDefault();saveScore($('who').value.trim().slice(0,14));$('saveForm').hidden=true;$('bannerSub').textContent+=' · saved'});
 
 /* ---------- moving-parts panel ---------- */
-const MOTIONS=[['fixed','Fixed'],['spin','Spin'],['across','Slide across'],['along','Slide along'],['lift','Up and down']];
+const MOTIONS=[['Motion',[['fixed','Fixed'],['spin','Spin'],['across','Slide across'],['along','Slide along'],['lift','Up and down']]],
+  ['Surface',[['sand','Sand trap'],['water','Water'],['ice','Ice']]]];
+const AXIS_OPTS=[['up','Upright (revolving door)'],['long','Long axis (rotisserie)'],['short','Short axis (wheel)'],['mid','Third axis']];
+const isSlide=t=>t==='across'||t==='along',isMove=t=>t==='spin'||isSlide(t)||t==='lift';
 const speedText=(type,v)=>type==='spin'?`${v*3} rpm`:`${(12/v).toFixed(1)} s`;
 function renderMotion(){
   $('motion').innerHTML=course.parts.map((n,i)=>{
-    const c=course.motions[n]||{type:'fixed',speed:4,dist:40};
+    const c=Object.assign({type:'fixed',speed:4,dist:40,ang:0,axis:'up',rev:false},course.motions[n]),hid=on=>on?'':' hidden';
     return `<div class="mrow" data-part="${esc(n)}"><span class="pname">${esc(n)}</span>
-      <select id="mt${i}" aria-label="Motion for ${esc(n)}">${MOTIONS.map(([v,l])=>`<option value="${v}"${v===c.type?' selected':''}>${l}</option>`).join('')}</select>
-      <label${c.type==='fixed'?' hidden':''}>Speed<input id="ms${i}" type="range" min="1" max="10" value="${c.speed}"><output>${speedText(c.type,c.speed)}</output></label>
-      <label${c.type==='fixed'||c.type==='spin'?' hidden':''}>Travel<input id="md${i}" type="range" min="10" max="150" step="5" value="${c.dist}"><output>${c.dist} cm</output></label>
-      <label${c.type==='across'||c.type==='along'?'':' hidden'}>Angle<input id="ma${i}" type="range" min="-90" max="90" step="15" value="${c.ang||0}"><output>${c.ang||0}°</output></label></div>`}).join('');
+      <select id="mt${i}" data-k="type" aria-label="Motion or surface for ${esc(n)}">${MOTIONS.map(([g,os])=>`<optgroup label="${g}">${os.map(([v,l])=>`<option value="${v}"${v===c.type?' selected':''}>${l}</option>`).join('')}</optgroup>`).join('')}</select>
+      <label${hid(isMove(c.type))}>Speed<input id="ms${i}" data-k="speed" type="range" min="1" max="10" value="${c.speed}"><output>${speedText(c.type,c.speed)}</output></label>
+      <label${hid(isSlide(c.type)||c.type==='lift')}>Travel<input id="md${i}" data-k="dist" type="range" min="10" max="150" step="5" value="${c.dist}"><output>${c.dist} cm</output></label>
+      <label${hid(isSlide(c.type))}>Angle<input id="ma${i}" data-k="ang" type="range" min="-90" max="90" step="15" value="${c.ang||0}"><output>${c.ang||0}°</output></label>
+      <label class="wide"${hid(c.type==='spin')}>Axis<select id="mx${i}" data-k="axis" aria-label="Spin axis for ${esc(n)}">${AXIS_OPTS.map(([v,l])=>`<option value="${v}"${v===(c.axis||'up')?' selected':''}>${l}</option>`).join('')}</select></label>
+      <label class="check"${hid(c.type==='spin')}><input id="mr${i}" data-k="rev" type="checkbox"${c.rev?' checked':''}>Reverse direction</label></div>`}).join('');
 }
-function rowCfg(row){const [sel,sp,ds,an]=row.querySelectorAll('select,input');return {type:sel.value,speed:+sp.value,dist:+ds.value,ang:+an.value}}
-$('motion').addEventListener('input',e=>{const row=e.target.closest('.mrow');if(!row||e.target.tagName!=='INPUT')return;const c=rowCfg(row),outs=row.querySelectorAll('output');
+function rowCfg(row){const f=k=>row.querySelector(`[data-k="${k}"]`);
+  return {type:f('type').value,speed:+f('speed').value,dist:+f('dist').value,ang:+f('ang').value,axis:f('axis').value,rev:f('rev').checked}}
+$('motion').addEventListener('input',e=>{const row=e.target.closest('.mrow');if(!row||e.target.type!=='range')return;const c=rowCfg(row),outs=row.querySelectorAll('output');
   outs[0].textContent=speedText(c.type,c.speed);outs[1].textContent=c.dist+' cm';outs[2].textContent=c.ang+'°'});
+let guideUntil=0,guideHover=false;
 $('motion').addEventListener('change',e=>{
   const row=e.target.closest('.mrow');if(!row)return;
   const cfg=rowCfg(row),all=store.get('cadgolf.motion.'+course.key,{});all[row.dataset.part]=cfg;store.set('cadgolf.motion.'+course.key,all);
   const motions=Object.assign({},course.motions,{[row.dataset.part]:cfg});
   const focusId=e.target.id;reload({motions});const el=$(focusId);if(el)el.focus();
-  hint('Moving parts updated. The hole restarted.');
+  guideUntil=performance.now()+5000;
+  hint(SURF[cfg.type]?'Surface updated. The hole restarted.':'Moving parts updated. The hole restarted.');
 });
+// the dashed axis and path lines show while the pointer or keyboard focus is in the panel, and for a few seconds after a change
+$('motion').addEventListener('pointerenter',()=>{guideHover=true});
+$('motion').addEventListener('pointerleave',()=>{guideHover=false;guideUntil=Math.max(guideUntil,performance.now()+1500)});
+$('motion').addEventListener('focusin',()=>{guideUntil=performance.now()+5000});
 
 /* ---------- hole pictures: shown on the flag, and on any part named decal ---------- */
 function applyDecal(url,quiet){
@@ -1057,7 +1207,7 @@ function finish(text,holed){
   if(holed&&course.custom)$('bannerSub').textContent+=' · not saved, tee or cup was placed by hand';
   $('bannerTrophy').hidden=!holed;$('banner').hidden=false;play(holed?'cheer':'over',strokes===1);
 }
-function sinkNow(){state='sinking';sink=0;timing=false;elapsed=(performance.now()-t0)/1000;$('clock').textContent=fmtT(elapsed);play('drop')}
+function sinkNow(){state='sinking';sink=0;timing=false;elapsed=(performance.now()-t0)/1000;$('clock').textContent=fmtT(elapsed);play('drop');confetti(strokes===1)}
 function tick(){
   engine.vel(pv);engine.step(applyMovers);engine.pos(pos);engine.vel(vel);
   if(state==='rest'){ // only stepped at rest when parts move: a part may shove the ball
@@ -1067,8 +1217,12 @@ function tick(){
   const dv=Math.hypot(vel.x-pv.x,vel.y-pv.y+9.81*STEP,vel.z-pv.z);
   if(dv>.5&&moving-lastKnock>.07){lastKnock=moving;play('knock',dv)}
   // rolling resistance: a little drag plus a constant, so the ball actually stops
-  const sp=Math.hypot(vel.x,vel.z);
-  if(sp>1e-5){const ns=Math.max(0,sp*(1-.35*STEP)-.45*STEP);engine.scaleVel(ns/sp)}
+  const sp=Math.hypot(vel.x,vel.z),surf=course.zones.length?zoneAt(pos):null;
+  if(surf==='water'){
+    setStrokes(strokes+1);teeUp(lastRest.clone());play('splash');
+    if(strokes>=STROKE_CAP)finish('Stroke limit reached');else hint('In the water. One penalty stroke, ball replaced.');return}
+  const k1=surf?SURF[surf].k1:.35,k0=surf?SURF[surf].k0:.45;
+  if(sp>1e-5){const ns=Math.max(0,sp*(1-k1*STEP)-k0*STEP);engine.scaleVel(ns/sp)}
   moving+=STEP;
   // cup capture: slower is needed the further off-centre the ball crosses
   const dx=pos.x-course.cup.x,dz=pos.z-course.cup.z,d=Math.hypot(dx,dz);
@@ -1082,6 +1236,21 @@ function tick(){
     lastRest.set(pos.x,pos.y-BALL_R-.002,pos.z);engine.setBall(pos);restPos.copy(pos);state='rest';
     if(strokes>=STROKE_CAP)finish('Stroke limit reached');else hint('Drag back from the ball and let go to putt.')}
 }
+// confetti from the cup when the ball drops, drawn on a clear canvas over the 3D view
+const fx=$('fx'),fxc=fx.getContext('2d');let bits=[];
+function confetti(big){
+  if(calm.matches)return;
+  const r=stage.getBoundingClientRect(),b=ballPx(),x=b.x-r.left,y=b.y-r.top,cols=['#e4572e','#2f7d4f','#f2c14e','#3a86d9','#ffffff','#d6336c'];
+  for(let i=0;i<(big?180:90);i++){const a=-Math.PI/2+(Math.random()-.5)*2.3,v=240+Math.random()*(big?520:360);
+    bits.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,w:5+Math.random()*6,h:4+Math.random()*4,r:Math.random()*6,vr:(Math.random()-.5)*14,c:cols[i%cols.length],life:0,ttl:1.5+Math.random()*1.3})}
+}
+function drawFx(dt){
+  if(!bits.length){if(fx.dataset.on){fxc.setTransform(1,0,0,1,0,0);fxc.clearRect(0,0,fx.width,fx.height);fx.dataset.on=''}return}
+  const w=stage.clientWidth,h=stage.clientHeight,d=Math.min(devicePixelRatio,2);if(fx.width!==Math.round(w*d)||fx.height!==Math.round(h*d)){fx.width=Math.round(w*d);fx.height=Math.round(h*d)}
+  fx.dataset.on='1';fxc.setTransform(d,0,0,d,0,0);fxc.clearRect(0,0,w,h);
+  bits=bits.filter(p=>{p.life+=dt;p.vy+=900*dt;p.vx*=1-1.2*dt;p.vy*=1-.6*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=p.vr*dt;if(p.life>p.ttl||p.y>h+20)return false;
+    const flip=Math.cos(p.life*9+p.r);fxc.save();fxc.translate(p.x,p.y);fxc.rotate(p.r);fxc.globalAlpha=Math.min(1,(p.ttl-p.life)*2.5);fxc.fillStyle=p.c;fxc.fillRect(-p.w/2,-p.h*flip/2,p.w,p.h*flip);fxc.restore();return true});
+}
 const NAMES=['','Hole in one','Holed in 2','Holed in 3','Holed in 4','Holed in 5','Holed in 6','Holed in 7','Holed in 8'];
 let acc=0,last=performance.now();
 function frame(now){
@@ -1093,10 +1262,14 @@ function frame(now){
     if(state==='moving'||state==='rest')ball.position.copy(pos)}
   else{acc=0;simT+=dt}
   if(course.movers.length)showMovers();
+  course.guides.visible=guideHover||now<guideUntil;
   waveFlag(now/1000);
   if(state==='sinking'){sink+=dt;const k=Math.min(1,sink/.35);
     ball.position.set(pos.x+(course.cup.x-pos.x)*k,pos.y-k*BALL_R*2.2,pos.z+(course.cup.z-pos.z)*k);ball.scale.setScalar(1-.5*k);
     if(k>=1){ball.scale.setScalar(0);finish(NAMES[strokes]||`Holed in ${strokes}`,true)}}
+  rollBall();drawFx(dt);
+  ready.visible=state==='rest'&&!aiming&&!placing;
+  if(ready.visible){const k=calm.matches?.5:.5+.5*Math.sin(now/420);ready.position.copy(ball.position).y-=BALL_R-.003;ready.scale.setScalar(1+.12*k);ready.material.opacity=.22+.36*k}
   if(follow&&!aiming&&(state==='moving'||state==='rest')){const d=ball.position.clone().sub(controls.target).multiplyScalar(.1);controls.target.add(d);camera.position.add(d)}
   controls.update();renderer.render(scene,camera);
 }
@@ -1104,11 +1277,17 @@ function frame(now){
 /* ---------- camera ---------- */
 function viewFromTee(){
   const dir=course.cup.clone().sub(course.tee);dir.y=0;if(dir.lengthSq()<1e-6)dir.set(0,0,1);dir.normalize();
-  controls.target.copy(course.tee);camera.position.copy(course.tee).addScaledVector(dir,-1.3).add(new V3(0,.85,0));controls.update();
+  controls.target.copy(course.tee);camera.position.copy(course.tee).addScaledVector(dir,-1.3).add(new V3(0,.85,0));controls.update();setOver(false);
+}
+let over=false;
+function setOver(v){over=v;$('viewLbl').textContent=v?'Ball view':'Overview'}
+function viewBall(){ // behind the ball, looking toward the cup
+  const dir=course.cup.clone().sub(ball.position).setY(0);if(dir.lengthSq()<1e-4)dir.copy(course.fwd);dir.normalize();
+  follow=true;controls.target.copy(ball.position);camera.position.copy(ball.position).addScaledVector(dir,-1.3).add(new V3(0,.85,0));controls.update();setOver(false);
 }
 function viewOver(){
   const s=Math.max(course.size.x,course.size.z);
-  follow=false;controls.target.set(0,0,0);camera.position.set(s*.18,s*1.45,s*.9);controls.update();
+  follow=false;controls.target.set(0,0,0);camera.position.set(s*.18,s*1.45,s*.9);controls.update();setOver(true);
 }
 
 /* ---------- input ---------- */
@@ -1128,9 +1307,10 @@ canvas.addEventListener('pointermove',e=>{
   if(!ray.ray.intersectPlane(new THREE.Plane(new V3(0,1,0),-ball.position.y),q))return;
   const d=ball.position.clone().sub(q);d.y=0;if(d.lengthSq()<1e-8)return;aimDir.copy(d.normalize());
   const b=ballPx();aimPow=Math.max(0,Math.min(1,(Math.hypot(e.clientX-b.x,e.clientY-b.y)-12)/170));
-  const len=.08+aimPow*.9;arrow.visible=aimPow>0;arrow.scale.z=len;arrow.rotation.y=Math.atan2(aimDir.x,aimDir.z);
-  arrow.position.copy(ball.position).addScaledVector(aimDir,len/2+BALL_R);arrow.position.y-=BALL_R-.004;
-  $('power').style.width=(aimPow*100)+'%';
+  const len=.1+aimPow*.9;arrow.visible=aimPow>0;shaft.scale.z=len-HEAD;head.position.z=len-HEAD;arrow.rotation.y=Math.atan2(aimDir.x,aimDir.z);
+  arrow.position.copy(ball.position).addScaledVector(aimDir,BALL_R);arrow.position.y-=BALL_R-.004;
+  arrowMat.color.setHSL(.36-.34*aimPow,.85,.47);
+  $('power').style.width=(aimPow*100)+'%';$('power').style.background=`hsl(${Math.round(130-118*aimPow)} 78% 44%)`;
 });
 function endAim(e,cancel){
   if(aiming){aiming=false;controls.enabled=true;arrow.visible=false;$('power').style.width='0';
@@ -1156,13 +1336,20 @@ $('btnAgain').onclick=()=>{
   $('banner').hidden=true;
   if(run.idx<run.c.holes.length-1)loadRunHole(run.idx+1);else courseSummary();
 };
-$('btnView').onclick=viewOver;
+$('btnView').onclick=()=>{over?viewBall():viewOver()};
+addEventListener('keydown',e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey||e.repeat||/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName))return;
+  const k=(e.key||'').toLowerCase();
+  if(k==='escape'){if(aiming)endAim(e,true);else if(placing)setPlacing(null);return}
+  if(!$('picker').hidden)return;
+  if(k==='r'&&!run){restart();viewFromTee()}else if(k==='v')$('btnView').click();else if(k==='m')$('btnMusic').click();
+});
 // The game opens on the classic sample; each click of Sample hole builds a new random one. The number is the hole's seed.
 function loadRandomHole(seed){const g=randomHole(seed);loadCourse(g,`Random sample hole #${seed} · ${g.userData.info||''}`,{key:'sample-'+seed});hint(`Random sample hole #${seed}. Drag back from the ball and let go to putt.`)}
 $('btnSample').onclick=()=>loadRandomHole(1+Math.floor(Math.random()*99999));
 
 /* ---------- sharing: one .golfhole file holds the model and every setting ---------- */
-const HOLE_VERSION=1;let editOpen=true;
+const HOLE_VERSION=2; // 2 adds spin axes and surfaces to a hole's setuplet editOpen=true;
 function showMode(){
   const pkg=course.pkg;$('holeCard').hidden=!pkg||!!run;
   document.querySelector('.app').classList.toggle('play',!!pkg&&!editOpen);

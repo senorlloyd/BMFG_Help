@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BMFG Help</title>
-<meta name="description" content="Beaverton MFG shop apps: PenBot, RouteReady, InlayReady, CarveReady, TurnReady, ArcRight, LaserReady, KissCut, NeedlePath, WreSTL, CAD Mini Golf and SiegeReady.">
+<meta name="description" content="Beaverton MFG shop apps: PenBot, RouteReady, InlayReady, CarveReady, TurnReady, ArcRight, LaserReady, FoldReady, KissCut, NeedlePath, WreSTL, CAD Mini Golf and SiegeReady.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&family=Big+Shoulders+Stencil:wght@900&family=Chakra+Petch:wght@700&family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Barlow+Semi+Condensed:wght@700&family=Bowlby+One&family=Cinzel:wght@900&display=swap" rel="stylesheet">
@@ -51,6 +51,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
 .inlayready{--a-bg:#f1ece4;--a-ink:#1a2230;--a-accent:#2a5fc4;--a-accent-ink:#fff;--a-zero:#dd4425;--a-plug:#7a5233}
 .arcright  {--a-bg:#E6EAED;--a-ink:#17202A;--a-accent:#D9530B;--a-plate:#1B232B}
 .laserready{--a-bg:#E7E8EA;--a-ink:#1D2024;--a-accent:#E0181B;--a-birch:#EBD9B4;--a-burn:#2A1C10}
+.foldready {--a-bg:#e9edf0;--a-ink:#18222c;--a-accent:#14705a;--a-cut:#e01919;--a-score:#1c3fe0;--a-paper:#fbfbf7}
 .kisscut   {--a-bg:#eceef2;--a-ink:#171a21;--a-accent:#c8007a}
 .needlepath{--a-bg:#ebebf1;--a-ink:#16181d;--a-accent:#65469c}
 .golfsim   {--a-bg:#eaefe6;--a-ink:#15241b;--a-accent:#d94f27;--a-felt:#2f7d4f}
@@ -63,6 +64,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
 :root:not([data-theme="light"]) .inlayready{--a-bg:#1c1a17;--a-ink:#e5eaf1;--a-accent:#6d9af0;--a-accent-ink:#0c1320;--a-zero:#f0623f;--a-plug:#9a6a45}
 :root:not([data-theme="light"]) .arcright  {--a-bg:#11161B;--a-ink:#E3E8EC;--a-accent:#FF8A3D;--a-plate:#C9D1D8}
 :root:not([data-theme="light"]) .laserready{--a-bg:#121417;--a-ink:#E6E8EB;--a-accent:#FF4D4F;--a-birch:#5A4A33;--a-burn:#120C06}
+:root:not([data-theme="light"]) .foldready {--a-bg:#12181d;--a-ink:#e8edf0;--a-accent:#3fb594;--a-cut:#ff5a52;--a-score:#7d97ff;--a-paper:#e9eae4}
 :root:not([data-theme="light"]) .kisscut   {--a-bg:#111318;--a-ink:#e6e8ed;--a-accent:#ff3aa5}
 :root:not([data-theme="light"]) .needlepath{--a-bg:#11141b;--a-ink:#e8ebf3;--a-accent:#b49cea}
 :root:not([data-theme="light"]) .golfsim   {--a-bg:#0f1612;--a-ink:#e7efe9;--a-accent:#ff7c50;--a-felt:#46a26b}
@@ -75,6 +77,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
 :root[data-theme="dark"] .inlayready{--a-bg:#1c1a17;--a-ink:#e5eaf1;--a-accent:#6d9af0;--a-accent-ink:#0c1320;--a-zero:#f0623f;--a-plug:#9a6a45}
 :root[data-theme="dark"] .arcright  {--a-bg:#11161B;--a-ink:#E3E8EC;--a-accent:#FF8A3D;--a-plate:#C9D1D8}
 :root[data-theme="dark"] .laserready{--a-bg:#121417;--a-ink:#E6E8EB;--a-accent:#FF4D4F;--a-birch:#5A4A33;--a-burn:#120C06}
+:root[data-theme="dark"] .foldready {--a-bg:#12181d;--a-ink:#e8edf0;--a-accent:#3fb594;--a-cut:#ff5a52;--a-score:#7d97ff;--a-paper:#e9eae4}
 :root[data-theme="dark"] .kisscut   {--a-bg:#111318;--a-ink:#e6e8ed;--a-accent:#ff3aa5}
 :root[data-theme="dark"] .needlepath{--a-bg:#11141b;--a-ink:#e8ebf3;--a-accent:#b49cea}
 :root[data-theme="dark"] .golfsim   {--a-bg:#0f1612;--a-ink:#e7efe9;--a-accent:#ff7c50;--a-felt:#46a26b}
@@ -111,6 +114,11 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
   font:700 32px/1 "Chakra Petch","Arial Narrow",sans-serif;letter-spacing:.05em;outline:2px solid var(--a-accent);outline-offset:4px}
 .tag b{color:var(--a-accent);font-weight:700}
 .tag::before{content:"";position:absolute;left:13px;top:50%;width:10px;height:10px;margin-top:-5px;border-radius:50%;background:var(--a-bg);box-shadow:0 0 0 2px var(--a-accent)}
+
+/* FoldReady mark */
+.mk-fr{display:flex;align-items:center;gap:12px;font:700 32px/1 "Barlow Semi Condensed","Arial Narrow",sans-serif;letter-spacing:.02em;text-transform:uppercase;color:var(--a-ink)}
+.mk-fr svg{width:64px;height:64px;flex:none}
+.mk-fr span b{color:var(--a-accent);font-weight:700}
 
 /* KissCut mark */
 .mk-kc{display:flex;align-items:center;gap:12px;font:800 36px/1 "Bricolage Grotesque",system-ui,sans-serif;letter-spacing:-.03em}
@@ -158,7 +166,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
   .wrap{padding-top:28px}
   .grid{grid-template-columns:1fr}
   .well{height:130px}
-  .plate{font-size:32px}.tag{font-size:27px}.mk-kc{font-size:31px}.mk-rr,.mk-gs{font-size:26px}.mk-ws{font-size:27px}.mk-pb{font-size:28px}.mk-tr{font-size:28px}.mk-sr{font-size:23px}
+  .plate{font-size:32px}.tag{font-size:27px}.mk-kc{font-size:31px}.mk-rr,.mk-gs{font-size:26px}.mk-ws{font-size:27px}.mk-pb{font-size:28px}.mk-tr{font-size:28px}.mk-sr{font-size:23px}.mk-fr{font-size:27px}
 }
 @media (prefers-reduced-motion:reduce){ .app,.machine::after{transition:none} .app:hover{transform:none} }
 </style>
@@ -228,6 +236,15 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
         <div class="well"><span class="tag" aria-hidden="true">LASER<b>READY</b></span></div>
         <div class="body"><h2 class="name">LaserReady</h2>
           <p class="desc">Build cut, score and engrave SVGs that drop straight into Illustrator.</p>
+          <span class="machine">Laser cutter</span></div>
+      </a></li>
+
+      <li><a class="app foldready" href="foldready/index.html">
+        <div class="well"><div class="mk-fr" aria-hidden="true">
+          <svg viewBox="0 0 64 64"><path d="M22 8h20v14h14v20H42v14H22V42H8V22h14z" fill="var(--a-paper)" stroke="var(--a-cut)" stroke-width="2.2" stroke-linejoin="round"/><rect x="22" y="22" width="20" height="20" fill="none" stroke="var(--a-score)" stroke-width="2" stroke-dasharray="3.2 2.6"/></svg>
+          <span>Fold<b>Ready</b></span></div></div>
+        <div class="body"><h2 class="name">FoldReady</h2>
+          <p class="desc">Pick a box or product display, type the size, and get a laser file with cut and score layers for posterboard.</p>
           <span class="machine">Laser cutter</span></div>
       </a></li>
 

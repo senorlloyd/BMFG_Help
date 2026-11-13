@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FoldReady</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: shop-floor tool. Controls in a left rail, the sheet of posterboard on a cutting mat to the right. */
+:root {
+  --bg: #e9edf0;
+  --panel: #ffffff;
+  --ink: #18222c;
+  --muted: #5b6875;
+  --line: #cfd6dc;
+  --accent: #14705a;
+  --accent-ink: #ffffff;
+  --mat: #24544a;
+  --sheet: #fbfbf7;
+  --sheet-grid: #e3e6e1;
+  --sheet-ink: #6b7480;
+  --cut: #e01919;
+  --score: #1c3fe0;
+  --ok: #14705a;
+  --warn: #a35a00;
+  --bad: #b3261e;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Barlow", "Segoe UI", Helvetica, Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #12181d; --panel: #1b242b; --ink: #e8edf0; --muted: #9aa7b2; --line: #33404a;
+    --accent: #3fb594; --accent-ink: #06231b; --mat: #163a33;
+    --sheet: #e9eae4; --sheet-grid: #cfd3cc; --sheet-ink: #59626d;
+    --ok: #3fb594; --warn: #e0a04a; --bad: #f0796f;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #12181d; --panel: #1b242b; --ink: #e8edf0; --muted: #9aa7b2; --line: #33404a;
+  --accent: #3fb594; --accent-ink: #06231b; --mat: #163a33;
+  --sheet: #e9eae4; --sheet-grid: #cfd3cc; --sheet-ink: #59626d;
+  --ok: #3fb594; --warn: #e0a04a; --bad: #f0796f;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.45; }
+header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel); }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 30px; letter-spacing: .02em; margin: 0; text-transform: uppercase; }
+h1 span { color: var(--accent); }
+header p { margin: 0; color: var(--muted); }
+main { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 16px; padding: 16px 20px 28px; align-items: start; }
+@media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 16px; } }
+.rail { display: flex; flex-direction: column; gap: 16px; }
+section.card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 18px; letter-spacing: .05em; text-transform: uppercase; margin: 0 0 10px; }
+.styles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.styles button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px 6px; background: var(--bg); color: var(--ink); border: 2px solid transparent; border-radius: 6px; font: 500 13px/1.2 var(--font-body); cursor: pointer; text-align: center; }
+.styles button:hover { border-color: var(--line); }
+.styles button[aria-pressed="true"] { border-color: var(--accent); background: var(--panel); }
+.styles svg { width: 100%; height: 46px; }
+.styles svg .c { stroke: var(--ink); } .styles svg .s { stroke: var(--muted); stroke-dasharray: 3 2; }
+.blurb { color: var(--muted); margin: 10px 0 0; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; align-items: end; }
+.field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.field .in { min-width: 0; }
+.field input, .field select { width: 100%; }
+.field label { font-size: 13px; color: var(--muted); font-weight: 500; }
+.field .in { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); }
+.field .in:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+.field input, .field select { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: 600 16px var(--font-body); padding: 7px 8px; font-variant-numeric: tabular-nums; }
+.field input:focus, .field select:focus { outline: none; }
+.field .u { padding-right: 8px; color: var(--muted); font-size: 13px; }
+.field.err .in { border-color: var(--bad); }
+.headrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.headrow h2 { margin: 0; }
+.seg { display: inline-flex; border: 1.5px solid var(--accent); border-radius: 4px; overflow: hidden; }
+.seg button { font: 600 14px var(--font-body); padding: 4px 12px; border: 0; background: transparent; color: var(--accent); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.styles button[hidden] { display: none; }
+.row2 { display: grid; grid-template-columns: minmax(260px, 360px) 1fr; gap: 12px; align-items: start; }
+@media (max-width: 1100px) { .row2 { grid-template-columns: 1fr; } }
+#three { display: block; width: 100%; height: 300px; border-radius: 4px; background: var(--bg); cursor: grab; touch-action: none; }
+.hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+.check { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.check input { width: 17px; height: 17px; accent-color: var(--accent); }
+.stage { display: flex; flex-direction: column; gap: 12px; }
+.bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-weight: 600; font-size: 13px; border: 1.5px solid currentColor; }
+.pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); }
+.size { font-variant-numeric: tabular-nums; font-weight: 600; }
+.spacer { flex: 1; }
+button.act { font: 600 15px var(--font-body); padding: 8px 14px; border-radius: 4px; cursor: pointer; border: 1.5px solid var(--accent); background: var(--accent); color: var(--accent-ink); }
+button.act.alt { background: transparent; color: var(--accent); }
+button.act:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mat { background: var(--mat); border-radius: 6px; padding: 14px; overflow-x: auto; }
+.mat svg { display: block; width: 100%; height: auto; max-height: 68vh; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
+.legend i { display: inline-block; width: 26px; height: 0; border-top: 2.5px solid; vertical-align: middle; margin-right: 6px; }
+.legend .lc { border-color: var(--cut); } .legend .ls { border-color: var(--score); border-top-style: dashed; }
+.msg { color: var(--bad); font-weight: 600; margin: 0; min-height: 1.4em; }
+.msg.warnmsg { color: var(--warn); }
+.msg.note { color: var(--muted); font-weight: 500; }
+ol.steps { margin: 0; padding-left: 20px; } ol.steps li { margin: 3px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Fold<span>Ready</span></h1>
+  <p>Pick a box or display, type the size, download a laser file with cut and score layers.</p>
+</header>
+<main>
+  <div class="rail">
+    <section class="card">
+      <div class="headrow"><h2>1. Style</h2><div class="seg" role="group" aria-label="Category"><button type="button" id="cat_box" aria-pressed="true">Boxes</button><button type="button" id="cat_display" aria-pressed="false">Displays</button></div></div>
+      <div class="styles" id="styles"></div>
+      <p class="blurb" id="blurb"></p>
+    </section>
+    <section class="card">
+      <div class="headrow"><h2>2. Size</h2><div class="seg" role="group" aria-label="Units"><button type="button" id="u_in" aria-pressed="true">inches</button><button type="button" id="u_mm" aria-pressed="false">mm</button></div></div>
+      <div class="fields" id="fields"></div>
+      <p class="hint" id="unitHint"></p>
+    </section>
+    <section class="card">
+      <h2>3. Material and sheet</h2>
+      <div class="fields">
+        <div class="field"><label for="c_t">Material thickness</label><div class="in"><input id="c_t" inputmode="decimal" value="0.02"><span class="u">in</span></div></div>
+        <div class="field"><label for="c_g">Glue flap width</label><div class="in"><input id="c_g" inputmode="decimal" value="1/2"><span class="u">in</span></div></div>
+        <div class="field"><label for="c_sw">Sheet width</label><div class="in"><input id="c_sw" inputmode="decimal" value="24"><span class="u">in</span></div></div>
+        <div class="field"><label for="c_sh">Sheet height</label><div class="in"><input id="c_sh" inputmode="decimal" value="18"><span class="u">in</span></div></div>
+        <div class="field" id="pieceField" hidden><label for="c_piece">Pieces in file</label><div class="in"><select id="c_piece"></select></div></div>
+      </div>
+      <label class="check"><input type="checkbox" id="c_rot"> Rotate 90° on the sheet</label>
+      <label class="check"><input type="checkbox" id="c_lab" checked> Show panel names in preview</label>
+      <label class="check" id="guideRow"><input type="checkbox" id="c_guide"> Add artwork outlines to the file (green guide layer)</label>
+    </section>
+  </div>
+  <div class="stage">
+    <section class="card">
+      <div class="bar">
+        <span class="size" id="size"></span>
+        <span class="pill ok" id="fit"></span>
+        <span class="spacer"></span>
+        <button class="act" id="dlSvg" type="button">Download SVG</button>
+        <button class="act alt" id="dlDxf" type="button">Download DXF</button>
+      </div>
+      <p class="msg" id="msg" role="status"></p>
+      <div class="mat"><svg id="preview" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Flat pattern preview"></svg></div>
+      <div class="legend" style="margin-top:10px">
+        <span><i class="lc"></i>Cut layer: red, RGB 255/0/0, 0.001 in</span>
+        <span><i class="ls"></i>Score layer: blue, RGB 0/0/255, 0.001 in (drawn dashed here, solid in the file)</span>
+        <span>Grid squares are 1 in</span>
+      </div>
+      <p class="hint" id="artInfo"></p>
+    </section>
+    <div class="row2">
+      <section class="card" id="card3d">
+        <h2>Folded preview</h2>
+        <canvas id="three" aria-label="3D preview of the folded shape"></canvas>
+        <p class="hint">Drag to turn it. Green panels are where artwork goes.</p>
+      </section>
+      <section class="card">
+        <h2>Putting it together</h2>
+        <ol class="steps" id="steps"></ol>
+      </section>
+    </div>
+  </div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+/* ---------- geometry core ----------
+   A path is {pts:[[x,y,bulge?],...], closed}. Units are inches, y points down.
+   bulge on a point curves the segment that starts there: tan(angle/4),
+   positive = clockwise on screen (SVG sweep 1). */
+const K = Math.tan(Math.PI / 8); // quarter-circle bulge
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const P = (pts, closed) => ({ pts, closed: !!closed });
+const line = (x1, y1, x2, y2) => P([[x1, y1], [x2, y2]], false);
+
+function segs(path) {
+  const out = [], n = path.pts.length, m = path.closed ? n : n - 1;
+  for (let i = 0; i < m; i++) out.push([path.pts[i], path.pts[(i + 1) % n], path.pts[i][2] || 0]);
+  return out;
+}
+function arcOf(a, b, bulge) { // centre, radius, start angle, signed sweep
+  const vx = b[0] - a[0], vy = b[1] - a[1], c = Math.hypot(vx, vy);
+  const k = (c / 2) * (1 - bulge * bulge) / (2 * bulge);
+  const cx = (a[0] + b[0]) / 2 + (-vy / c) * k, cy = (a[1] + b[1]) / 2 + (vx / c) * k;
+  return { cx, cy, r: c * (1 + bulge * bulge) / (4 * Math.abs(bulge)), a0: Math.atan2(a[1] - cy, a[0] - cx), sweep: 4 * Math.atan(bulge) };
+}
+function bbox(paths) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const add = (x, y) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
+  for (const p of paths) for (const [a, b, bu] of segs(p)) {
+    add(a[0], a[1]); add(b[0], b[1]);
+    if (bu) { const A = arcOf(a, b, bu); for (let i = 1; i < 16; i++) { const t = A.a0 + A.sweep * i / 16; add(A.cx + A.r * Math.cos(t), A.cy + A.r * Math.sin(t)); } }
+  }
+  return { x0, y0, x1, y1, w: x1 - x0, h: y1 - y0 };
+}
+const mapPath = (p, f) => P(p.pts.map(q => { const r = f(q[0], q[1]); return q[2] ? [r[0], r[1], q[2]] : r; }), p.closed);
+const num = n => String(+n.toFixed(4));
+function pathD(path, s) {
+  let d = "";
+  const all = segs(path);
+  all.forEach(([a, b, bu], i) => {
+    if (i === 0) d += "M" + num(a[0] * s) + " " + num(a[1] * s);
+    const last = path.closed && i === all.length - 1;
+    if (bu) {
+      const r = Math.hypot(b[0] - a[0], b[1] - a[1]) * (1 + bu * bu) / (4 * Math.abs(bu)) * s;
+      d += "A" + num(r) + " " + num(r) + " 0 " + (Math.abs(bu) > 1 ? 1 : 0) + " " + (bu > 0 ? 1 : 0) + " " + num(b[0] * s) + " " + num(b[1] * s);
+      if (last) d += "Z";
+    } else if (last) d += "Z";
+    else d += "L" + num(b[0] * s) + " " + num(b[1] * s);
+  });
+  return d;
+}
+
+/* ---------- box patterns ---------- */
+function tuckBox(p, reverse) {
+  const { L, W, H, g } = p;
+  const tf = clamp(W * 0.6, 0.375, 0.75), r = Math.min(tf * 0.8, L * 0.3);
+  const df = Math.min(L / 2 - 0.02, W * 0.75), tp = Math.min(W * 0.15, df * 0.4), gt = Math.min(g * 0.6, H * 0.25);
+  const yT = tf + W, yB = yT + H, x1 = g, x2 = x1 + L, x3 = x2 + W, x4 = x3 + L, x5 = x4 + W;
+  const lid = (xa, xb, y, s) => { const d = Math.sign(xb - xa); return [[xa, y], [xa, y + s * W], [xa, y + s * (W + tf - r), K], [xa + d * r, y + s * (W + tf)], [xb - d * r, y + s * (W + tf), K], [xb, y + s * (W + tf - r)], [xb, y + s * W]]; };
+  const dust = (xa, xb, y, s) => { const d = Math.sign(xb - xa); return [[xa, y], [xa + d * tp, y + s * df], [xb - d * tp, y + s * df]]; };
+  const pts = [...lid(x1, x2, yT, -1), ...dust(x2, x3, yT, -1), [x3, yT], ...dust(x4, x5, yT, -1), [x5, yT], ...dust(x5, x4, yB, 1)];
+  if (reverse) pts.push(...lid(x4, x3, yB, 1), ...dust(x3, x2, yB, 1), [x2, yB], [x1, yB]);
+  else pts.push([x4, yB], ...dust(x3, x2, yB, 1), ...lid(x2, x1, yB, 1), [x1, yB]);
+  pts.push([0, yB - gt], [0, yT + gt]);
+  const bl = reverse ? [x3, x4] : [x1, x2];
+  const score = [x1, x2, x3, x4].map(x => line(x, yT, x, yB));
+  score.push(line(x1, yT, x2, yT), line(x1, yT - W, x2, yT - W), line(x2, yT, x3, yT), line(x4, yT, x5, yT),
+    line(bl[0], yB, bl[1], yB), line(bl[0], yB + W, bl[1], yB + W), line(x2, yB, x3, yB), line(x4, yB, x5, yB));
+  const my = (yT + yB) / 2;
+  return { name: "Box", cut: [P(pts, true)], score, labels: [
+    [(x1 + x2) / 2, my, "BACK", L], [(x2 + x3) / 2, my, "SIDE", W], [(x3 + x4) / 2, my, "FRONT", L], [(x4 + x5) / 2, my, "SIDE", W],
+    [(x1 + x2) / 2, yT - W / 2, "LID", L], [(bl[0] + bl[1]) / 2, yB + W / 2, "BOTTOM", L], [g / 2, my, "GLUE", g]] };
+}
+function tray(L, W, H, name, baseLabel) {
+  const tw = Math.min(H * 0.9, W / 2 - 0.02, 0.75), tp = Math.min(tw * 0.35, H * 0.25);
+  const a = H, b = H + L, c = H + W, d = 2 * H + W, e = 2 * H + L;
+  const cut = P([[a, 0], [b, 0], [b + tw, tp], [b + tw, a - tp], [b, a], [e, a], [e, c], [b, c], [b + tw, c + tp], [b + tw, d - tp], [b, d],
+    [a, d], [a - tw, d - tp], [a - tw, c + tp], [a, c], [0, c], [0, a], [a, a], [a - tw, a - tp], [a - tw, tp]], true);
+  const score = [P([[a, a], [b, a], [b, c], [a, c]], true), line(a, 0, a, a), line(b, 0, b, a), line(a, c, a, d), line(b, c, b, d)];
+  return { name, cut: [cut], score, labels: [[(a + b) / 2, (a + c) / 2, baseLabel, L], [(a + b) / 2, a / 2, "WALL", H * 2.5], [(a + b) / 2, (c + d) / 2, "WALL", H * 2.5]] };
+}
+function sleeve(SL, SH, SD, g) {
+  const gt = Math.min(g * 0.6, SD * 0.25), x1 = g, x2 = x1 + SL, x3 = x2 + SH, x4 = x3 + SL, x5 = x4 + SH;
+  const cx = (x1 + x2) / 2, nr = Math.min(0.3, SL / 5), notch = SL >= 1.25;
+  const pts = [[x1, 0]];
+  if (notch) pts.push([cx - nr, 0, -1], [cx + nr, 0]);
+  pts.push([x5, 0], [x5, SD]);
+  if (notch) pts.push([cx + nr, SD, -1], [cx - nr, SD]);
+  pts.push([x1, SD], [0, SD - gt], [0, gt]);
+  return { name: "Sleeve", cut: [P(pts, true)], score: [x1, x2, x3, x4].map(x => line(x, 0, x, SD)), labels: [
+    [cx, SD / 2, "TOP", SL], [(x2 + x3) / 2, SD / 2, "SIDE", SH], [(x3 + x4) / 2, SD / 2, "BOTTOM", SL], [(x4 + x5) / 2, SD / 2, "SIDE", SH], [g / 2, SD / 2, "GLUE", g]] };
+}
+function pillow(p) {
+  const { L, H, S, g } = p, b = 2 * S / L, gt = Math.min(g * 0.6, H * 0.25), x1 = g, x2 = g + L, x3 = g + 2 * L, yT = S, yB = S + H;
+  const cut = P([[x1, yT, b], [x2, yT, b], [x3, yT], [x3, yB, b], [x2, yB, b], [x1, yB], [0, yB - gt], [0, yT + gt]], true);
+  const score = [line(x1, yT, x1, yB), line(x2, yT, x2, yB),
+    P([[x1, yT, -b], [x2, yT]]), P([[x2, yT, -b], [x3, yT]]), P([[x1, yB, b], [x2, yB]]), P([[x2, yB, b], [x3, yB]])];
+  return { name: "Box", cut: [cut], score, labels: [[(x1 + x2) / 2, (yT + yB) / 2, "FRONT", L], [(x2 + x3) / 2, (yT + yB) / 2, "BACK", L], [g / 2, (yT + yB) / 2, "GLUE", g]] };
+}
+
+/* ---------- display patterns ---------- */
+function binFlat(L, W, sF, sB, HH, name) { // tray with a tall back; side walls run from sB at the back to sF at the front
+  const fo = Math.max(HH - 0.03, 0.1), a = sB, b = a + L, y1 = fo, y2 = y1 + HH, y3 = y2 + sB, y4 = y3 + W, y5 = y4 + sF;
+  const tw = Math.min(sB * 0.9, W / 2 - 0.02, 0.75), tp = Math.min(tw * 0.35, sB * 0.25), tf = Math.min(sF * 0.9, W / 2 - 0.02, 0.75), tq = Math.min(tf * 0.35, sF * 0.25);
+  const cut = P([[a, 0], [b, 0], [b, y2], [b + tw, y2 + tp], [b + tw, y3 - tp], [b, y3], [b + sB, y3], [b + sF, y4], [b, y4], [b + tf, y4 + tq], [b + tf, y5 - tq], [b, y5],
+    [a, y5], [a - tf, y5 - tq], [a - tf, y4 + tq], [a, y4], [a - sF, y4], [a - sB, y3], [a, y3], [a - tw, y3 - tp], [a - tw, y2 + tp], [a, y2]], true);
+  const score = [P([[a, y3], [b, y3], [b, y4], [a, y4]], true), line(a, y1, b, y1), line(a, y2, a, y3), line(b, y2, b, y3), line(a, y4, a, y5), line(b, y4, b, y5)], mx = (a + b) / 2;
+  return { name, cut: [cut], score, art: [[a, y1, L, HH, "ARTWORK"]], labels: [[mx, (y3 + y4) / 2, "BASE", L], [mx, y1 / 2, "FOLD BACK + GLUE", Math.min(L, fo * 8)], [mx, (y2 + y3) / 2, "BACK", sB * 2.5], [mx, (y4 + y5) / 2, "FRONT", sF * 2.5]] };
+}
+function tentFlat(p) {
+  const { TW, PH, BD, g } = p, gt = Math.min(g * 0.6, TW * 0.2), y1 = g, y2 = g + PH, y3 = g + 2 * PH, Y = y3 + BD;
+  return { name: "Tent", cut: [P([[gt, 0], [TW - gt, 0], [TW, g], [TW, Y], [0, Y], [0, g]], true)], score: [line(0, y1, TW, y1), line(0, y2, TW, y2), line(0, y3, TW, y3)],
+    art: [[0, y1, TW, PH, "ARTWORK (upside down)"], [0, y2, TW, PH, "ARTWORK"]], labels: [[TW / 2, g / 2, "GLUE", Math.min(TW, g * 6)], [TW / 2, (y3 + Y) / 2, "BASE", Math.min(TW, BD * 4)]] };
+}
+function easelFlat(p) {
+  const { CW, CH, R, C } = p, cut = [P([[0, 0], [CW, 0], [CW, CH], [0, CH]], true)], r = 0.04;
+  for (let i = 0; i < R; i++) for (let j = 0; j < C; j++) { const cx = CW * (j + 1) / (C + 1), cy = CH * (0.45 + 0.4 * (R > 1 ? i / (R - 1) : 0.5)); cut.push(P([[cx - r, cy, 1], [cx + r, cy, 1]], true)); }
+  const h = CH * 0.7, d = CH * 0.35, t = Math.tan(EASEL), gw = clamp(CW * 0.3, 0.75, 2);
+  const leg = { name: "Easel leg", cut: [P([[0, 0], [gw, 0], [gw + d, h - d * t - 0.4], [gw + d, h - d * t], [gw, h], [0, h]], true)], score: [line(gw, 0, gw, h)], labels: [[gw / 2, h / 2, "GLUE", gw], [gw + d * 0.4, h * 0.6, "LEG", d * 0.7]] };
+  return [{ name: "Card", cut, score: [], art: [[0, 0, CW, CH, "ARTWORK"]], labels: [] }, leg];
+}
+function pocketFlat(p) {
+  const { PW, BH, D, FH, g } = p, E = BH * Math.sin(EASEL), RL = BH * Math.cos(EASEL), gt = Math.min(g * 0.6, PW * 0.2);
+  const y1 = FH, yl = FH + D, y2 = yl + E, y3 = y2 + RL, y4 = y3 + BH;
+  return { name: "Holder", cut: [P([[0, 0], [PW, 0], [PW, y4], [PW - gt, y4 + g], [gt, y4 + g], [0, y4]], true)], score: [y1, yl, y2, y3, y4].map(y => line(0, y, PW, y)),
+    art: [[0, 0, PW, FH, "ARTWORK"], [0, y3, PW, BH, "ARTWORK"]], labels: [[PW / 2, (y1 + yl) / 2, "POCKET FLOOR", Math.min(PW, D * 8)], [PW / 2, (y2 + y3) / 2, "REAR LEG", PW], [PW / 2, y4 + g / 2, "GLUE", Math.min(PW, g * 6)]] };
+}
+function stepsFlat(p) {
+  const { SW, TD, RH, N } = p, tw = Math.min(0.4, RH * 0.8, TD * 0.8), tp = Math.min(0.12, tw * 0.4), x0 = tw, x1 = tw + SW, lens = [N * RH], art = [], labels = [];
+  for (let i = 0; i < N; i++) lens.push(TD, RH);
+  const pts = [[x0, 0], [x1, 0]], score = []; let y = 0;
+  lens.forEach((len, i) => { pts.push([x1 + tw, y + tp], [x1 + tw, y + len - tp], [x1, y + len]);
+    if (i === 0) labels.push([(x0 + x1) / 2, len / 2, "BACK", SW]); else if (i % 2) labels.push([(x0 + x1) / 2, y + len / 2, "STEP", Math.min(SW, TD * 4)]); else art.push([x0, y, SW, len, "ARTWORK"]);
+    y += len; if (i < lens.length - 1) score.push(line(x0, y, x1, y)); });
+  const Y = y; pts.push([x0, Y]);
+  lens.slice().reverse().forEach(len => { pts.push([x0 - tw, y - tp], [x0 - tw, y - len + tp], [x0, y - len]); y -= len; });
+  pts.pop(); score.push(line(x0, 0, x0, Y), line(x1, 0, x1, Y));
+  const Hs = N * RH, side = [[0, Hs]]; for (let i = 0; i < N; i++) side.push([i * TD, Hs - (i + 1) * RH], [(i + 1) * TD, Hs - (i + 1) * RH]); side.push([N * TD, Hs]);
+  const off = N * TD + 0.25;
+  return [{ name: "Steps", cut: [P(pts, true)], score, art, labels },
+    { name: "Sides", cut: [P(side, true), P(side.map(q => [q[0] + off, q[1]]), true)], score: [], labels: [[N * TD * 0.62, Hs - RH / 2, "SIDE", TD * 1.5], [off + N * TD * 0.62, Hs - RH / 2, "SIDE", TD * 1.5]] }];
+}
+function topperFlat(p) {
+  const { TW, TH } = p, r = 0.125, hole = cy => P([[TW / 2 - r, cy, 1], [TW / 2 + r, cy, 1]], true);
+  return { name: "Topper", cut: [P([[0, 0], [TW, 0], [TW, 2 * TH], [0, 2 * TH]], true), hole(TH - 0.4), hole(TH + 0.4)], score: [line(0, TH, TW, TH)],
+    art: [[0, 0, TW, TH, "ARTWORK (back, upside down)"], [0, TH, TW, TH, "ARTWORK (front)"]], labels: [] };
+}
+
+/* ---------- folded 3D shapes: lists of flat faces, y up, front toward +z ---------- */
+const EASEL = 15 * Math.PI / 180;
+const Q = (pts, o) => Object.assign({ pts }, o);
+function trayM(x, y, z, L, W, H) { const a = [x, y, z], b = [x + L, y, z], c = [x + L, y, z + W], d = [x, y, z + W], u = q => [q[0], q[1] + H, q[2]]; return [Q([a, b, c, d]), Q([a, b, u(b), u(a)]), Q([b, c, u(c), u(b)]), Q([c, d, u(d), u(c)]), Q([d, a, u(a), u(d)])]; }
+function tuckM(p) {
+  const { L, W, H } = p, tf = clamp(W * 0.6, 0.375, 0.75), df = Math.min(L / 2 - 0.02, W * 0.75), a = 0.75, s = Math.sin(a), c = Math.cos(a), ly = H + W * s, lz = W * c;
+  return { faces: [Q([[0, 0, 0], [L, 0, 0], [L, 0, W], [0, 0, W]]), Q([[0, 0, W], [L, 0, W], [L, H, W], [0, H, W]]), Q([[0, 0, 0], [L, 0, 0], [L, H, 0], [0, H, 0]]),
+    Q([[0, 0, 0], [0, 0, W], [0, H, W], [0, H, 0]]), Q([[L, 0, 0], [L, 0, W], [L, H, W], [L, H, 0]]),
+    Q([[0, H, 0], [L, H, 0], [L, ly, lz], [0, ly, lz]]), Q([[0, ly, lz], [L, ly, lz], [L, ly - tf * c, lz + tf * s], [0, ly - tf * c, lz + tf * s]]),
+    Q([[0, H, 0], [df, H, 0], [df, H, W], [0, H, W]]), Q([[L, H, 0], [L - df, H, 0], [L - df, H, W], [L, H, W]])] };
+}
+function pillowM(p) {
+  const { L, H, S } = p, n = 14, faces = [], f = x => S * (1 - 4 * x * x / (L * L)), cur = (top, sg) => { const o = []; for (let i = 0; i <= n; i++) { const x = -L / 2 + L * i / n; o.push([x, top ? H - f(x) : f(x), sg * f(x)]); } return o; };
+  for (let i = 0; i < n; i++) { const x0 = -L / 2 + L * i / n, x1 = x0 + L / n, e0 = f(x0), e1 = f(x1);
+    for (const sg of [1, -1]) faces.push(Q([[x0, e0, sg * e0], [x1, e1, sg * e1], [x1, H - e1, sg * e1], [x0, H - e0, sg * e0]], { edge: false }));
+    faces.push(Q([[x0, e0, e0], [x1, e1, e1], [x1, e1, -e1], [x0, e0, -e0]], { edge: false }), Q([[x0, H - e0, e0], [x1, H - e1, e1], [x1, H - e1, -e1], [x0, H - e0, -e0]], { edge: false })); }
+  return { faces, lines: [cur(0, 1), cur(0, -1), cur(1, 1), cur(1, -1), [[-L / 2, 0, 0], [-L / 2, H, 0]], [[L / 2, 0, 0], [L / 2, H, 0]]] };
+}
+function binM(L, W, sF, sB, HH) {
+  return { faces: [Q([[0, 0, 0], [L, 0, 0], [L, 0, W], [0, 0, W]]), Q([[0, 0, W], [L, 0, W], [L, sF, W], [0, sF, W]]), Q([[0, 0, 0], [L, 0, 0], [L, sB, 0], [0, sB, 0]]),
+    Q([[0, sB, 0], [L, sB, 0], [L, sB + HH, 0], [0, sB + HH, 0]], { art: 1 }), Q([[0, 0, 0], [0, 0, W], [0, sF, W], [0, sB, 0]]), Q([[L, 0, 0], [L, 0, W], [L, sF, W], [L, sB, 0]])] };
+}
+function tentM(p) { const { TW, PH, BD } = p, h = Math.sqrt(PH * PH - BD * BD / 4), z = BD / 2;
+  return { faces: [Q([[0, 0, -z], [TW, 0, -z], [TW, 0, z], [0, 0, z]]), Q([[0, 0, z], [TW, 0, z], [TW, h, 0], [0, h, 0]], { art: 1 }), Q([[0, 0, -z], [TW, 0, -z], [TW, h, 0], [0, h, 0]], { art: 1 })] }; }
+function easelM(p) { const { CW, CH } = p, s = Math.sin(EASEL), c = Math.cos(EASEL), h = CH * 0.7, d = CH * 0.35, t = Math.tan(EASEL), w = (n, u) => [CW / 2, -s * n + c * u, -c * n - s * u];
+  return { faces: [Q([[0, 0, 0], [CW, 0, 0], [CW, CH * c, -CH * s], [0, CH * c, -CH * s]], { art: 1 }), Q([w(0.03, 0), w(d, d * t), w(d, d * t + 0.4), w(0.03, h)])] }; }
+function pocketM(p) { const { PW, BH, D, FH } = p, E = BH * Math.sin(EASEL), RL = BH * Math.cos(EASEL);
+  return { faces: [Q([[0, 0, D], [PW, 0, D], [PW, FH, D], [0, FH, D]], { art: 1 }), Q([[0, 0, D], [PW, 0, D], [PW, 0, -E], [0, 0, -E]]), Q([[0, 0, 0], [PW, 0, 0], [PW, RL, -E], [0, RL, -E]], { art: 1 }), Q([[0, 0, -E], [PW, 0, -E], [PW, RL, -E], [0, RL, -E]])] }; }
+function stepsM(p) { const { SW, TD, RH, N } = p, faces = [Q([[0, 0, 0], [SW, 0, 0], [SW, N * RH, 0], [0, N * RH, 0]])], out = [[0, 0, N * TD]];
+  for (let i = 0; i < N; i++) { const zf = (N - i) * TD, y0 = i * RH, y1 = y0 + RH;
+    faces.push(Q([[0, y0, zf], [SW, y0, zf], [SW, y1, zf], [0, y1, zf]], { art: 1 }), Q([[0, y1, zf], [SW, y1, zf], [SW, y1, zf - TD], [0, y1, zf - TD]]));
+    for (const x of [0, SW]) faces.push(Q([[x, 0, zf], [x, y1, zf], [x, y1, zf - TD], [x, 0, zf - TD]], { edge: false }));
+    out.push([0, y1, zf], [0, y1, zf - TD]); }
+  out.push([0, 0, 0], [0, 0, N * TD]);
+  return { faces, lines: [out, out.map(q => [SW, q[1], q[2]])] }; }
+function topperM(p) { const { TW, TH } = p, d = TH * 0.28, h = Math.sqrt(TH * TH - d * d);
+  return { faces: [Q([[0, 0, d], [TW, 0, d], [TW, h, 0], [0, h, 0]], { art: 1 }), Q([[0, 0, -d], [TW, 0, -d], [TW, h, 0], [0, h, 0]], { art: 1 })] }; }
+
+const STYLES = {
+  ste: { name: "Straight tuck", blurb: "The classic product box. Lid and bottom both tuck in from the back panel.",
+    fields: [["L", "Length (front width)", 3], ["W", "Width (depth)", 1.5], ["H", "Height", 4.5]],
+    build: p => [tuckBox(p, false)], model: tuckM,
+    steps: ["Fold every blue score line toward the inside, then flatten again.", "Glue the flap to the inside of the far side panel to make a tube.", "Fold in the two small dust flaps, then tuck the bottom closed.", "Load the product and tuck the lid."] },
+  rte: { name: "Reverse tuck", blurb: "Same as the straight tuck, but the bottom tucks from the front. Nests tighter on a sheet when you cut several.",
+    fields: [["L", "Length (front width)", 3], ["W", "Width (depth)", 1.5], ["H", "Height", 4.5]],
+    build: p => [tuckBox(p, true)], model: tuckM,
+    steps: ["Fold every blue score line toward the inside, then flatten again.", "Glue the flap to the inside of the far side panel to make a tube.", "Fold in the dust flaps and tuck the bottom, which hinges on the front.", "Load the product and tuck the lid, which hinges on the back."] },
+  tray: { name: "Open tray", blurb: "A shallow open-top tray with glued corners. Good for displaying small items.",
+    fields: [["L", "Length", 4], ["W", "Width", 3], ["H", "Wall height", 1]],
+    build: p => [tray(p.L, p.W, p.H, "Tray", "BASE")], model: p => ({ faces: trayM(0, 0, 0, p.L, p.W, p.H) }),
+    steps: ["Fold the four walls and the four corner tabs up along the score lines.", "Glue each corner tab to the inside of the wall next to it.", "Hold each corner for a few seconds until the glue grabs."] },
+  lidbase: { name: "Lid and base", blurb: "A two-piece gift box. The lid is drawn slightly larger so it slides over the base.",
+    fields: [["L", "Length", 4], ["W", "Width", 3], ["H", "Base height", 1.5], ["LH", "Lid height", 0.75]],
+    build: p => { const o = 4 * p.t + 0.03; return [tray(p.L, p.W, p.H, "Base", "BASE"), tray(p.L + o, p.W + o, p.LH, "Lid", "LID")]; },
+    model: p => { const o = 4 * p.t + 0.03, top = p.H + p.LH + 0.5; return { faces: [...trayM(0, 0, 0, p.L, p.W, p.H), ...trayM(-o / 2, top, -o / 2, p.L + o, p.W + o, -p.LH)] }; },
+    steps: ["Build the base like a tray: fold up the walls and glue each corner tab to the inside of the next wall.", "Build the lid the same way.", "If the lid is too tight or too loose, change the material thickness setting and cut the lid again."] },
+  drawer: { name: "Drawer box", blurb: "A matchbox-style tray that slides inside a sleeve. The drawer slides along its width.",
+    fields: [["L", "Drawer length", 3], ["W", "Drawer width (slide direction)", 4], ["H", "Drawer height", 1]],
+    build: p => [tray(p.L, p.W, p.H, "Drawer", "DRAWER"), sleeve(p.L + 4 * p.t + 0.03, p.H + 2 * p.t + 0.03, p.W + 2 * p.t, p.g)],
+    model: p => { const SL = p.L + 4 * p.t + 0.03, SH = p.H + 2 * p.t + 0.03, SD = p.W + 2 * p.t, a = [0, 0, 0], b = [SL, 0, 0], c = [SL, SH, 0], d = [0, SH, 0], z = q => [q[0], q[1], SD];
+      return { faces: [Q([a, b, z(b), z(a)]), Q([b, c, z(c), z(b)]), Q([c, d, z(d), z(c)]), Q([d, a, z(a), z(d)]), ...trayM((SL - p.L) / 2, 0.02, p.W * 0.5, p.L, p.W, p.H)] }; },
+    steps: ["Build the drawer: fold up the walls and glue each corner tab to the inside of the next wall.", "Fold the sleeve on its four score lines and glue the flap inside the far side panel.", "Slide the drawer in. The half-round notches are where your thumb pushes it out."] },
+  pillow: { name: "Pillow box", blurb: "A curved pouch-style box that ships flat. Great for jewelry, stickers and small flat items.",
+    fields: [["L", "Width", 3], ["H", "Length", 5], ["S", "End curve depth", 0.6]],
+    build: p => [pillow(p)], model: pillowM,
+    steps: ["Crease the two straight score lines and all four curved ones.", "Glue the flap to the inside of the back panel so you have a flat sleeve.", "Squeeze the long edges so it puffs open, then push the curved end flaps in, one over the other."] },
+  hdr: { cat: "display", name: "Header tray", blurb: "An open tray with a tall back panel for a sign or product photo. The header folds over double so it stays stiff.",
+    fields: [["L", "Width", 6], ["W", "Tray depth", 3], ["H", "Wall height", 1], ["HH", "Header height", 3]],
+    build: p => [binFlat(p.L, p.W, p.H, p.H, p.HH, "Header tray")], model: p => binM(p.L, p.W, p.H, p.H, p.HH),
+    check: (p, U) => p.L < 1.5 || p.W < 1 ? "Too small to fold. Keep width at least " + U(1.5) + " and depth at least " + U(1) + "." : p.H < 0.3 ? "Walls need to be at least " + U(0.3) + " tall." : p.HH < 0.5 ? "Header needs to be at least " + U(0.5) + " tall." : "",
+    warn: (p, U) => p.HH > 6 ? "Headers taller than " + U(6) + " get floppy in posterboard. Glue the fold-back panel down well, or use heavier board." : "",
+    steps: ["Put the artwork on the header first, while everything is flat.", "Fold the top panel back behind the header and glue it down. This doubles the header.", "Fold up the four walls and glue each corner tab to the inside of the side wall next to it."] },
+  bin: { cat: "display", name: "Counter bin", blurb: "A countertop display. Low front, sides that slope up to a tall back, and a header for the sign. Products stand up and face the customer.",
+    fields: [["L", "Width", 6], ["W", "Depth", 4], ["FH", "Front height", 1.25], ["BH", "Back height", 3.5], ["HH", "Header height", 2.5]],
+    build: p => [binFlat(p.L, p.W, p.FH, p.BH, p.HH, "Counter bin")], model: p => binM(p.L, p.W, p.FH, p.BH, p.HH),
+    check: (p, U) => p.L < 1.5 || p.W < 1 ? "Too small to fold. Keep width at least " + U(1.5) + " and depth at least " + U(1) + "." : p.FH < 0.3 ? "Front needs to be at least " + U(0.3) + " tall." : p.BH < p.FH ? "Back height has to be at least the front height." : p.HH < 0.5 ? "Header needs to be at least " + U(0.5) + " tall." : "",
+    warn: (p, U) => p.HH > 6 ? "Headers taller than " + U(6) + " get floppy in posterboard. Glue the fold-back panel down well, or use heavier board." : "",
+    steps: ["Put the artwork on the header first, while everything is flat.", "Fold the top panel back behind the header and glue it down.", "Fold up the front, back and the two sloped sides.", "Glue each corner tab to the inside of the sloped side next to it."] },
+  tent: { cat: "display", name: "Table tent", blurb: "A three-sided sign for prices, a product name or a QR code. Artwork goes on both slanted faces.",
+    fields: [["TW", "Width", 5], ["PH", "Face height", 3.5], ["BD", "Base depth", 2.5]],
+    build: p => [tentFlat(p)], model: tentM,
+    check: (p, U) => p.TW < 1.5 || p.PH < 1 ? "Too small to fold. Keep width at least " + U(1.5) + " and face height at least " + U(1) + "." : p.BD < 0.75 ? "Base depth needs to be at least " + U(0.75) + "." : p.BD > p.PH * 1.6 ? "Base is too deep for that face height. Keep it under " + U(p.PH * 1.6) + "." : "",
+    steps: ["Put artwork on the two faces. One of them is upside down on the flat sheet so it reads the right way after folding.", "Fold the three score lines into a triangle.", "Glue the flap under the far edge of the base."] },
+  easel: { cat: "display", name: "Easel card", blurb: "A standing card with a glue-on leg. Add rows of small holes to hang earrings, pins or keychains.",
+    fields: [["CW", "Card width", 4], ["CH", "Card height", 6], ["R", "Rows of holes", 2, "n"], ["C", "Holes per row", 4, "n"]],
+    build: p => easelFlat(p), model: easelM,
+    check: (p, U) => p.CW < 2 || p.CH < 3 ? "Too small to stand. Keep the card at least " + U(2) + " wide and " + U(3) + " tall." : "",
+    steps: ["Put the artwork on the card.", "Fold the leg on its score line.", "Glue the rectangle part of the leg to the back of the card, centered, with the bottom edges lined up.", "Swing the leg straight out and stand the card up."] },
+  pocket: { cat: "display", name: "Pocket holder", blurb: "A leaning stand for flat items such as stickers, cards or coasters. One strip folds into a triangle behind a front pocket.",
+    fields: [["PW", "Width", 4], ["BH", "Back height", 5], ["D", "Pocket depth", 1], ["FH", "Front lip height", 1]],
+    build: p => [pocketFlat(p)], model: pocketM,
+    check: (p, U) => p.PW < 1.5 || p.BH < 2 ? "Too small to fold. Keep width at least " + U(1.5) + " and back height at least " + U(2) + "." : p.D < 0.25 || p.FH < 0.3 ? "Pocket depth needs at least " + U(0.25) + " and the lip at least " + U(0.3) + "." : p.FH > p.BH * 0.8 ? "The front lip is taller than the back can show over." : "",
+    steps: ["Put artwork on the front lip and on the big back panel.", "Fold the front lip up.", "Fold the rear leg straight up, then fold the back panel forward and down over it.", "Glue the flap to the floor along the extra score line. That line marks where the back panel lands."] },
+  steps: { cat: "display", name: "Step riser", blurb: "A small staircase that lifts items in the back row so everything can be seen.",
+    fields: [["SW", "Width", 6], ["TD", "Step depth", 1.5], ["RH", "Step height", 1.25], ["N", "Number of steps", 3, "n"]],
+    build: p => stepsFlat(p), model: stepsM,
+    check: (p, U) => p.N < 2 || p.N > 5 ? "Use between 2 and 5 steps." : p.SW < 2 ? "Width needs to be at least " + U(2) + "." : p.TD < 0.75 || p.RH < 0.75 ? "Steps need to be at least " + U(0.75) + " deep and tall." : "",
+    steps: ["Fold the long strip back and forth on its score lines to make the stairs, with the tallest panel as the back.", "Fold every side tab in at a right angle.", "Glue one side panel onto the tabs, then the other."] },
+  topper: { cat: "display", name: "Bag topper", blurb: "A folded header card with a hang hole. Fold it over the top of a bagged product and staple.",
+    fields: [["TW", "Width", 4], ["TH", "Height when folded", 2]],
+    build: p => [topperFlat(p)], model: topperM,
+    check: (p, U) => p.TW < 1.5 || p.TH < 1 ? "Too small. Keep width at least " + U(1.5) + " and height at least " + U(1) + "." : "",
+    steps: ["Put artwork on both halves. The back half is upside down on the flat sheet.", "Fold on the score line so the two holes line up.", "Slip the top of the bag between the halves and staple through all layers."] }
+};
+
+/* Lay the chosen pieces out, top to bottom, and optionally rotate. */
+function compose(pieces, rotate) {
+  let y = 0, cut = [], score = [], labels = [], art = [];
+  const rect = (r, f) => { const a = f(r[0], r[1]), b = f(r[0] + r[2], r[1] + r[3]); return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), r[4]]; };
+  for (const pc of pieces) {
+    const bb = bbox(pc.cut), f = (px, py) => [px - bb.x0, py - bb.y0 + y];
+    cut.push(...pc.cut.map(q => mapPath(q, f))); score.push(...pc.score.map(q => mapPath(q, f)));
+    labels.push(...pc.labels.map(l => [...f(l[0], l[1]), l[2], l[3]])); art.push(...(pc.art || []).map(r => rect(r, f)));
+    y += bb.h + 0.5;
+  }
+  let bb = bbox(cut);
+  if (rotate) {
+    const h = bb.h, f = (px, py) => [h - py, px];
+    cut = cut.map(q => mapPath(q, f)); score = score.map(q => mapPath(q, f)); labels = labels.map(l => [...f(l[0], l[1]), l[2], l[3]]); art = art.map(r => rect(r, f)); bb = bbox(cut);
+  }
+  return { cut, score, labels, art, w: bb.w, h: bb.h };
+}
+const rectPath = r => P([[r[0], r[1]], [r[0] + r[2], r[1]], [r[0] + r[2], r[1] + r[3]], [r[0], r[1] + r[3]]], true);
+
+/* ---------- file writers ---------- */
+function toSVG(d, guide) {
+  const m = 0.125, s = 72, sh = q => mapPath(q, (x, y) => [x + m, y + m]);
+  const grp = (id, color, paths) => '<g id="' + id + '" fill="none" stroke="' + color + '" stroke-width="0.072">\n' + paths.map(q => '<path d="' + pathD(sh(q), s) + '"/>').join("\n") + "\n</g>\n";
+  const W = d.w + 2 * m, H = d.h + 2 * m;
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="' + num(W) + 'in" height="' + num(H) + 'in" viewBox="0 0 ' + num(W * s) + " " + num(H * s) + '">\n' +
+    (guide && d.art.length ? grp("Artwork-guide", "#00FF00", d.art.map(rectPath)) : "") + grp("Score", "#0000FF", d.score) + grp("Cut", "#FF0000", d.cut) + "</svg>\n";
+}
+function toDXF(d, guide) {
+  const o = [], w = (...a) => o.push(...a), n = v => v.toFixed(5), fy = y => d.h - y;
+  w(0, "SECTION", 2, "HEADER", 9, "$ACADVER", 1, "AC1009", 9, "$INSUNITS", 70, 1, 0, "ENDSEC");
+  w(0, "SECTION", 2, "TABLES", 0, "TABLE", 2, "LTYPE", 70, 1, 0, "LTYPE", 2, "CONTINUOUS", 70, 0, 3, "Solid line", 72, 65, 73, 0, 40, "0.0", 0, "ENDTAB");
+  w(0, "TABLE", 2, "LAYER", 70, 3, 0, "LAYER", 2, "CUT", 70, 0, 62, 1, 6, "CONTINUOUS", 0, "LAYER", 2, "SCORE", 70, 0, 62, 5, 6, "CONTINUOUS", 0, "LAYER", 2, "ARTWORK", 70, 0, 62, 3, 6, "CONTINUOUS", 0, "ENDTAB", 0, "ENDSEC");
+  w(0, "SECTION", 2, "ENTITIES");
+  const emit = (layer, paths) => { for (const q of paths) for (const [a0, b0, bu0] of segs(q)) {
+    const a = [a0[0], fy(a0[1])], b = [b0[0], fy(b0[1])], bu = -bu0;
+    if (!bu) { w(0, "LINE", 8, layer, 10, n(a[0]), 20, n(a[1]), 30, "0.0", 11, n(b[0]), 21, n(b[1]), 31, "0.0"); continue; }
+    const A = arcOf(a, b, bu), deg = (p) => { let t = Math.atan2(p[1] - A.cy, p[0] - A.cx) * 180 / Math.PI; return n(t < 0 ? t + 360 : t); };
+    w(0, "ARC", 8, layer, 10, n(A.cx), 20, n(A.cy), 30, "0.0", 40, n(A.r), 50, deg(bu > 0 ? a : b), 51, deg(bu > 0 ? b : a));
+  } };
+  if (guide) emit("ARTWORK", d.art.map(rectPath));
+  emit("SCORE", d.score); emit("CUT", d.cut);
+  w(0, "ENDSEC", 0, "EOF");
+  return o.join("\n") + "\n";
+}
+function parseDim(str) {
+  const s = String(str).trim().replace(/["”]|in\.?$/gi, "").trim();
+  let m;
+  if ((m = s.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)$/))) return +m[1] + m[2] / m[3];
+  if ((m = s.match(/^(\d+)\s*\/\s*(\d+)$/))) return m[1] / m[2];
+  if (/^\d*\.?\d+$/.test(s) || /^\d+\.$/.test(s)) return parseFloat(s);
+  return NaN;
+}
+if (typeof module !== "undefined") module.exports = { STYLES, compose, toSVG, toDXF, parseDim, bbox };
+
+/* ---------- page ---------- */
+if (typeof document !== "undefined") (function () {
+  const $ = id => document.getElementById(id);
+  const state = { style: "ste", cat: "box", last: { box: "ste", display: "hdr" }, vals: {}, design: null, unit: "in" };
+  const MM = 25.4, U = v => state.unit === "mm" ? num(+(v * MM).toFixed(1)) + " mm" : num(v) + " in";
+  const catOf = k => STYLES[k].cat || "box";
+  for (const k in STYLES) { state.vals[k] = {}; for (const [id, , def] of STYLES[k].fields) state.vals[k][id] = String(def); }
+  const base = { t: 0.02, g: 0.5 };
+  const defaults = k => { const p = { ...base }; for (const [id, , def] of STYLES[k].fields) p[id] = def; return p; };
+
+  function convert(str, to) { // re-express a typed value in the other unit; leave anything unreadable alone
+    const v = parseDim(str); if (!isFinite(v)) return str;
+    if (to === "mm") { const m = v * MM; return num(+m.toFixed(m < 10 ? 2 : 1)); }
+    return num(+(v / MM).toFixed(3));
+  }
+  function setUnit(u) {
+    if (u === state.unit) return;
+    for (const k in STYLES) for (const [id, , , type] of STYLES[k].fields) if (type !== "n") state.vals[k][id] = convert(state.vals[k][id], u);
+    for (const id of ["c_t", "c_g", "c_sw", "c_sh"]) $(id).value = convert($(id).value, u);
+    state.unit = u; renderStyle();
+  }
+  function setCat(c) { state.last[state.cat] = state.style; state.cat = c; state.style = state.last[c]; renderStyle(); }
+
+  // style buttons with a tiny drawing of each pattern
+  for (const k in STYLES) {
+    const d = compose([].concat(STYLES[k].build(defaults(k))), false), b = document.createElement("button");
+    b.type = "button"; b.dataset.k = k;
+    b.innerHTML = '<svg viewBox="-4 -4 ' + (d.w * 20 + 8) + " " + (d.h * 20 + 8) + '" fill="none" stroke-width="1.4" aria-hidden="true">' +
+      d.score.map(q => '<path class="s" vector-effect="non-scaling-stroke" d="' + pathD(q, 20) + '"/>').join("") +
+      d.cut.map(q => '<path class="c" vector-effect="non-scaling-stroke" d="' + pathD(q, 20) + '"/>').join("") + "</svg><span>" + STYLES[k].name + "</span>";
+    b.addEventListener("click", () => { state.style = k; renderStyle(); });
+    $("styles").appendChild(b);
+  }
+
+  function renderStyle() {
+    const st = STYLES[state.style];
+    for (const b of $("styles").children) { b.setAttribute("aria-pressed", b.dataset.k === state.style); b.hidden = catOf(b.dataset.k) !== state.cat; }
+    $("cat_box").setAttribute("aria-pressed", state.cat === "box"); $("cat_display").setAttribute("aria-pressed", state.cat === "display");
+    $("blurb").textContent = st.blurb;
+    $("fields").innerHTML = st.fields.map(([id, label, , type]) => '<div class="field" id="w_' + id + '"><label for="f_' + id + '">' + label + '</label><div class="in"><input id="f_' + id + '" inputmode="' + (type === "n" ? "numeric" : "decimal") + '" autocomplete="off">' + (type === "n" ? "" : '<span class="u"></span>') + "</div></div>").join("");
+    for (const [id] of st.fields) { const el = $("f_" + id); el.value = state.vals[state.style][id]; el.addEventListener("input", () => { state.vals[state.style][id] = el.value; update(); }); }
+    for (const el of document.querySelectorAll(".field .u")) el.textContent = state.unit;
+    $("u_in").setAttribute("aria-pressed", state.unit === "in"); $("u_mm").setAttribute("aria-pressed", state.unit === "mm");
+    $("unitHint").textContent = state.unit === "mm" ? "Millimeters. The downloaded file is still in inches, at the same real size." : "Inches. Decimals or fractions both work: 2.5 or 2 1/2.";
+    $("steps").innerHTML = st.steps.map(s => "<li>" + s + "</li>").join("");
+    const names = [].concat(st.build(defaults(state.style))).map(pc => pc.name);
+    $("pieceField").hidden = names.length < 2;
+    $("c_piece").innerHTML = '<option value="all">All pieces</option>' + names.map((n, i) => '<option value="' + i + '">' + n + " only</option>").join("");
+    update();
+  }
+
+  function check(p, k) { // returns a problem to show, or ""
+    if (p.t > 0.1) return "Material thickness looks too big for posterboard. Try " + U(0.02) + ".";
+    if (p.g < 0.2 || p.g > 1.5) return "Glue flap width should be between " + U(0.2) + " and " + U(1.5) + ".";
+    for (const [id, label] of STYLES[k].fields) if (p[id] > 40) return label + " is too big.";
+    if (STYLES[k].check) return STYLES[k].check(p, U);
+    if (k === "ste" || k === "rte") { if (p.L < 0.75 || p.W < 0.5 || p.H < 0.75) return "Too small to fold. Keep length and height at least " + U(0.75) + " and width at least " + U(0.5) + "."; }
+    else if (k === "pillow") {
+      if (p.L < 1 || p.H < 1.5) return "Too small to fold. Keep width at least " + U(1) + " and length at least " + U(1.5) + ".";
+      if (p.S > p.L * 0.4) return "End curve depth can be at most " + U(p.L * 0.4) + " for this width.";
+      if (p.S < 0.15) return "End curve depth needs to be at least " + U(0.15) + "."; if (p.H < p.S * 4.5) return "Length is too short for that curve depth.";
+    } else { if (p.L < 1 || p.W < 1) return "Too small to fold. Keep length and width at least " + U(1) + "."; if (p.H < 0.3 || (p.LH !== undefined && p.LH < 0.3)) return "Walls need to be at least " + U(0.3) + " tall."; }
+    return "";
+  }
+
+  function update() {
+    const k = state.style, st = STYLES[k], p = {}; let bad = "";
+    const read = (key, el, wrap, label, type) => {
+      const raw = el.value.trim(), v = type === "n" ? (/^\d+$/.test(raw) ? +raw : NaN) : parseDim(raw) / (state.unit === "mm" ? MM : 1), ok = isFinite(v) && (type === "n" ? v <= 12 : v > 0);
+      wrap.classList.toggle("err", !ok); if (!ok && !bad) bad = type === "n" ? label + " needs a whole number from 0 to 12." : "Type a number for " + label.toLowerCase() + "."; p[key] = v; };
+    for (const [id, label, , type] of st.fields) read(id, $("f_" + id), $("w_" + id), label, type);
+    read("t", $("c_t"), $("c_t").closest(".field"), "Material thickness"); read("g", $("c_g"), $("c_g").closest(".field"), "Glue flap width");
+    read("sw", $("c_sw"), $("c_sw").closest(".field"), "Sheet width"); read("sh", $("c_sh"), $("c_sh").closest(".field"), "Sheet height");
+    bad = bad || check(p, k);
+    $("dlSvg").disabled = $("dlDxf").disabled = !!bad;
+    if (bad) { state.design = null; say(bad, false); $("size").textContent = ""; $("fit").hidden = true; return; }
+    const allPieces = [].concat(st.build(p)); let pieces = allPieces; const pick = $("c_piece").value;
+    if (pieces.length > 1 && pick !== "all") pieces = [pieces[+pick]];
+    const d = state.design = compose(pieces, $("c_rot").checked);
+    d.file = k + "-" + st.fields.map(([id, , , type]) => type === "n" ? p[id] : state.unit === "mm" ? num(+(p[id] * MM).toFixed(1)) : num(p[id])).join("x") + (state.unit === "mm" ? "mm" : "in") + (pieces.length === 1 && pick !== "all" ? "-" + pieces[0].name.toLowerCase().replace(/\s+/g, "-") : "");
+    const note = st.warn ? st.warn(p, U) : ""; say(note, false); if (note) $("msg").className = "msg warnmsg";
+    $("size").textContent = "Flat size " + d.w.toFixed(2) + " × " + d.h.toFixed(2) + " in" + (state.unit === "mm" ? " (" + (d.w * MM).toFixed(0) + " × " + (d.h * MM).toFixed(0) + " mm)" : "");
+    const fits = d.w <= p.sw && d.h <= p.sh, turned = d.h <= p.sw && d.w <= p.sh, fit = $("fit");
+    fit.hidden = false; fit.className = "pill " + (fits ? "ok" : turned ? "warn" : "bad");
+    fit.textContent = fits ? "Fits the sheet" : turned ? "Fits if you rotate it" : pieces.length > 1 ? "Too big: put one piece per file" : "Too big for this sheet";
+    const arts = []; for (const pc of allPieces) for (const r of pc.art || []) { const t = U(r[2]).replace(/ (in|mm)$/, "") + " × " + U(r[3]); if (!arts.includes(t)) arts.push(t); }
+    $("artInfo").textContent = arts.length ? "Artwork panel size: " + arts.join(", and ") + ". Make the print or sticker this size or a little smaller." : "";
+    $("guideRow").hidden = !arts.length;
+    draw(d, p);
+    if (view) view.show(st.model(p));
+  }
+
+  function draw(d, p) {
+    const s = 100, pad = 0.25, W = Math.max(p.sw, d.w + 2 * pad), H = Math.max(p.sh, d.h + 2 * pad), big = Math.max(W, H) * s;
+    const ox = pad, oy = pad, sh = q => mapPath(q, (x, y) => [x + ox, y + oy]);
+    const css = getComputedStyle(document.documentElement), v = n => css.getPropertyValue(n).trim(), names = $("c_lab").checked;
+    const text = (x, y, t, fs) => '<text x="' + num((x + ox) * s) + '" y="' + num((y + oy) * s) + '" font-size="' + num(fs) + '" text-anchor="middle" dominant-baseline="central" fill="' + v("--sheet-ink") + '" font-family="Barlow Condensed, Arial Narrow, Arial, sans-serif" font-weight="600" letter-spacing="1">' + t + "</text>";
+    let h = '<defs><pattern id="grid" width="' + s + '" height="' + s + '" patternUnits="userSpaceOnUse"><path d="M' + s + " 0H0V" + s + '" fill="none" stroke="' + v("--sheet-grid") + '" stroke-width="2"/></pattern></defs>';
+    h += '<rect width="' + p.sw * s + '" height="' + p.sh * s + '" fill="' + v("--sheet") + '"/><rect width="' + p.sw * s + '" height="' + p.sh * s + '" fill="url(#grid)"/>';
+    for (const [x, y, w, hh, t] of d.art) {
+      h += '<rect x="' + num((x + ox) * s) + '" y="' + num((y + oy) * s) + '" width="' + num(w * s) + '" height="' + num(hh * s) + '" fill="#2fa784" fill-opacity="0.22"/>';
+      const fs = Math.min(w * s / (t.length * 0.6), hh * s * 0.5, big / 55); if (names && fs >= big / 170) h += text(x + w / 2, y + hh / 2, t, fs);
+    }
+    h += d.score.map(q => '<path d="' + pathD(sh(q), s) + '" fill="none" stroke="' + v("--score") + '" stroke-width="1.6" stroke-dasharray="7 5" vector-effect="non-scaling-stroke"/>').join("");
+    h += d.cut.map(q => '<path d="' + pathD(sh(q), s) + '" fill="none" stroke="' + v("--cut") + '" stroke-width="1.8" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>').join("");
+    if (names) for (const [x, y, t, room] of d.labels) { const fs = clamp(room * s / (t.length * 0.75), 0, big / 55); if (fs >= big / 160) h += text(x, y, t, fs); }
+    const pv = $("preview"); pv.setAttribute("viewBox", "0 0 " + num(W * s) + " " + num(H * s)); pv.innerHTML = h;
+  }
+
+  // folded 3D view (three.js). If the library or WebGL is missing, the card just hides.
+  const view = (function () {
+    const cv = $("three"), T = window.THREE; let renderer;
+    try { if (!T) throw 0; renderer = new T.WebGLRenderer({ canvas: cv, antialias: true, alpha: true }); } catch (e) { $("card3d").hidden = true; return null; }
+    const scene = new T.Scene(), cam = new T.PerspectiveCamera(28, 1, 0.1, 5000), pivot = new T.Group(); let inner = null;
+    scene.add(pivot, new T.AmbientLight(0xffffff, 0.62)); const sun = new T.DirectionalLight(0xffffff, 0.42); sun.position.set(1.5, 2.5, 3); const fill = new T.DirectionalLight(0xffffff, 0.2); fill.position.set(-3, 0.5, 2); scene.add(sun, fill);
+    pivot.rotation.set(0.42, -0.62, 0);
+    const mat = c => new T.MeshPhongMaterial({ color: c, flatShading: true, shininess: 0, specular: 0x000000, side: T.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+    const paper = mat(0xf3f1e8), art = mat(0x8fd6bd), ink = new T.LineBasicMaterial({ color: 0x2b3640 });
+    function render() { const w = cv.clientWidth, h = cv.clientHeight; if (!w || !h) return; renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); renderer.render(scene, cam); }
+    function show(m) {
+      if (inner) { pivot.remove(inner); inner.traverse(o => o.geometry && o.geometry.dispose()); }
+      inner = new T.Group();
+      const addLine = (pts, loop) => { const g = new T.BufferGeometry(); g.setAttribute("position", new T.Float32BufferAttribute([].concat(...pts), 3)); inner.add(new (loop ? T.LineLoop : T.Line)(g, ink)); };
+      for (const f of m.faces) {
+        const pos = []; for (let i = 1; i < f.pts.length - 1; i++) pos.push(...f.pts[0], ...f.pts[i], ...f.pts[i + 1]);
+        const g = new T.BufferGeometry(); g.setAttribute("position", new T.Float32BufferAttribute(pos, 3)); g.computeVertexNormals(); inner.add(new T.Mesh(g, f.art ? art : paper));
+        if (f.edge !== false) addLine(f.pts, true);
+      }
+      for (const l of m.lines || []) addLine(l, false);
+      const box = new T.Box3().setFromObject(inner), c = box.getCenter(new T.Vector3()), r = box.getSize(new T.Vector3()).length() / 2;
+      inner.position.copy(c).multiplyScalar(-1); pivot.add(inner); cam.position.set(0, 0, r / Math.sin(14 * Math.PI / 180) * 1.05); render();
+    }
+    let drag = null;
+    cv.addEventListener("pointerdown", e => { drag = [e.clientX, e.clientY]; cv.setPointerCapture(e.pointerId); cv.style.cursor = "grabbing"; });
+    cv.addEventListener("pointermove", e => { if (!drag) return; pivot.rotation.y += (e.clientX - drag[0]) * 0.01; pivot.rotation.x = clamp(pivot.rotation.x + (e.clientY - drag[1]) * 0.01, -1.5, 1.5); drag = [e.clientX, e.clientY]; render(); });
+    const end = () => { drag = null; cv.style.cursor = "grab"; }; cv.addEventListener("pointerup", end); cv.addEventListener("pointercancel", end);
+    if (window.ResizeObserver) new ResizeObserver(render).observe(cv);
+    return { show };
+  })();
+
+  function say(text, note) { const m = $("msg"); m.textContent = text; m.className = "msg" + (note ? " note" : ""); }
+
+  async function save(ext, make, mime) {
+    const d = state.design; if (!d) return;
+    const text = make(d, $("c_guide").checked && !$("guideRow").hidden);
+    const filename = d.file + "." + ext, host = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
+    if (host) {
+      try { await host.save({ filename, data: text }); say("Saved " + filename, true); }
+      catch (e) { if (e && e.code !== "declined") say(ext === "dxf" ? "DXF can't be saved from this preview. Use SVG here, or host the page on your own site for DXF." : "Couldn't save the file here. Try again.", false); }
+      return;
+    }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: mime })); a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); say("Saved " + filename, true);
+  }
+  $("dlSvg").addEventListener("click", () => save("svg", toSVG, "image/svg+xml"));
+  $("dlDxf").addEventListener("click", () => save("dxf", toDXF, "application/dxf"));
+  for (const id of ["c_t", "c_g", "c_sw", "c_sh"]) $(id).addEventListener("input", update);
+  $("u_in").addEventListener("click", () => setUnit("in")); $("u_mm").addEventListener("click", () => setUnit("mm"));
+  $("cat_box").addEventListener("click", () => setCat("box")); $("cat_display").addEventListener("click", () => setCat("display"));
+  for (const id of ["c_piece", "c_rot", "c_lab"]) $(id).addEventListener("change", update);
+  if (window.claude && window.claude.use) $("dlDxf").hidden = true; // the Claude preview can't save .dxf; it works when self-hosted
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", update);
+  renderStyle();
+})();
+</script>
+</body>
+</html>

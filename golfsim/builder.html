@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Course Builder · CAD Mini Golf</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: teacher tool. Header, then the hole list (the work) beside a narrow settings and publish column. Stacks on narrow screens. */
+:root{
+  --bg:#eaefe6; --panel:#fafcf7; --ink:#15241b; --muted:#59695e; --line:#cfd8cb;
+  --felt:#2f7d4f; --accent:#d94f27; --ok:#2a7a4b; --fail:#b83a2b;
+  --display:"Bricolage Grotesque","Trebuchet MS",sans-serif;
+  --body:"IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){ :root{
+  --bg:#0f1612; --panel:#17201b; --ink:#e7efe9; --muted:#93a498; --line:#2a372f;
+  --felt:#46a26b; --accent:#ff7c50; --ok:#5fc48a; --fail:#f27664; color-scheme:dark } }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--body)}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:16px 40px;display:grid;gap:16px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px}
+h1{font:800 1.6rem/1 var(--display);margin:0}
+h1 span{color:var(--felt)}
+header p{margin:0;color:var(--muted)}
+header a{margin-left:auto;color:var(--felt);font-weight:500}
+main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px;min-width:0}
+h2{font:600 1.1rem var(--display);margin:0}
+.label{font:500 .7rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+button,.filebtn{font:500 .875rem var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 12px;cursor:pointer}
+button:hover,.filebtn:hover{border-color:var(--felt)}
+button:focus-visible,.filebtn:focus-within,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.5;cursor:default}
+.primary{background:var(--felt);border-color:var(--felt);color:#fff;font-weight:600}
+.filebtn{background:var(--felt);border-color:var(--felt);color:#fff;font-weight:600;position:relative}
+.filebtn input{position:absolute;opacity:0;width:1px;height:1px}
+input[type=text],input[type=url],select{font:500 .9rem var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 10px;width:100%;min-width:0}
+.drop{border:2px dashed var(--line);border-radius:8px;padding:18px;text-align:center;color:var(--muted);display:grid;gap:10px;justify-items:center}
+.drop.on{border-color:var(--accent);color:var(--ink)}
+.holes{list-style:none;margin:0;padding:0;display:grid;gap:8px;counter-reset:h}
+.hole{display:grid;grid-template-columns:2.2em minmax(0,1fr) auto;gap:8px 12px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--bg)}
+.hole .n{font:800 1.4rem var(--display);color:var(--felt);text-align:center}
+.hole .meta{display:grid;gap:4px;min-width:0}
+.hole small{color:var(--muted);font:400 .76rem var(--mono);overflow-wrap:anywhere}
+.hole .ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
+.hole .ctl select{width:auto}
+.hole .ctl button{padding:5px 9px}
+.empty{color:var(--muted);margin:0}
+.field{display:grid;gap:4px}
+.field span{font-size:.82rem;color:var(--muted)}
+.sum{font:400 .85rem var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+ol.steps{margin:0;padding-left:1.2em;display:grid;gap:6px;font-size:.9rem}
+.pub{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:.88rem}
+.pub li{display:flex;gap:8px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:6px}
+.pub li span{min-width:0;overflow-wrap:anywhere}
+.msg{margin:0;font-size:.88rem;min-height:1.3em}
+.msg.err{color:var(--fail)} .msg.good{color:var(--ok)}
+.check{display:flex;gap:8px;align-items:center;font-size:.88rem}
+@media (max-width:860px){main{grid-template-columns:minmax(0,1fr)} .hole{grid-template-columns:2em minmax(0,1fr)} .hole .ctl{grid-column:1/-1;justify-content:flex-start}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Course <span>Builder</span></h1>
+    <p>Put student holes in order, set par, and publish a course for the class to play.</p>
+    <a href="index.html">Open the game</a>
+  </header>
+  <main>
+    <section>
+      <h2>Holes</h2>
+      <div class="drop" id="drop">
+        <div>Drop student <b>.golfhole</b> files here (several at once is fine), or a <b>.golfcourse</b> to edit it. Plain <b>.glb</b> exports work too.</div>
+        <label class="filebtn">Choose files<input id="files" type="file" multiple accept=".golfhole,.golfcourse,.json,.glb,.gltf"></label>
+      </div>
+      <p class="msg" id="msg" role="status"></p>
+      <ul class="holes" id="holes"></ul>
+      <p class="empty" id="empty">No holes yet.</p>
+    </section>
+    <div style="display:grid;gap:16px;min-width:0">
+      <section>
+        <h2>Course</h2>
+        <label class="field"><span>Course name</span><input id="title" type="text" maxlength="60" placeholder="Fall 2026 · Period 3"></label>
+        <div class="sum" id="sum">0 holes · par 0</div>
+        <div class="label">Class leaderboard (optional)</div>
+        <label class="field"><span>Leaderboard web app URL</span><input id="lbUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec"></label>
+        <label class="field"><span>Class code (must match the one in the script)</span><input id="lbCode" type="text" maxlength="40"></label>
+        <label class="check" id="freshRow" hidden><input id="fresh" type="checkbox"> Start a fresh leaderboard for this course</label>
+        <button class="primary" id="btnCourse" type="button" disabled>Download course file</button>
+      </section>
+      <section>
+        <h2>Publish</h2>
+        <div class="label">Courses on this site</div>
+        <ul class="pub" id="pub"><li><span>Checking…</span></li></ul>
+        <button id="btnIndex" type="button">Download updated course list</button>
+        <ol class="steps">
+          <li>Download the course file and the updated course list.</li>
+          <li>On GitHub, open the <b>courses</b> folder, choose <b>Add file → Upload files</b>, drop in both, and commit.</li>
+          <li>After a minute or two the course shows up under <b>Play a course</b> in the game.</li>
+        </ol>
+      </section>
+    </div>
+  </main>
+</div>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}};
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const slug=t=>(t||'course').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'course';
+const bufb64=buf=>{const u=new Uint8Array(buf);let s='';for(let i=0;i<u.length;i+=8192)s+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(s)};
+const holes=[];let courseId=null,published=[],loadedFile=null;
+function msg(t,kind){$('msg').textContent=t;$('msg').className='msg'+(kind?' '+kind:'')}
+
+// remembered leaderboard settings, so every new course gets them
+const saved=store.get('cadgolf.builder.lb',{});$('lbUrl').value=saved.url||'';$('lbCode').value=saved.code||'';
+for(const id of ['lbUrl','lbCode'])$(id).addEventListener('change',()=>store.set('cadgolf.builder.lb',{url:$('lbUrl').value.trim(),code:$('lbCode').value.trim()}));
+
+async function addFiles(list){
+  let added=0,problems=[];
+  for(const f of list){
+    const ext=(f.name.split('.').pop()||'').toLowerCase();
+    try{
+      if(ext==='glb'||ext==='gltf'){
+        const buf=await f.arrayBuffer();
+        holes.push({title:f.name.replace(/\.(glb|gltf)$/i,''),author:'',par:3,size:f.size,
+          pkg:{format:'cad-mini-golf-hole',version:1,title:f.name.replace(/\.(glb|gltf)$/i,''),author:'',created:new Date().toISOString(),model:{name:f.name,data:bufb64(buf)},setup:{},decal:null}});
+        added++;continue;
+      }
+      const data=JSON.parse(await f.text());
+      if(data.format==='cad-mini-golf-course'){
+        holes.length=0;
+        for(const h of data.holes)holes.push({title:h.title,author:h.author||'',par:h.par||3,size:JSON.stringify(h.pkg).length,pkg:h.pkg});
+        $('title').value=data.title||'';courseId=data.id||null;loadedFile=slug(data.title)+'.golfcourse';
+        if(data.leaderboard){$('lbUrl').value=data.leaderboard.url||'';$('lbCode').value=data.leaderboard.code||''}
+        $('freshRow').hidden=!courseId;$('fresh').checked=false;added+=data.holes.length;continue;
+      }
+      if(data.format!=='cad-mini-golf-hole'||!data.model)throw new Error('not a hole');
+      holes.push({title:data.title||f.name.replace(/\.golfhole(\.json)?$/i,''),author:data.author||'',par:3,size:f.size,pkg:data});added++;
+    }catch(e){problems.push(f.name)}
+  }
+  render();
+  if(problems.length)msg(`Skipped ${problems.join(', ')}: not a hole file this builder can read.`,'err');
+  else if(added)msg(`Added ${added} hole${added>1?'s':''}.`,'good');
+}
+function render(){
+  $('empty').hidden=holes.length>0;
+  $('holes').innerHTML=holes.map((h,i)=>`<li class="hole" data-i="${i}">
+    <div class="n">${i+1}</div>
+    <div class="meta"><input type="text" data-f="title" value="${esc(h.title)}" aria-label="Name of hole ${i+1}" maxlength="50">
+      <small>${h.author?'by '+esc(h.author)+' · ':''}${esc(h.pkg.model.name||'model')} · ${Math.round(h.size/1024)} KB</small></div>
+    <div class="ctl">
+      <label class="sum">Par <select data-f="par" aria-label="Par for hole ${i+1}">${[2,3,4,5,6].map(p=>`<option${p===h.par?' selected':''}>${p}</option>`).join('')}</select></label>
+      <button type="button" data-a="up" aria-label="Move hole ${i+1} up"${i===0?' disabled':''}>↑</button>
+      <button type="button" data-a="down" aria-label="Move hole ${i+1} down"${i===holes.length-1?' disabled':''}>↓</button>
+      <button type="button" data-a="test">Test</button>
+      <button type="button" data-a="del" aria-label="Remove hole ${i+1}">Remove</button>
+    </div></li>`).join('');
+  const par=holes.reduce((a,h)=>a+h.par,0),kb=holes.reduce((a,h)=>a+h.size,0)/1024;
+  $('sum').textContent=`${holes.length} hole${holes.length===1?'':'s'} · par ${par} · about ${kb>1024?(kb/1024).toFixed(1)+' MB':Math.round(kb)+' KB'}`;
+  $('btnCourse').disabled=!holes.length;
+}
+$('holes').addEventListener('input',e=>{const li=e.target.closest('.hole');if(!li)return;const h=holes[+li.dataset.i];
+  if(e.target.dataset.f==='title')h.title=e.target.value;
+  if(e.target.dataset.f==='par'){h.par=+e.target.value;render()}});
+$('holes').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-a]');if(!b)return;const i=+b.closest('.hole').dataset.i;
+  if(b.dataset.a==='up'&&i>0)[holes[i-1],holes[i]]=[holes[i],holes[i-1]];
+  if(b.dataset.a==='down'&&i<holes.length-1)[holes[i+1],holes[i]]=[holes[i],holes[i+1]];
+  if(b.dataset.a==='del')holes.splice(i,1);
+  if(b.dataset.a==='test'){
+    // hand the hole to the game through this browser's storage, then open it in a new tab
+    if(store.set('cadgolf.preview',holes[i].pkg))window.open('index.html#preview','_blank');
+    else msg('This hole is too big to preview from here. Open it in the game with Open file instead.','err');
+    return;
+  }
+  render();
+});
+const drop=$('drop');
+drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('on')});
+drop.addEventListener('dragleave',()=>drop.classList.remove('on'));
+drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('on');addFiles([...e.dataTransfer.files])});
+window.addEventListener('dragover',e=>e.preventDefault());window.addEventListener('drop',e=>e.preventDefault());
+$('files').addEventListener('change',e=>{addFiles([...e.target.files]);e.target.value=''});
+
+function save(name,text){
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/octet-stream'}));a.download=name;
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);
+}
+function courseInfo(){
+  const title=$('title').value.trim()||'Untitled course';
+  if(!courseId||$('fresh').checked){courseId=slug(title)+'-'+Date.now().toString(36);$('fresh').checked=false}
+  const url=$('lbUrl').value.trim(),code=$('lbCode').value.trim();
+  return {title,file:slug(title)+'.golfcourse',id:courseId,leaderboard:url?{url,code}:null,par:holes.reduce((a,h)=>a+h.par,0)};
+}
+$('btnCourse').onclick=()=>{
+  if(!holes.length)return;const info=courseInfo();
+  if(info.leaderboard&&!/^https:\/\/script\.google(usercontent)?\.com\//.test(info.leaderboard.url))msg('That leaderboard address doesn’t look like a Google Apps Script web app. The course was still saved.','err');
+  const course={format:'cad-mini-golf-course',version:1,id:info.id,title:info.title,created:new Date().toISOString(),leaderboard:info.leaderboard,
+    holes:holes.map(h=>({title:h.title.trim()||'Untitled hole',author:h.author,par:h.par,pkg:h.pkg}))};
+  save(info.file,JSON.stringify(course));loadedFile=info.file;
+  // add or update this course in the list, so the next download matches
+  const entry={file:info.file,title:info.title,id:info.id,holes:holes.length,par:info.par,updated:new Date().toISOString().slice(0,10)};
+  if(info.leaderboard)entry.leaderboard=info.leaderboard.url;
+  published=published.filter(c=>c.file!==info.file);published.push(entry);renderPub();
+  if(!$('msg').classList.contains('err'))msg(`Saved ${info.file}. Now download the updated course list and upload both to the courses folder.`,'good');
+  $('freshRow').hidden=false;
+};
+function renderPub(){
+  $('pub').innerHTML=published.length?published.map((c,k)=>`<li><span><b>${esc(c.title)}</b> · ${c.holes} holes</span><button type="button" data-k="${k}">Remove</button></li>`).join('')
+    :'<li><span>None yet.</span></li>';
+}
+$('pub').addEventListener('click',e=>{const b=e.target.closest('button[data-k]');if(!b)return;published.splice(+b.dataset.k,1);renderPub();
+  msg('Removed from the list. Download the updated course list and upload it to take the course off the menu.','good')});
+$('btnIndex').onclick=()=>{save('index.json',JSON.stringify(published,null,2));msg('Saved index.json. Upload it to the courses folder, replacing the old one.','good')};
+fetch('courses/index.json',{cache:'no-store'}).then(r=>r.ok?r.json():[]).then(l=>{published=Array.isArray(l)?l:[];renderPub()}).catch(()=>{published=[];renderPub()});
+render();
+})();
+</script>
+</body>
+</html>

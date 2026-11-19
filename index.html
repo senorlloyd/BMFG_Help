@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BMFG Help</title>
-<meta name="description" content="Beaverton MFG shop apps: PenBot, RouteReady, InlayReady, CarveReady, TurnReady, ArcRight, LaserReady, FoldReady, KissCut, NeedlePath, WreSTL, CAD Mini Golf and SiegeReady.">
+<meta name="description" content="Beaverton MFG shop apps: PenBot, RouteReady, InlayReady, CarveReady, TurnReady, ArcRight, LaserReady, FoldReady, KissCut, NeedlePath, WreSTL, CAD Mini Golf, SiegeReady and GlowLine.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&family=Big+Shoulders+Stencil:wght@900&family=Chakra+Petch:wght@700&family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Barlow+Semi+Condensed:wght@700&family=Bowlby+One&family=Cinzel:wght@900&display=swap" rel="stylesheet">
@@ -59,6 +59,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
 .wrestl    {--a-bg:#eef0f2;--a-ink:#1d2228;--a-accent:#cf2a27;--a-gold:#e8a100;--a-turq:#0e9d97}
 .turnready {--a-bg:#f3ece3;--a-ink:#1d1a17;--a-accent:#e2761b;--a-wood:#b0834f;--a-steel:#6b737c}
 .siegeready{--a-bg:#f4ebe1;--a-ink:#1e140e;--a-accent:#d9530b;--a-stone:#8a7f74;--a-flame:#ffb347}
+.glowline  {--a-bg:#14121a;--a-ink:#f3eef7;--a-accent:#c4126f;--a-neon:#ff4fbf;--a-plate:#0d0b12}
 @media (prefers-color-scheme: dark){
 :root:not([data-theme="light"]) .routeready{--a-bg:#161b23;--a-ink:#e5eaf1;--a-accent:#6d9af0;--a-accent-ink:#0c1320;--a-zero:#f0623f}
 :root:not([data-theme="light"]) .inlayready{--a-bg:#1c1a17;--a-ink:#e5eaf1;--a-accent:#6d9af0;--a-accent-ink:#0c1320;--a-zero:#f0623f;--a-plug:#9a6a45}
@@ -72,6 +73,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
 :root:not([data-theme="light"]) .wrestl    {--a-bg:#15181c;--a-ink:#e8ebee;--a-accent:#f04e43;--a-gold:#ffbe2e;--a-turq:#2fc4bc}
 :root:not([data-theme="light"]) .turnready {--a-bg:#1a1612;--a-ink:#efe7dd;--a-accent:#ff9a3d;--a-wood:#c4955c;--a-steel:#8f979f}
 :root:not([data-theme="light"]) .siegeready{--a-bg:#1b1410;--a-ink:#f4e9dc;--a-accent:#ff7a1a;--a-stone:#a99c8e;--a-flame:#ffd36b}
+:root:not([data-theme="light"]) .glowline  {--a-bg:#14121a;--a-ink:#f3eef7;--a-accent:#ff4fbf;--a-neon:#ff4fbf;--a-plate:#0a090e}
 }
 :root[data-theme="dark"] .routeready{--a-bg:#161b23;--a-ink:#e5eaf1;--a-accent:#6d9af0;--a-accent-ink:#0c1320;--a-zero:#f0623f}
 :root[data-theme="dark"] .inlayready{--a-bg:#1c1a17;--a-ink:#e5eaf1;--a-accent:#6d9af0;--a-accent-ink:#0c1320;--a-zero:#f0623f;--a-plug:#9a6a45}
@@ -85,6 +87,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
 :root[data-theme="dark"] .wrestl    {--a-bg:#15181c;--a-ink:#e8ebee;--a-accent:#f04e43;--a-gold:#ffbe2e;--a-turq:#2fc4bc}
 :root[data-theme="dark"] .turnready {--a-bg:#1a1612;--a-ink:#efe7dd;--a-accent:#ff9a3d;--a-wood:#c4955c;--a-steel:#8f979f}
 :root[data-theme="dark"] .siegeready{--a-bg:#1b1410;--a-ink:#f4e9dc;--a-accent:#ff7a1a;--a-stone:#a99c8e;--a-flame:#ffd36b}
+:root[data-theme="dark"] .glowline  {--a-bg:#14121a;--a-ink:#f3eef7;--a-accent:#ff4fbf;--a-neon:#ff4fbf;--a-plate:#0a090e}
 
 /* ---------- ShopBot family: shared blue well + corner badge ---------- */
 .shopbot{--sb-bg:#e1ecfa;--sb-line:#b9d0f0;--sb-ink:#1f4f9e}
@@ -155,6 +158,12 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
 .mk-sr svg{width:64px;height:64px;flex:none}
 .mk-sr span b{color:var(--a-accent);font-weight:900}
 
+/* GlowLine sign plate */
+.mk-gl{display:flex;align-items:center;gap:12px;background:var(--a-plate);border-radius:12px;padding:12px 20px 12px 14px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.mk-gl svg{width:46px;height:46px;flex:none;overflow:visible}
+.mk-gl span{font:700 32px/1 "Oswald","Arial Narrow",sans-serif;letter-spacing:.03em;text-transform:uppercase;color:#fff4fb;
+  text-shadow:0 0 4px var(--a-neon),0 0 12px var(--a-neon),0 0 22px var(--a-neon)}
+.mk-gl span b{font-weight:700;color:#ffe7f6}
 /* More links */
 .more{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
 .more h2{font:500 .78rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 6px 0 0}
@@ -166,7 +175,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
   .wrap{padding-top:28px}
   .grid{grid-template-columns:1fr}
   .well{height:130px}
-  .plate{font-size:32px}.tag{font-size:27px}.mk-kc{font-size:31px}.mk-rr,.mk-gs{font-size:26px}.mk-ws{font-size:27px}.mk-pb{font-size:28px}.mk-tr{font-size:28px}.mk-sr{font-size:23px}.mk-fr{font-size:27px}
+  .plate{font-size:32px}.tag{font-size:27px}.mk-kc{font-size:31px}.mk-rr,.mk-gs{font-size:26px}.mk-ws{font-size:27px}.mk-pb{font-size:28px}.mk-tr{font-size:28px}.mk-sr{font-size:23px}.mk-gl span{font-size:27px}.mk-fr{font-size:27px}
 }
 @media (prefers-reduced-motion:reduce){ .app,.machine::after{transition:none} .app:hover{transform:none} }
 </style>
@@ -289,6 +298,14 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
         <div class="body"><h2 class="name">SiegeReady</h2>
           <p class="desc">Rig your Onshape marble launcher, then launch a flaming marble for distance, accuracy, or to knock down a castle.</p>
           <span class="machine">Onshape game</span></div>
+      </a></li>
+      <li><a class="app glowline shopbot" href="glowline/index.html">
+        <div class="well"><span class="sb-badge"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1.5" width="8" height="6" rx="1.2"/><path d="M6.5 7.5v2h3v-2M8 9.5v3.5"/><path d="M2 14.5h12"/></svg>ShopBot</span><div class="mk-gl" aria-hidden="true">
+          <svg viewBox="0 0 46 46"><g fill="none" stroke="var(--a-neon)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 3px var(--a-neon)) drop-shadow(0 0 7px var(--a-neon))"><path d="M30 7H15a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8h7a8 8 0 0 0 8-8v-6h-9"/><path d="M36 7v25a7 7 0 0 0 7 7h1"/></g><circle cx="43" cy="9" r="2.6" fill="#ffd84f"/></svg>
+          <span>Glow<b>Line</b></span></div></div>
+        <div class="body"><h2 class="name">GlowLine</h2>
+          <p class="desc">Easy neon sign maker: type your sign, pick a single-line font, and get ShopBot groove and hole files plus a wiring plan for LED neon flex.</p>
+          <span class="machine">CNC router</span></div>
       </a></li>
     </ul>
 

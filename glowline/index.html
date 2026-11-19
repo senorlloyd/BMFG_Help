@@ -159,6 +159,8 @@ details.adv[open]{padding-bottom:12px}
           <option value="neon6">6 mm neon slotting bit (6-6D-4.2)</option>
           <option value="custom">Other bit (set it in Advanced)</option>
         </select></label>
+      <label class="f"><span>Material</span>
+        <div class="seg" id="matSel"><button type="button" data-v="wood">Wood / MDF</button><button type="button" data-v="acrylic">Acrylic</button></div></label>
       <div class="plan-sum" id="cncSum"></div>
       <details class="adv" id="adv">
         <summary>Advanced settings</summary>
@@ -634,7 +636,10 @@ const DEFAULT_HEADER = "SO,1,1\t\t\t\t\t' Turn on router\nM3 S{rpm}\t\t\t\t' Set
 const NUMS = ['cap', 'track', 'lsp', 'margin', 'chan', 'bend', 'hole', 'board', 'depth', 'feed', 'plunge', 'rpm', 'safez', 'hbit', 'hdoc', 'hfeed', 'brk'];
 const BITS = { neon6: { chan: 6, depth: 0.165 } };   // 6-6D-4.2: 6 mm groove, 4.2 mm deep
 const CNC_DEFAULTS = { chan: 6, depth: 0.165, feed: 40, plunge: 10, rpm: 14000, safez: 0.25, hbit: 0.25, hdoc: 0.125, hfeed: 30, brk: 0.02 };
-let S = { font: 0, align: 'center', color: COLORS[0], view: 'plan', exitEntry: true, bit: 'neon6' };
+// Conservative starting points for a 2-flute carbide neon bit, full-depth slot
+const MATERIALS = { acrylic: { name: 'acrylic', feed: 40, plunge: 10, rpm: 14000, hfeed: 30 },
+                    wood: { name: 'wood / MDF', feed: 60, plunge: 15, rpm: 16000, hfeed: 50 } };
+let S = { font: 0, align: 'center', color: COLORS[0], view: 'plan', exitEntry: true, bit: 'neon6', mat: 'wood' };
 let last = null;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -646,7 +651,7 @@ try {
     if (typeof saved.text === 'string') $('#txt').value = saved.text;
     for (const k of NUMS) if (saved.n && saved.n[k] !== undefined) $('#' + k).value = saved.n[k];
     $('#head').value = saved.head || DEFAULT_HEADER;
-  } else $('#head').value = DEFAULT_HEADER;
+  } else { $('#head').value = DEFAULT_HEADER; S.firstRun = true; }
 } catch (e) { $('#head').value = DEFAULT_HEADER; }
 if (!(S.font >= 0 && S.font < GLOW_FONTS.length)) S.font = 0;
 function persist() {
@@ -814,16 +819,19 @@ $('#head').addEventListener('input', persist);
 function fmtNum(v, d) { const s = (+v).toFixed(d); return s.includes('.') ? s.replace(/\.?0+$/, '') : s; }
 function cncSummary() {
   const m = machine(), mm = m.depth * 25.4, bitName = S.bit === 'neon6' ? '6 mm neon slotting bit' : 'your bit';
-  $('#cncSum').innerHTML = `<span class="k">Grooves</span><b>${bitName}</b>: ${fmtNum(num('chan', 6), 1)} mm wide, ${fmtNum(m.depth, 3)}" (${fmtNum(mm, 1)} mm) deep in <b>one full-depth pass</b> at ${fmtNum(m.feed, 0)} ipm, plunging at ${fmtNum(m.plunge, 0)} ipm, ${m.rpm.toLocaleString()} rpm.` +
+  $('#cncSum').innerHTML = `<span class="k">Grooves</span><b>${bitName}</b>: ${fmtNum(num('chan', 6), 1)} mm wide, ${fmtNum(m.depth, 3)}" (${fmtNum(mm, 1)} mm) deep in <b>one full-depth pass</b> in ${(MATERIALS[S.mat] || MATERIALS.wood).name} at ${fmtNum(m.feed, 0)} ipm, plunging at ${fmtNum(m.plunge, 0)} ipm, ${m.rpm.toLocaleString()} rpm.` +
     (m.exitAtEntry ? ' Each groove lifts out where it went in.' : '') +
     `<span class="k">Holes</span>${fmtNum(m.holeBit, 3)}" straight bit, through the ${fmtNum(m.board, 3)}" board in ${fmtNum(m.holeDoc, 3)}" passes at ${fmtNum(m.holeFeed, 0)} ipm.`;
 }
 function applyBit() { const b = BITS[S.bit]; if (b) { $('#chan').value = b.chan; $('#depth').value = b.depth; } $('#bitSel').value = S.bit; }
 $('#bitSel').addEventListener('change', () => { S.bit = $('#bitSel').value; if (S.bit === 'custom') $('#adv').open = true; applyBit(); update(); });
 ['chan', 'depth'].forEach(id => $('#' + id).addEventListener('input', () => { const b = BITS[S.bit]; if (b && +$('#' + id).value !== b[id]) { S.bit = 'custom'; $('#bitSel').value = 'custom'; } }));
-$('#cncReset').addEventListener('click', () => { for (const k in CNC_DEFAULTS) $('#' + k).value = CNC_DEFAULTS[k]; $('#head').value = DEFAULT_HEADER; S.bit = 'neon6'; S.exitEntry = true; $('#exitEntry').checked = true; applyBit(); update(); toast('ShopBot settings reset'); });
+$('#cncReset').addEventListener('click', () => { for (const k in CNC_DEFAULTS) $('#' + k).value = CNC_DEFAULTS[k]; applyMat(); $('#head').value = DEFAULT_HEADER; S.bit = 'neon6'; S.exitEntry = true; $('#exitEntry').checked = true; applyBit(); update(); toast('ShopBot settings reset'); });
 ['feed', 'plunge', 'rpm', 'hbit', 'hdoc', 'hfeed', 'board'].forEach(id => $('#' + id).addEventListener('input', () => setTimeout(cncSummary, 130)));
-applyBit();
+function applyMat() { const m = MATERIALS[S.mat] || MATERIALS.wood; for (const k of ['feed', 'plunge', 'rpm', 'hfeed']) $('#' + k).value = m[k]; syncMat(); }
+function syncMat() { [...$('#matSel').children].forEach(b => b.setAttribute('aria-pressed', b.dataset.v === S.mat)); }
+$('#matSel').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.mat = b.dataset.v; applyMat(); update(); toast('Feeds and speeds set for ' + MATERIALS[S.mat].name); });
+applyBit(); if (S.firstRun) { delete S.firstRun; applyMat(); } syncMat();
 $('#exitEntry').checked = S.exitEntry !== false;
 $('#exitEntry').addEventListener('change', () => { S.exitEntry = $('#exitEntry').checked; update(); });
 syncFont(); syncAlign(); syncColor(); syncView(); update();

@@ -65,6 +65,17 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--focus);outline-o
 label.chk{display:flex;gap:9px;align-items:flex-start;margin:12px 0 2px;font-size:.82rem;color:var(--muted);cursor:pointer}
 label.chk input{margin-top:3px;width:16px;height:16px;flex:none;accent-color:var(--accent)}
 label.chk b{color:var(--ink)}
+select{appearance:auto}
+.plan-sum{margin-top:10px;background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:.84rem;line-height:1.5}
+.plan-sum b{font-weight:600}
+.plan-sum .k{display:block;font:500 .66rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+.plan-sum .k:first-child{margin-top:0}
+details.adv{margin-top:12px;border:1px solid var(--line);border-radius:9px;padding:0 12px}
+details.adv summary{cursor:pointer;padding:10px 0;font:600 .85rem var(--f-body)}
+details.adv[open]{padding-bottom:12px}
+.warnnote{margin-top:0!important;color:var(--warn)!important}
+.resetbtn{margin-top:12px;width:100%;border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:7px;padding:8px;font:600 .82rem var(--f-body);cursor:pointer}
+.resetbtn:hover{border-color:var(--ink)}
 .main{display:flex;flex-direction:column;gap:12px;min-width:0}
 .stage{position:relative;background:#07080c;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
 .stage svg{display:block;width:100%;height:auto;max-height:68vh}
@@ -135,42 +146,49 @@ label.chk b{color:var(--ink)}
     </div>
     <div class="pane" data-pane="flex" hidden>
       <div class="row">
-        <label class="f"><span>Groove width</span><div class="unit"><input id="chan" type="number" min="1" max="30" step="0.5" value="6"><em>mm</em></div></label>
         <label class="f"><span>Flex min bend</span><div class="unit"><input id="bend" type="number" min="0" max="6" step="0.05" value="0.6"><em>in</em></div></label>
-      </div>
-      <div class="row">
         <label class="f"><span>Hole diameter</span><div class="unit"><input id="hole" type="number" min="0.1" max="2" step="0.0625" value="0.5"><em>in</em></div></label>
-        <label class="f"><span>Board thickness</span><div class="unit"><input id="board" type="number" min="0.05" max="3" step="0.0625" value="0.75"><em>in</em></div></label>
       </div>
+      <label class="f"><span>Board thickness</span><div class="unit"><input id="board" type="number" min="0.05" max="3" step="0.0625" value="0.75"><em>in</em></div></label>
       <p class="note">LED flex can't branch, cross itself or turn a sharp corner. GlowLine splits each word into <b>runs</b>: one unbroken piece of flex each. At the end of a run the flex goes down a hole and travels behind the board to the start of the next run.</p>
-      <p class="note">Check your flex's spec sheet for its minimum bend radius. Spots tighter than that are circled in orange; make the sign bigger to open them up.</p>
+      <p class="note">Check your flex's spec sheet for its minimum bend radius. Spots tighter than that are circled in orange; make the sign bigger to open them up. The groove width comes from the bit on the ShopBot tab.</p>
     </div>
     <div class="pane" data-pane="cnc" hidden>
-      <p class="note" style="margin-top:0"><b>Grooves</b> use your neon groove bit along each letter's centerline. <b>Holes</b> are cut separately with a straight bit, all the way through.</p>
-      <div class="row">
-        <label class="f"><span>Groove depth</span><div class="unit"><input id="depth" type="number" min="0.02" max="2" step="0.01" value="0.375"><em>in</em></div></label>
-        <label class="f"><span>Depth per pass</span><div class="unit"><input id="doc" type="number" min="0.02" max="2" step="0.01" value="0.375"><em>in</em></div></label>
-      </div>
-      <div class="row">
-        <label class="f"><span>Feed rate</span><div class="unit"><input id="feed" type="number" min="1" max="600" step="1" value="60"><em>ipm</em></div></label>
-        <label class="f"><span>Plunge rate</span><div class="unit"><input id="plunge" type="number" min="1" max="200" step="1" value="20"><em>ipm</em></div></label>
-      </div>
-      <div class="row">
-        <label class="f"><span>Spindle speed</span><div class="unit"><input id="rpm" type="number" min="0" max="30000" step="500" value="16000"><em>rpm</em></div></label>
-        <label class="f"><span>Safe Z</span><div class="unit"><input id="safez" type="number" min="0.05" max="2" step="0.05" value="0.25"><em>in</em></div></label>
-      </div>
-      <div class="row">
-        <label class="f"><span>Hole bit diameter</span><div class="unit"><input id="hbit" type="number" min="0.0625" max="1" step="0.0625" value="0.25"><em>in</em></div></label>
-        <label class="f"><span>Hole depth per pass</span><div class="unit"><input id="hdoc" type="number" min="0.02" max="1" step="0.02" value="0.125"><em>in</em></div></label>
-      </div>
-      <div class="row">
-        <label class="f"><span>Hole feed rate</span><div class="unit"><input id="hfeed" type="number" min="1" max="600" step="1" value="40"><em>ipm</em></div></label>
-        <label class="f"><span>Break-through</span><div class="unit"><input id="brk" type="number" min="0" max="0.25" step="0.01" value="0.02"><em>in</em></div></label>
-      </div>
-      <label class="chk"><input type="checkbox" id="exitEntry" checked> <span><b>Exit through the entry hole</b><br>Each groove plunges once, cuts to the end, travels back at full depth and lifts out where it went in, so the slotting bit's keyway only blows out the lip in one spot. Takes a little longer.</span></label>
-      <label class="f"><span>Start code ({rpm} becomes the spindle speed)</span><textarea id="head" spellcheck="false" style="font:12px var(--f-mono);min-height:64px"></textarea></label>
-      <p class="note">GlowLine starts each groove at a flex through-hole when one sits on it, so cutting the holes drills away the plunge mark. Any other plunge spots show as a small <b>&times;</b> in the flex plan.</p>
+      <label class="f" style="margin-top:0"><span>Groove bit</span>
+        <select id="bitSel">
+          <option value="neon6">6 mm neon slotting bit (6-6D-4.2)</option>
+          <option value="custom">Other bit (set it in Advanced)</option>
+        </select></label>
+      <div class="plan-sum" id="cncSum"></div>
+      <details class="adv" id="adv">
+        <summary>Advanced settings</summary>
+        <p class="note warnnote">Only change these if you know your bit and material. The neon bit has to cut its full depth in a single pass.</p>
+        <div class="row">
+          <label class="f"><span>Groove width</span><div class="unit"><input id="chan" type="number" min="1" max="30" step="0.5" value="6"><em>mm</em></div></label>
+          <label class="f"><span>Groove depth</span><div class="unit"><input id="depth" type="number" min="0.02" max="1" step="0.005" value="0.165"><em>in</em></div></label>
+        </div>
+        <div class="row">
+          <label class="f"><span>Feed rate</span><div class="unit"><input id="feed" type="number" min="1" max="300" step="1" value="40"><em>ipm</em></div></label>
+          <label class="f"><span>Plunge rate</span><div class="unit"><input id="plunge" type="number" min="1" max="100" step="1" value="10"><em>ipm</em></div></label>
+        </div>
+        <div class="row">
+          <label class="f"><span>Spindle speed</span><div class="unit"><input id="rpm" type="number" min="0" max="30000" step="500" value="14000"><em>rpm</em></div></label>
+          <label class="f"><span>Safe Z</span><div class="unit"><input id="safez" type="number" min="0.05" max="2" step="0.05" value="0.25"><em>in</em></div></label>
+        </div>
+        <label class="chk"><input type="checkbox" id="exitEntry" checked> <span><b>Exit through the entry hole</b><br>Each groove plunges once, cuts to the end, travels back at full depth and lifts out where it went in, so the bit only blows out the lip in one spot. Takes a little longer.</span></label>
+        <div class="row">
+          <label class="f"><span>Hole bit diameter</span><div class="unit"><input id="hbit" type="number" min="0.0625" max="1" step="0.0625" value="0.25"><em>in</em></div></label>
+          <label class="f"><span>Hole depth per pass</span><div class="unit"><input id="hdoc" type="number" min="0.02" max="1" step="0.02" value="0.125"><em>in</em></div></label>
+        </div>
+        <div class="row">
+          <label class="f"><span>Hole feed rate</span><div class="unit"><input id="hfeed" type="number" min="1" max="300" step="1" value="30"><em>ipm</em></div></label>
+          <label class="f"><span>Break-through</span><div class="unit"><input id="brk" type="number" min="0" max="0.25" step="0.01" value="0.02"><em>in</em></div></label>
+        </div>
+        <label class="f"><span>Start code ({rpm} becomes the spindle speed)</span><textarea id="head" spellcheck="false" style="font:12px var(--f-mono);min-height:64px"></textarea></label>
+        <button type="button" class="resetbtn" id="cncReset">Reset ShopBot settings to defaults</button>
+      </details>
       <p class="note">Zero X and Y at the <b>lower-left corner of the board</b> and Z at the <b>top of the material</b>. Files are inch G-code saved as .sbp, the same as RouteReady. Always air-cut or preview in ShopBot before cutting.</p>
+      <p class="note">GlowLine starts each groove at a flex through-hole when one sits on it, so cutting the holes drills away the plunge mark. Any other plunge spots show as a small <b>&times;</b> in the flex plan.</p>
     </div>
   </aside>
 
@@ -610,11 +628,13 @@ return { layout, plan, flattenSegs, boundsOf, grooveCode, grooveJobs, holeCode, 
 (function () {
 'use strict';
 const $ = s => document.querySelector(s);
-const STORE = 'glowline.v2';
+const STORE = 'glowline.v3';
 const COLORS = ['#ff4fbf', '#ff3b3b', '#ff9a2e', '#ffe14d', '#5dff8a', '#3fd8ff', '#6b7bff', '#c46bff', '#fff4e6'];
 const DEFAULT_HEADER = "SO,1,1\t\t\t\t\t' Turn on router\nM3 S{rpm}\t\t\t\t' Set spindle speed\nPAUSE 2\t\t\t\t' Give router time to reach cutting rpm";
-const NUMS = ['cap', 'track', 'lsp', 'margin', 'chan', 'bend', 'hole', 'board', 'depth', 'doc', 'feed', 'plunge', 'rpm', 'safez', 'hbit', 'hdoc', 'hfeed', 'brk'];
-let S = { font: 0, align: 'center', color: COLORS[0], view: 'plan', exitEntry: true };
+const NUMS = ['cap', 'track', 'lsp', 'margin', 'chan', 'bend', 'hole', 'board', 'depth', 'feed', 'plunge', 'rpm', 'safez', 'hbit', 'hdoc', 'hfeed', 'brk'];
+const BITS = { neon6: { chan: 6, depth: 0.165 } };   // 6-6D-4.2: 6 mm groove, 4.2 mm deep
+const CNC_DEFAULTS = { chan: 6, depth: 0.165, feed: 40, plunge: 10, rpm: 14000, safez: 0.25, hbit: 0.25, hdoc: 0.125, hfeed: 30, brk: 0.02 };
+let S = { font: 0, align: 'center', color: COLORS[0], view: 'plan', exitEntry: true, bit: 'neon6' };
 let last = null;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -693,6 +713,7 @@ function update() {
   const board = GL.boundsOf(pts, o.marginIn + o.chanIn / 2);
   const jobs = GL.grooveJobs(lay, pl, { exitAtEntry: !!S.exitEntry, holeIn: o.holeIn, chanIn: o.chanIn });
   last = { f, o, lay, pl, board, jobs };
+  cncSummary();
   render(); stats();
 }
 function render() {
@@ -769,9 +790,9 @@ $('#mClose').onclick = () => $('#modal').hidden = true;
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') $('#modal').hidden = true; });
 $('#mCopy').onclick = async () => { try { await navigator.clipboard.writeText($('#mText').value); toast('Copied'); } catch (e) { $('#mText').select(); } };
 function machine() {
-  return { header: $('#head').value, rpm: Math.round(num('rpm', 16000)), depth: Math.max(0.01, num('depth', 0.375)), doc: Math.max(0.01, num('doc', 0.375)), feed: Math.max(1, num('feed', 60)),
-    plunge: Math.max(1, num('plunge', 20)), safeZ: Math.max(0.05, num('safez', 0.25)), holeBit: Math.max(0.03, num('hbit', 0.25)), holeDoc: Math.max(0.01, num('hdoc', 0.125)),
-    holeFeed: Math.max(1, num('hfeed', 40)), board: Math.max(0.01, num('board', 0.75)), breakthrough: Math.max(0, num('brk', 0.02)), holeIn: last ? last.o.holeIn : 0.5,
+  return { header: $('#head').value, rpm: Math.round(num('rpm', 14000)), depth: Math.max(0.01, num('depth', 0.165)), doc: Math.max(0.01, num('depth', 0.165)), feed: Math.max(1, num('feed', 40)),
+    plunge: Math.max(1, num('plunge', 10)), safeZ: Math.max(0.05, num('safez', 0.25)), holeBit: Math.max(0.03, num('hbit', 0.25)), holeDoc: Math.max(0.01, num('hdoc', 0.125)),
+    holeFeed: Math.max(1, num('hfeed', 30)), board: Math.max(0.01, num('board', 0.75)), breakthrough: Math.max(0, num('brk', 0.02)), holeIn: last ? last.o.holeIn : 0.5,
     chanIn: last ? last.o.chanIn : 0.236, exitAtEntry: !!S.exitEntry };
 }
 $('#xGroove').onclick = () => { if (!last) return; saveFile(baseName() + '_grooves.sbp', GL.grooveCode(last.lay, last.pl, last.board, machine())); };
@@ -790,6 +811,19 @@ function schedule() { clearTimeout(pending); pending = setTimeout(update, 120); 
 $('#txt').addEventListener('input', schedule);
 for (const k of NUMS) $('#' + k).addEventListener('input', schedule);
 $('#head').addEventListener('input', persist);
+function fmtNum(v, d) { const s = (+v).toFixed(d); return s.includes('.') ? s.replace(/\.?0+$/, '') : s; }
+function cncSummary() {
+  const m = machine(), mm = m.depth * 25.4, bitName = S.bit === 'neon6' ? '6 mm neon slotting bit' : 'your bit';
+  $('#cncSum').innerHTML = `<span class="k">Grooves</span><b>${bitName}</b>: ${fmtNum(num('chan', 6), 1)} mm wide, ${fmtNum(m.depth, 3)}" (${fmtNum(mm, 1)} mm) deep in <b>one full-depth pass</b> at ${fmtNum(m.feed, 0)} ipm, plunging at ${fmtNum(m.plunge, 0)} ipm, ${m.rpm.toLocaleString()} rpm.` +
+    (m.exitAtEntry ? ' Each groove lifts out where it went in.' : '') +
+    `<span class="k">Holes</span>${fmtNum(m.holeBit, 3)}" straight bit, through the ${fmtNum(m.board, 3)}" board in ${fmtNum(m.holeDoc, 3)}" passes at ${fmtNum(m.holeFeed, 0)} ipm.`;
+}
+function applyBit() { const b = BITS[S.bit]; if (b) { $('#chan').value = b.chan; $('#depth').value = b.depth; } $('#bitSel').value = S.bit; }
+$('#bitSel').addEventListener('change', () => { S.bit = $('#bitSel').value; if (S.bit === 'custom') $('#adv').open = true; applyBit(); update(); });
+['chan', 'depth'].forEach(id => $('#' + id).addEventListener('input', () => { const b = BITS[S.bit]; if (b && +$('#' + id).value !== b[id]) { S.bit = 'custom'; $('#bitSel').value = 'custom'; } }));
+$('#cncReset').addEventListener('click', () => { for (const k in CNC_DEFAULTS) $('#' + k).value = CNC_DEFAULTS[k]; $('#head').value = DEFAULT_HEADER; S.bit = 'neon6'; S.exitEntry = true; $('#exitEntry').checked = true; applyBit(); update(); toast('ShopBot settings reset'); });
+['feed', 'plunge', 'rpm', 'hbit', 'hdoc', 'hfeed', 'board'].forEach(id => $('#' + id).addEventListener('input', () => setTimeout(cncSummary, 130)));
+applyBit();
 $('#exitEntry').checked = S.exitEntry !== false;
 $('#exitEntry').addEventListener('change', () => { S.exitEntry = $('#exitEntry').checked; update(); });
 syncFont(); syncAlign(); syncColor(); syncView(); update();

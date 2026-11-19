@@ -62,6 +62,9 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--focus);outline-o
 .sw{width:28px;height:28px;border-radius:50%;border:2px solid var(--panel);box-shadow:0 0 0 1.5px var(--line);cursor:pointer}
 .sw[aria-pressed="true"]{box-shadow:0 0 0 2.5px var(--ink)}
 .note{font-size:.8rem;color:var(--muted);margin:10px 0 0}
+label.chk{display:flex;gap:9px;align-items:flex-start;margin:12px 0 2px;font-size:.82rem;color:var(--muted);cursor:pointer}
+label.chk input{margin-top:3px;width:16px;height:16px;flex:none;accent-color:var(--accent)}
+label.chk b{color:var(--ink)}
 .main{display:flex;flex-direction:column;gap:12px;min-width:0}
 .stage{position:relative;background:#07080c;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
 .stage svg{display:block;width:100%;height:auto;max-height:68vh}
@@ -164,7 +167,9 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--focus);outline-o
         <label class="f"><span>Hole feed rate</span><div class="unit"><input id="hfeed" type="number" min="1" max="600" step="1" value="40"><em>ipm</em></div></label>
         <label class="f"><span>Break-through</span><div class="unit"><input id="brk" type="number" min="0" max="0.25" step="0.01" value="0.02"><em>in</em></div></label>
       </div>
+      <label class="chk"><input type="checkbox" id="exitEntry" checked> <span><b>Exit through the entry hole</b><br>Each groove plunges once, cuts to the end, travels back at full depth and lifts out where it went in, so the slotting bit's keyway only blows out the lip in one spot. Takes a little longer.</span></label>
       <label class="f"><span>Start code ({rpm} becomes the spindle speed)</span><textarea id="head" spellcheck="false" style="font:12px var(--f-mono);min-height:64px"></textarea></label>
+      <p class="note">GlowLine starts each groove at a flex through-hole when one sits on it, so cutting the holes drills away the plunge mark. Any other plunge spots show as a small <b>&times;</b> in the flex plan.</p>
       <p class="note">Zero X and Y at the <b>lower-left corner of the board</b> and Z at the <b>top of the material</b>. Files are inch G-code saved as .sbp, the same as RouteReady. Always air-cut or preview in ShopBot before cutting.</p>
     </div>
   </aside>
@@ -484,42 +489,76 @@ function resample(pts, d) {
 
 // ---------- CNC ----------
 const f5 = v => { let r = Math.round(v * 1e4) / 1e4; if (Object.is(r, -0)) r = 0; return r.toFixed(4); };
-function orderStrokes(lay) {  // nearest-neighbour cut order, may reverse strokes
-  const rem = lay.strokes.map(s => s.segs); const out = []; let pos = [-1e9, -1e9];
-  let first = true;
+// Groove jobs: one per stroke, flattened, ordered nearest-neighbour. Each job starts (and, in
+// exit-through-entry mode, ends) at a through-hole whenever one sits on the groove, so the
+// keyway blow-out from the slotting bit gets drilled away by the hole.
+function grooveJobs(lay, plan, o) {
+  const holes = plan ? plan.holes.map(h => h.p) : [];
+  const near = Math.max(0.05, (o.holeIn || 0.5) / 2 + (o.chanIn || 0.24) / 2);
+  const holeDist = p => { let d = Infinity; for (const h of holes) d = Math.min(d, hyp(h[0]-p[0], h[1]-p[1])); return d; };
+  const jobs = lay.strokes.map(st => {
+    let pts = flattenSegs(st.segs, 0.02);
+    const closed = pts.length > 2 && hyp(pts[0][0]-pts.at(-1)[0], pts[0][1]-pts.at(-1)[1]) < 1e-3;
+    let entryHole = null; // 0 = start, 1 = end, 'both', or null
+    if (closed) {
+      // rotate the loop so it starts at the point nearest a hole
+      let best = null; pts.forEach((p, i) => { const d = holeDist(p); if (!best || d < best.d) best = { d, i }; });
+      if (best && best.d < near) { const body = pts.slice(0, -1); pts = body.slice(best.i).concat(body.slice(0, best.i)); pts.push(pts[0].slice()); entryHole = 0; }
+    } else {
+      const s0 = holeDist(pts[0]) < near, s1 = holeDist(pts.at(-1)) < near;
+      entryHole = s0 && s1 ? 'both' : s0 ? 0 : s1 ? 1 : null;
+    }
+    return { pts, closed, entryHole };
+  });
+  // order: nearest neighbour; an end sitting at a hole is the preferred entry
+  const rem = jobs.slice(), out = []; let pos = null;
   while (rem.length) {
     let best = null;
-    rem.forEach((sg, i) => {
-      const a = sg[0].p0, b = sg.at(-1).p1;
-      const da = first ? a[0] - a[1]*0.01 : hyp(a[0]-pos[0], a[1]-pos[1]);
-      const db = first ? Infinity : hyp(b[0]-pos[0], b[1]-pos[1]);
-      if (!best || da < best.d) best = { d: da, i, rev: false };
-      if (db < best.d) best = { d: db, i, rev: true };
+    rem.forEach((j, i) => {
+      const opts = j.closed ? [0] : j.entryHole === 0 ? [0] : j.entryHole === 1 ? [1] : [0, 1];
+      for (const e of opts) {
+        const p = e === 0 ? j.pts[0] : j.pts.at(-1);
+        const d = pos ? hyp(p[0]-pos[0], p[1]-pos[1]) : p[0] - p[1] * 0.01;
+        if (!best || d < best.d) best = { d, i, e };
+      }
     });
-    first = false;
-    let sg = rem.splice(best.i, 1)[0];
-    if (best.rev) sg = sg.slice().reverse().map(s => s.t === 'L' ? { t: 'L', p0: s.p1, p1: s.p0 } : { t: 'C', p0: s.p1, c1: s.c2, c2: s.c1, p1: s.p0 });
-    out.push(sg); pos = sg.at(-1).p1;
+    const j = rem.splice(best.i, 1)[0];
+    const pts = best.e === 1 ? j.pts.slice().reverse() : j.pts;
+    out.push({ pts, closed: j.closed, atHole: j.entryHole !== null, entry: pts[0] });
+    pos = o.exitAtEntry || j.closed ? pts[0] : pts.at(-1);
   }
   return out;
 }
 function header(m) { return (m.header || '').split(/\r?\n/).filter(l => l.trim()).map(l => l.replace(/\{rpm\}/g, String(m.rpm))); }
-function grooveCode(lay, board, m) {
-  const L = header(m); L.push('G20', 'G90', `' GlowLine neon grooves - zero X/Y at the board's lower-left corner, Z at the top of the material`);
+function grooveCode(lay, plan, board, m) {
+  const L = header(m);
+  L.push('G20', 'G90', `' GlowLine neon grooves - zero X/Y at the board's lower-left corner, Z at the top of the material`);
+  if (m.exitAtEntry) L.push(`' Each groove plunges once and lifts out of the same hole (full-depth return pass)`);
   const X = x => f5(x - board.x0), Y = y => f5(y - board.y0);
   const passes = Math.max(1, Math.ceil(m.depth / Math.max(0.01, m.doc) - 1e-9));
+  const zAt = k => -Math.min(m.depth, k * m.depth / passes);
+  const F = m.feed.toFixed(1), PL = m.plunge.toFixed(1);
+  const cut = (path, first) => { for (let i = 1; i < path.length; i++) L.push(`G1 X${X(path[i][0])} Y${Y(path[i][1])}` + (i === 1 && first ? ` F${F}` : '')); };
   L.push('G0 Z' + f5(m.safeZ));
-  for (const sg of orderStrokes(lay)) {
-    const pts = flattenSegs(sg, 0.02);
-    const closed = hyp(pts[0][0]-pts.at(-1)[0], pts[0][1]-pts.at(-1)[1]) < 1e-3;
-    for (let k = 1; k <= passes; k++) {
-      const z = -Math.min(m.depth, k * m.depth / passes);
-      const path = (k % 2 === 0 && !closed) ? pts.slice().reverse() : pts;
-      L.push(`G0 X${X(path[0][0])} Y${Y(path[0][1])}`);
-      L.push(`G1 Z${f5(z)} F${m.plunge.toFixed(1)}`);
-      let first = true;
-      for (let i = 1; i < path.length; i++) { L.push(`G1 X${X(path[i][0])} Y${Y(path[i][1])}` + (first ? ` F${m.feed.toFixed(1)}` : '')); first = false; }
-      if (k === passes || !closed) L.push('G0 Z' + f5(m.safeZ));
+  for (const job of grooveJobs(lay, plan, { exitAtEntry: m.exitAtEntry, holeIn: m.holeIn, chanIn: m.chanIn })) {
+    const fwd = job.pts, back = fwd.slice().reverse();
+    if (m.exitAtEntry || job.closed) {
+      // single plunge at the entry; step down inside the groove; finish back at the entry
+      L.push(`G0 X${X(fwd[0][0])} Y${Y(fwd[0][1])}`, `G1 Z${f5(zAt(1))} F${PL}`);
+      let atStart = true;
+      for (let k = 1; k <= passes; k++) {
+        if (k > 1) L.push(`G1 Z${f5(zAt(k))} F${PL}`);
+        if (job.closed) { cut(fwd, true); continue; }
+        cut(atStart ? fwd : back, true); atStart = !atStart;
+      }
+      if (!job.closed && !atStart) cut(back, true);   // return along the groove at full depth
+      L.push('G0 Z' + f5(m.safeZ));
+    } else {
+      for (let k = 1; k <= passes; k++) {
+        const path = k % 2 === 0 ? back : fwd;
+        L.push(`G0 X${X(path[0][0])} Y${Y(path[0][1])}`, `G1 Z${f5(zAt(k))} F${PL}`);
+        cut(path, true); L.push('G0 Z' + f5(m.safeZ));
+      }
     }
   }
   L.push('G0 Z' + f5(m.safeZ), 'G0 X0.0000 Y0.0000', 'G4 P0.1');
@@ -562,7 +601,7 @@ function cncSvg(lay, plan, board, o) {
   s += `<g id="through-holes" fill="none" stroke="#ff0000" stroke-width="0.01">\n` + plan.holes.map(h => `<circle cx="${f5(X(h.p[0]))}" cy="${f5(Y(h.p[1]))}" r="${f5(o.holeIn / 2)}"/>`).join('\n') + `\n</g>\n</svg>\n`;
   return s;
 }
-return { layout, plan, flattenSegs, boundsOf, grooveCode, holeCode, cncSvg, pathD, polyLen, f5 };
+return { layout, plan, flattenSegs, boundsOf, grooveCode, grooveJobs, holeCode, cncSvg, pathD, polyLen, f5 };
 })();
 
 
@@ -575,7 +614,7 @@ const STORE = 'glowline.v2';
 const COLORS = ['#ff4fbf', '#ff3b3b', '#ff9a2e', '#ffe14d', '#5dff8a', '#3fd8ff', '#6b7bff', '#c46bff', '#fff4e6'];
 const DEFAULT_HEADER = "SO,1,1\t\t\t\t\t' Turn on router\nM3 S{rpm}\t\t\t\t' Set spindle speed\nPAUSE 2\t\t\t\t' Give router time to reach cutting rpm";
 const NUMS = ['cap', 'track', 'lsp', 'margin', 'chan', 'bend', 'hole', 'board', 'depth', 'doc', 'feed', 'plunge', 'rpm', 'safez', 'hbit', 'hdoc', 'hfeed', 'brk'];
-let S = { font: 0, align: 'center', color: COLORS[0], view: 'plan' };
+let S = { font: 0, align: 'center', color: COLORS[0], view: 'plan', exitEntry: true };
 let last = null;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -652,7 +691,8 @@ function update() {
   const pl = GL.plan(lay, o);
   const pts = lay.strokes.map(s => GL.flattenSegs(s.segs, 0.05)).concat(pl.holes.map(h => [[h.p[0] - o.holeIn / 2, h.p[1] - o.holeIn / 2], [h.p[0] + o.holeIn / 2, h.p[1] + o.holeIn / 2]]));
   const board = GL.boundsOf(pts, o.marginIn + o.chanIn / 2);
-  last = { f, o, lay, pl, board };
+  const jobs = GL.grooveJobs(lay, pl, { exitAtEntry: !!S.exitEntry, holeIn: o.holeIn, chanIn: o.chanIn });
+  last = { f, o, lay, pl, board, jobs };
   render(); stats();
 }
 function render() {
@@ -677,6 +717,9 @@ function render() {
     s += `<g fill="none" stroke="#ffd84f" stroke-width="${lw}">` + pl.holes.map(h => `<circle cx="${GL.f5(X(h.p[0]))}" cy="${GL.f5(Y(h.p[1]))}" r="${o.holeIn / 2}"/>`).join('') + '</g>';
     s += `<g fill="none" stroke="#ff9a2e" stroke-width="${lw * 1.2}">` + pl.tight.map(p => `<circle cx="${GL.f5(X(p[0]))}" cy="${GL.f5(Y(p[1]))}" r="${Math.max(0.3, o.capIn * 0.05)}"/>`).join('') + '</g>';
     s += `<g fill="none" stroke="#ff3b3b" stroke-width="${lw * 1.2}" stroke-dasharray="${lw * 2} ${lw * 1.5}">` + pl.overlaps.map(p => `<circle cx="${GL.f5(X(p[0]))}" cy="${GL.f5(Y(p[1]))}" r="${Math.max(0.4, o.capIn * 0.07)}"/>`).join('') + '</g>';
+    const pk = Math.max(cw * 0.9, 0.12);
+    s += `<g stroke="#e8e9ee" stroke-width="${lw}" stroke-linecap="round" opacity=".9">` + last.jobs.filter(j => !j.atHole).map(j => { const x = X(j.entry[0]), y = Y(j.entry[1]);
+      return `<path d="M${GL.f5(x - pk)} ${GL.f5(y - pk)} L${GL.f5(x + pk)} ${GL.f5(y + pk)} M${GL.f5(x - pk)} ${GL.f5(y + pk)} L${GL.f5(x + pk)} ${GL.f5(y - pk)}"/>`; }).join('') + '</g>';
     s += `<g font-family="IBM Plex Mono,monospace" font-weight="700" font-size="${fs}" text-anchor="middle">` + pl.runs.map((r, i) => {
       const p = r.pts[0]; return `<circle cx="${GL.f5(X(p[0]))}" cy="${GL.f5(Y(p[1]))}" r="${fs * 0.72}" fill="#fff"/><text x="${GL.f5(X(p[0]))}" y="${GL.f5(Y(p[1]) + fs * 0.35)}" fill="#111">${i + 1}</text>`;
     }).join('') + '</g>';
@@ -728,9 +771,10 @@ $('#mCopy').onclick = async () => { try { await navigator.clipboard.writeText($(
 function machine() {
   return { header: $('#head').value, rpm: Math.round(num('rpm', 16000)), depth: Math.max(0.01, num('depth', 0.375)), doc: Math.max(0.01, num('doc', 0.375)), feed: Math.max(1, num('feed', 60)),
     plunge: Math.max(1, num('plunge', 20)), safeZ: Math.max(0.05, num('safez', 0.25)), holeBit: Math.max(0.03, num('hbit', 0.25)), holeDoc: Math.max(0.01, num('hdoc', 0.125)),
-    holeFeed: Math.max(1, num('hfeed', 40)), board: Math.max(0.01, num('board', 0.75)), breakthrough: Math.max(0, num('brk', 0.02)), holeIn: last ? last.o.holeIn : 0.5 };
+    holeFeed: Math.max(1, num('hfeed', 40)), board: Math.max(0.01, num('board', 0.75)), breakthrough: Math.max(0, num('brk', 0.02)), holeIn: last ? last.o.holeIn : 0.5,
+    chanIn: last ? last.o.chanIn : 0.236, exitAtEntry: !!S.exitEntry };
 }
-$('#xGroove').onclick = () => { if (!last) return; saveFile(baseName() + '_grooves.sbp', GL.grooveCode(last.lay, last.board, machine())); };
+$('#xGroove').onclick = () => { if (!last) return; saveFile(baseName() + '_grooves.sbp', GL.grooveCode(last.lay, last.pl, last.board, machine())); };
 $('#xHoles').onclick = () => { if (!last) return; const m = machine(); if (m.holeBit > m.holeIn) { toast('The hole bit is bigger than the hole.'); return; } saveFile(baseName() + '_holes.sbp', GL.holeCode(last.pl, last.board, m)); };
 $('#xSvg').onclick = () => { if (!last) return; saveFile(baseName() + '_cut.svg', GL.cncSvg(last.lay, last.pl, last.board, last.o), 'image/svg+xml'); };
 $('#xMap').onclick = () => {
@@ -746,6 +790,8 @@ function schedule() { clearTimeout(pending); pending = setTimeout(update, 120); 
 $('#txt').addEventListener('input', schedule);
 for (const k of NUMS) $('#' + k).addEventListener('input', schedule);
 $('#head').addEventListener('input', persist);
+$('#exitEntry').checked = S.exitEntry !== false;
+$('#exitEntry').addEventListener('change', () => { S.exitEntry = $('#exitEntry').checked; update(); });
 syncFont(); syncAlign(); syncColor(); syncView(); update();
 })();
 </script>

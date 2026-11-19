@@ -164,6 +164,46 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
 .mk-gl span{font:700 32px/1 "Oswald","Arial Narrow",sans-serif;letter-spacing:.03em;text-transform:uppercase;color:#fff4fb;
   text-shadow:0 0 4px var(--a-neon),0 0 12px var(--a-neon),0 0 22px var(--a-neon)}
 .mk-gl span b{font-weight:700;color:#ffe7f6}
+
+/* ---------- Category bands ---------- */
+.cat-cnc  {--c:#2a5fc4;--c-soft:#e3ebf8}
+.cat-laser{--c:#d4400f;--c-soft:#f9e6dc}
+.cat-print{--c:#b0127a;--c-soft:#f6e1ee}
+.cat-sim  {--c:#2c8a4c;--c-soft:#e0f0e5}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .cat-cnc{--c:#6d9af0;--c-soft:#16223a} :root:not([data-theme="light"]) .cat-laser{--c:#ff7a45;--c-soft:#2a1810}
+  :root:not([data-theme="light"]) .cat-print{--c:#ff5cbc;--c-soft:#2a1222} :root:not([data-theme="light"]) .cat-sim{--c:#4fc47a;--c-soft:#11241a} }
+:root[data-theme="dark"] .cat-cnc{--c:#6d9af0;--c-soft:#16223a} :root[data-theme="dark"] .cat-laser{--c:#ff7a45;--c-soft:#2a1810}
+:root[data-theme="dark"] .cat-print{--c:#ff5cbc;--c-soft:#2a1222} :root[data-theme="dark"] .cat-sim{--c:#4fc47a;--c-soft:#11241a}
+
+.jump{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 0 12px;margin:-6px 0 18px;
+  background:linear-gradient(var(--bg) 82%,transparent)}
+.find{display:flex;align-items:center;gap:7px;flex:1 1 220px;max-width:300px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:0 12px}
+.find:focus-within{outline:3px solid var(--focus);outline-offset:1px}
+.find svg{width:17px;height:17px;flex:none;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round}
+.find input{border:0;background:transparent;color:var(--ink);font:500 .95rem var(--f-body);padding:8px 0;width:100%;outline:none}
+.chip{display:inline-flex;align-items:center;gap:7px;text-decoration:none;color:var(--ink);font:600 .9rem var(--f-body);
+  background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 12px 6px 10px}
+.chip i{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.chip span{font:500 .72rem var(--f-mono);color:var(--muted)}
+.chip:hover{border-color:var(--c)}
+.chip:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+.band{position:relative;background:var(--c-soft);border-radius:18px;padding:18px 18px 20px 22px;margin:0 0 22px;scroll-margin-top:70px;overflow:hidden}
+.band::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--c)}
+.band-head{display:flex;align-items:center;gap:14px;margin:0 0 16px}
+.band-icon{width:42px;height:42px;flex:none;border-radius:11px;background:var(--c);display:grid;place-items:center}
+.band-icon svg{width:24px;height:24px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.band-head h2{margin:0;font:700 1.45rem/1.05 var(--f-head);letter-spacing:.02em;text-transform:uppercase;color:var(--ink)}
+.band-head p{margin:2px 0 0;color:var(--muted);font-size:.93rem}
+.band-head .count{margin-left:auto;font:500 .72rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--c);
+  border:1px solid var(--c);border-radius:999px;padding:4px 10px;white-space:nowrap;background:var(--panel)}
+.band .app{box-shadow:0 1px 0 rgba(0,0,0,.04)}
+.start{position:absolute;top:10px;left:10px;font:500 .66rem/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:#fff;
+  background:var(--a-accent);border-radius:999px;padding:5px 9px}
+.penbot .well{position:relative}
+.app[hidden],li[hidden],.band[hidden]{display:none}
+.none{color:var(--muted);text-align:center;padding:30px 0}
+@media (max-width:560px){ .band{padding:14px 12px 16px 16px} .band-head .count{display:none} .jump{position:static} }
 /* More links */
 .more{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
 .more h2{font:500 .78rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 6px 0 0}
@@ -188,16 +228,29 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
   </header>
 
   <main>
-    <ul class="grid">
+    <nav class="jump" aria-label="Jump to a group">
+      <label class="find"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input id="find" type="search" placeholder="Find an app" autocomplete="off" aria-label="Find an app"></label>
+      <a class="chip cat-cnc" href="#cnc"><i></i>CNC machining<span>7</span></a>
+      <a class="chip cat-laser" href="#laser"><i></i>Laser cutting<span>2</span></a>
+      <a class="chip cat-print" href="#print"><i></i>Print, stitch & 3D<span>3</span></a>
+      <a class="chip cat-sim" href="#sim"><i></i>Simulators & games<span>2</span></a>
+    </nav>
+
+    <section class="band cat-cnc" id="cnc" aria-labelledby="cnc-h">
+      <div class="band-head">
+        <span class="band-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v6H7z"/><path d="M10 9v3h4V9M12 12v5"/><path d="M12 17l-1.5 2h3z"/><path d="M3 21h18"/></svg></span>
+        <div><h2 id="cnc-h">CNC machining</h2><p>Router, lathe and plasma. Design a part, then get a file the machine can run.</p></div>
+        <span class="count">7 apps</span>
+      </div>
+      <ul class="grid">
       <li><a class="app penbot" href="penbot/index.html">
-        <div class="well"><div class="mk-pb" aria-hidden="true">
+        <div class="well"><span class="start">Start here</span><div class="mk-pb" aria-hidden="true">
           <img src="penbot/icon.svg" alt="">
           <span>Pen<b>Bot</b></span></div></div>
         <div class="body"><h2 class="name">PenBot</h2>
           <p class="desc">Start here: learn how CNC works, then turn an Onshape DXF into G-code that draws on a sheet of paper.</p>
           <span class="machine">Intro to CNC</span></div>
       </a></li>
-
       <li><a class="app routeready shopbot" href="routeready/index.html">
         <div class="well"><span class="sb-badge"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1.5" width="8" height="6" rx="1.2"/><path d="M6.5 7.5v2h3v-2M8 9.5v3.5"/><path d="M2 14.5h12"/></svg>ShopBot</span><div class="mk-rr">
           <svg viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="1" width="24" height="24" rx="5" fill="var(--a-accent)"/><path d="M6 18.5c2.5-7 5-9 7-5s4.5 2.2 7-6" fill="none" stroke="var(--a-accent-ink)" stroke-width="2.6" stroke-linecap="round"/><circle cx="20" cy="7.5" r="2.4" fill="var(--a-zero)"/></svg>
@@ -206,7 +259,6 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
           <p class="desc">Design 2D router cuts and export ready-to-run files for the ShopBots.</p>
           <span class="machine">CNC router</span></div>
       </a></li>
-
       <li><a class="app inlayready shopbot" href="inlayready/index.html">
         <div class="well"><span class="sb-badge"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1.5" width="8" height="6" rx="1.2"/><path d="M6.5 7.5v2h3v-2M8 9.5v3.5"/><path d="M2 14.5h12"/></svg>ShopBot</span><div class="mk-rr">
           <svg viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="1" width="24" height="24" rx="5" fill="var(--a-accent)"/><path d="M4.5 9.5h17" stroke="var(--a-accent-ink)" stroke-width="2.2" stroke-linecap="round"/><path d="M7.5 9.5h11L13 19z" fill="var(--a-plug)" stroke="var(--a-accent-ink)" stroke-width="1.8" stroke-linejoin="round"/><circle cx="20.5" cy="5" r="2.3" fill="var(--a-zero)"/></svg>
@@ -215,7 +267,6 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
           <p class="desc">V-carve inlays: a pocket in one board and a plug that fits it, cut on the ShopBots.</p>
           <span class="machine">CNC router</span></div>
       </a></li>
-
       <li><a class="app routeready carveready shopbot" href="carveready/index.html">
         <div class="well"><span class="sb-badge"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1.5" width="8" height="6" rx="1.2"/><path d="M6.5 7.5v2h3v-2M8 9.5v3.5"/><path d="M2 14.5h12"/></svg>ShopBot</span><div class="mk-rr">
           <svg viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="1" width="24" height="24" rx="5" fill="var(--a-accent)"/><path d="M4.5 17.5c2-.2 3-4.2 5.4-4.4 2.4-.2 2.7 3.2 5.2 3.1 2.6-.1 3.2-6.2 6.4-6.4" fill="none" stroke="var(--a-accent-ink)" stroke-width="2.4" stroke-linecap="round"/><path d="M4.5 20.5h17" stroke="var(--a-accent-ink)" stroke-width="1.6" stroke-linecap="round" opacity=".55"/><circle cx="20" cy="6.8" r="2.3" fill="var(--a-zero)"/></svg>
@@ -223,81 +274,6 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
         <div class="body"><h2 class="name">CarveReady</h2>
           <p class="desc">Turn an STL or OBJ into 3D carving files for the ShopBots, including two-sided flip carves.</p>
           <span class="machine">CNC router</span></div>
-      </a></li>
-
-      <li><a class="app turnready" href="turnready/index.html">
-        <div class="well"><div class="mk-tr" aria-hidden="true">
-          <svg viewBox="0 0 64 64"><rect x="1" y="12" width="9" height="40" rx="2" fill="var(--a-steel)"/><path d="M10 18H27Q32 18 34 24Q37 30 43 25L62 21V43L43 39Q37 34 34 40Q32 46 27 46H10Z" fill="var(--a-wood)"/><path d="M0 32H64" stroke="var(--a-ink)" stroke-width="1.3" stroke-dasharray="6 2 1.5 2"/><path d="M38 23l-6-15h12z" fill="var(--a-accent)"/><rect x="33" y="0" width="10" height="8" rx="1" fill="var(--a-ink)" opacity=".8"/></svg>
-          <span>Turn<b>Ready</b></span></div></div>
-        <div class="body"><h2 class="name">TurnReady</h2>
-          <p class="desc">Draw or import a part profile, simulate the cuts, and get G-code for the desktop CNC lathe. Includes a touch-off helper and lathe basics.</p>
-          <span class="machine">CNC lathe &middot; HX710</span></div>
-      </a></li>
-
-      <li><a class="app arcright" href="arcright/index.html">
-        <div class="well"><span class="plate" aria-hidden="true"><i></i><i></i><i></i><i></i>ARC<b>RIGHT</b></span></div>
-        <div class="body"><h2 class="name">ArcRight</h2>
-          <p class="desc">Turn an SVG or a quick drawing into a clean DXF for the plasma table.</p>
-          <span class="machine">CNC plasma</span></div>
-      </a></li>
-
-      <li><a class="app laserready" href="laserready/index.html">
-        <div class="well"><span class="tag" aria-hidden="true">LASER<b>READY</b></span></div>
-        <div class="body"><h2 class="name">LaserReady</h2>
-          <p class="desc">Build cut, score and engrave SVGs that drop straight into Illustrator.</p>
-          <span class="machine">Laser cutter</span></div>
-      </a></li>
-
-      <li><a class="app foldready" href="foldready/index.html">
-        <div class="well"><div class="mk-fr" aria-hidden="true">
-          <svg viewBox="0 0 64 64"><path d="M22 8h20v14h14v20H42v14H22V42H8V22h14z" fill="var(--a-paper)" stroke="var(--a-cut)" stroke-width="2.2" stroke-linejoin="round"/><rect x="22" y="22" width="20" height="20" fill="none" stroke="var(--a-score)" stroke-width="2" stroke-dasharray="3.2 2.6"/></svg>
-          <span>Fold<b>Ready</b></span></div></div>
-        <div class="body"><h2 class="name">FoldReady</h2>
-          <p class="desc">Pick a box or product display, type the size, and get a laser file with cut and score layers for posterboard.</p>
-          <span class="machine">Laser cutter</span></div>
-      </a></li>
-
-      <li><a class="app kisscut" href="kisscut/index.html">
-        <div class="well"><div class="mk-kc" aria-hidden="true">
-          <svg viewBox="0 0 200 200"><g fill="#ff5a36" stroke="#e6007e" stroke-width="10"><circle cx="100" cy="54" r="30"/><circle cx="140" cy="77" r="30"/><circle cx="140" cy="123" r="30"/><circle cx="100" cy="146" r="30"/><circle cx="60" cy="123" r="30"/><circle cx="60" cy="77" r="30"/></g><circle cx="100" cy="100" r="46" fill="#ff5a36"/><circle cx="100" cy="100" r="26" fill="#ffd23f"/></svg>
-          <span>Kiss<span class="cut">Cut</span></span></div></div>
-        <div class="body"><h2 class="name">KissCut</h2>
-          <p class="desc">Add a contour cut line to artwork and export print-and-cut EPS for VersaWorks.</p>
-          <span class="machine">Roland BN-40</span></div>
-      </a></li>
-
-      <li><a class="app needlepath" href="needlepath/index.html">
-        <div class="well"><svg class="logo" viewBox="0 0 360 75.84" aria-hidden="true"><path class="lp" d="M239.79,56.23v13.38s-.38.41-.41.41h-9.66s-.41-.38-.41-.41V22.71s.38-.41.41-.41h24.01c.49,0,2.73.58,3.39.75,17.59,4.67,15.74,28.59-1.32,32.5-5.21,1.2-10.7.5-16.01.69ZM239.79,47.13h12.28c1.39,0,4.36-1.89,5.25-3.03,2.48-3.17,2.06-8.96-1.43-11.27-.4-.26-3-1.43-3.27-1.43h-12.83v15.73Z"/> <path class="lk" d="M165.43,70.03c-.73-.23-.31-2.63-.42-3.31-4.93,4.9-12.09,5.18-18.02,1.88-8.9-4.96-10.78-17.05-5.22-25.26,5.19-7.67,16.83-9.34,23.24-2.28v-21.11s.38-.41.41-.41h9.11s.41.38.41.41v49.67s-.38.41-.41.41h-9.11ZM165.25,53.68c0-4.65-3.77-8.41-8.41-8.41s-8.41,3.77-8.41,8.41,3.77,8.41,8.41,8.41,8.41-3.77,8.41-8.41Z"/> <path class="lp" d="M336.1,41.06l2.51-2.04c9.25-5.35,20.35-1.58,21.22,9.91.5,6.59-.25,13.93-.14,20.55-.06.13-.5.56-.55.56h-9.38s-.41-.38-.41-.41v-18.49c0-1.41-1.2-3.43-2.35-4.28-3.1-2.27-8.02-1.07-9.97,2.17-.18.3-.93,1.95-.93,2.11v18.49s-.38.41-.41.41h-9.38s-.41-.38-.41-.41V24.09s.43-.49.56-.55c.56-.26,8.54-.26,9.1,0,.13.06.56.5.56.55v16.97Z"/> <path class="lp" d="M290.43,70.31c-.68-.21-.34-2.13-.42-2.76-1.03.4-1.73,1.24-2.75,1.8-7.86,4.26-22.01,1.17-19.19-10.09,1.81-7.23,10.75-7.87,16.85-7.73.62.01,4.74.7,4.82.13.6-6.56-7.15-7-11.61-4.69-1.04.54-1.81,1.54-2.84,2.07-.36-.06-4.86-4.63-5.17-5.08-.4-.6-.11-.9.32-1.36,7.7-8.12,29.5-6.36,29.5,6.88v20.42s-.38.41-.41.41h-9.11ZM289.74,57.89c-3.14.02-9.87-1.39-11.65,2.02-1.04,2,.37,4.12,2.46,4.55,4.28.87,9.99-1.41,9.18-6.56Z"/> <path class="lp" d="M314.85,38.3h8.14s.41.38.41.41v7.17s-.38.41-.41.41h-8.14v13.66c0,.09.78,1.36.95,1.54.93.95,2.9.95,4.16.81.77-.08,2.33-.96,2.77-.29.24.36,1.08,6.79.91,7.28-.35,1-5.85,1.81-6.99,1.83-6.19.16-11.21-2.26-11.74-8.96-.39-4.97.34-10.4-.03-15.42-.33-1.01-3.42-.09-4.06-.49-.4-.25-.51-6.74-.18-7.41.49-1.01,3.26-.38,4.28-.55v-6.48s.43-.49.56-.55c.48-.22,7.6-.29,8.41-.13.3.06.97.48.97.68v6.48Z"/> <path class="lk" d="M66.16,23.74c.3.3.32,1.01.35,1.44-.36,13.58.57,27.33-.28,40.85-.06.97.13,2.13,0,3.04-.05.36.15.49-.41.41-1.47-.22-9.53-5.67-9.79-7.05l-.02-37.26c.09-1.09.07-1.59,1.27-1.76,1.72-.24,5.66-.19,7.45-.04.43.04,1.14.05,1.44.35Z"/> <path class="lk" d="M101.82,55.96c.77-.58.6-2,.56-2.91-.87-23.16-36.35-21.17-34.22,2.49,1.39,15.45,23.13,20.33,31.87,8.98.58-.75,1.04-1.08.12-1.79-.67-.52-5.83-4.02-6.2-4.01-.63.02-1.97,1.85-2.63,2.32-4.46,3.14-12.71.97-13.23-4.81,3.19-.51,22.32.78,23.73-.28ZM92.16,49.89h-13.8c.94-7.23,13.23-7.63,13.8,0Z"/> <path class="lk" d="M137.02,49.87c-3.36-17.81-30.26-17.62-33.47.5-2.69,15.21,12.92,24.77,26.14,18.41,1.18-.57,5.76-3.95,6.04-5.02.13-.48-.1-.62-.38-.92-.3-.32-5.72-4.11-6.09-4.15-.81-.08-2.12,1.7-2.96,2.29-4.54,3.15-12.63,1.07-13.17-4.75h22.78c.65.11.69-.29.95-.55,1.07-1.07.45-4.23.15-5.81ZM127.21,49.89h-13.8c1.04-7.28,12.92-7.54,13.8,0Z"/> <path class="lk" d="M226.28,51.95c-1.67-22.02-36.89-19.96-34.15,4.35,1.6,14.16,21.06,18.9,30.52,9.71.81-.78,2.42-2.23,1.55-3.15-.31-.33-5.72-4.11-6.09-4.15-.81-.08-2.12,1.7-2.96,2.29-4.53,3.15-12.6,1.13-13.17-4.75l23.73-.28c.84-.5.64-3,.56-4.01ZM216.34,49.89h-14.07c1.18-7.4,12.78-7.48,14.07,0Z"/> <polygon class="lk" points="189.31 69.2 189.29 19.81 189.29 19.24 183.78 19.24 180.19 19.25 179.05 19.25 179.07 70.32 189.31 70.32 189.31 69.2"/> <g> <path class="lp" d="M8.82,12.63c1.38,0,2.78.1,4.14.28,15.06,1.9,20.83,18.41,27.27,29.99,10.03,18.01,16.53,25.12,36.38,31.8.43.14.79-.24.65.58-7.63.33-15.2-.4-21.98-4.09-13.57-7.37-19.61-23.64-26.81-36.38-4.07-7.21-7.61-13.22-15.78-16.1-1.88-.66-1.95-.55-3.86-.83-.5-.07-2.52-.36-2.64-.53v-4.45c.31-.44,1.99-.26,2.64-.26Z"/> <path class="lk" d="M12.96,12.91c-1.36-.17-2.76-.28-4.14-.28-.33-1.85.81-6.27-.85-7.29-1.3-.8-2.56-.07-3.16,1.2,0,5.82-.42,11.74-.14,17.55.05,1.1.17,2.78.31,3.84.28,2.03,3.53,2.15,3.84-.53.34-2.94-.27-6.51,0-9.53,1.92.28,1.98.17,3.86.83-.31,6.65-.61,13.35-1.11,20-.61,8.25-1.29,16.88-2.24,25.08-.2,1.72-1.25,11.34-2.16,11.92-1.55.99-2.01-3.84-2.17-4.75-1.59-9.08-1.82-18.39-2.8-27.55C2.32,31.36-.26,18.38.02,6.46.15,1.33,5.67-1.39,10.12.72s3.09,8.27,2.85,12.19Z"/> </g></svg></div>
-        <div class="body"><h2 class="name">NeedlePath</h2>
-          <p class="desc">Auto-digitize clean vector art and text into PES and DST stitch files.</p>
-          <span class="machine">Embroidery</span></div>
-      </a></li>
-
-      <li><a class="app wrestl" href="wrestl/index.html">
-        <div class="well"><div class="mk-ws" aria-hidden="true">
-          <img src="wrestl/icon.svg" alt="">
-          <span>Wre<b>STL</b></span></div></div>
-        <div class="body"><h2 class="name">WreSTL</h2>
-          <p class="desc">Resize, crop and slice STL files, with auto-repair, and save a solid, print-ready model.</p>
-          <span class="machine">3D printer</span></div>
-      </a></li>
-
-      <li><a class="app golfsim" href="golfsim/index.html">
-        <div class="well"><div class="mk-gs" aria-hidden="true">
-          <img src="golfsim/icon.webp" alt="">
-          <span>Mini Golf</span></div></div>
-        <div class="body"><h2 class="name">CAD Mini Golf</h2>
-          <p class="desc">Drop in an Onshape model of a mini golf hole and play it in 3D.</p>
-          <span class="machine">Onshape game</span></div>
-      </a></li>
-
-      <li><a class="app siegeready" href="siegeready/index.html">
-        <div class="well"><div class="mk-sr" aria-hidden="true">
-          <svg viewBox="0 0 64 64"><path d="M6 50C14 22 34 10 52 14" fill="none" stroke="var(--a-accent)" stroke-width="2.2" stroke-dasharray="3 4" stroke-linecap="round"/><path d="M34 58V30h4v4h4v-4h4v4h4v-4h4v28z" fill="var(--a-stone)"/><path d="M41 58v-9a3 3 0 0 1 6 0v9z" fill="var(--a-bg)"/><path d="M44 30V18" stroke="var(--a-ink)" stroke-width="1.6"/><path d="M44 18h8l-2 3 2 3h-8z" fill="var(--a-accent)"/><path d="M2 58h60" stroke="var(--a-ink)" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="40" r="7" fill="var(--a-flame)" opacity=".55"/><circle cx="10" cy="40" r="4.2" fill="var(--a-accent)"/><circle cx="9" cy="39" r="1.6" fill="#fff" opacity=".8"/></svg>
-          <span>Siege<b>Ready</b></span></div></div>
-        <div class="body"><h2 class="name">SiegeReady</h2>
-          <p class="desc">Rig your Onshape marble launcher, then launch a flaming marble for distance, accuracy, or to knock down a castle.</p>
-          <span class="machine">Onshape game</span></div>
       </a></li>
       <li><a class="app glowline shopbot" href="glowline/index.html">
         <div class="well"><span class="sb-badge"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1.5" width="8" height="6" rx="1.2"/><path d="M6.5 7.5v2h3v-2M8 9.5v3.5"/><path d="M2 14.5h12"/></svg>ShopBot</span><div class="mk-gl" aria-hidden="true">
@@ -307,7 +283,106 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
           <p class="desc">Easy neon sign maker: type your sign, pick a single-line font, and get ShopBot groove and hole files plus a wiring plan for LED neon flex.</p>
           <span class="machine">CNC router</span></div>
       </a></li>
-    </ul>
+      <li><a class="app turnready" href="turnready/index.html">
+        <div class="well"><div class="mk-tr" aria-hidden="true">
+          <svg viewBox="0 0 64 64"><rect x="1" y="12" width="9" height="40" rx="2" fill="var(--a-steel)"/><path d="M10 18H27Q32 18 34 24Q37 30 43 25L62 21V43L43 39Q37 34 34 40Q32 46 27 46H10Z" fill="var(--a-wood)"/><path d="M0 32H64" stroke="var(--a-ink)" stroke-width="1.3" stroke-dasharray="6 2 1.5 2"/><path d="M38 23l-6-15h12z" fill="var(--a-accent)"/><rect x="33" y="0" width="10" height="8" rx="1" fill="var(--a-ink)" opacity=".8"/></svg>
+          <span>Turn<b>Ready</b></span></div></div>
+        <div class="body"><h2 class="name">TurnReady</h2>
+          <p class="desc">Draw or import a part profile, simulate the cuts, and get G-code for the desktop CNC lathe. Includes a touch-off helper and lathe basics.</p>
+          <span class="machine">CNC lathe &middot; HX710</span></div>
+      </a></li>
+      <li><a class="app arcright" href="arcright/index.html">
+        <div class="well"><span class="plate" aria-hidden="true"><i></i><i></i><i></i><i></i>ARC<b>RIGHT</b></span></div>
+        <div class="body"><h2 class="name">ArcRight</h2>
+          <p class="desc">Turn an SVG or a quick drawing into a clean DXF for the plasma table.</p>
+          <span class="machine">CNC plasma</span></div>
+      </a></li>
+      </ul>
+    </section>
+
+    <section class="band cat-laser" id="laser" aria-labelledby="laser-h">
+      <div class="band-head">
+        <span class="band-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v7"/><path d="M9 9h6l-3 4z"/><path d="M12 13v3"/><path d="M8 18.5l-2 1.5M16 18.5l2 1.5M12 19v2.5"/><path d="M3 21h18"/></svg></span>
+        <div><h2 id="laser-h">Laser cutting</h2><p>Cut, score and engrave files for the laser cutters.</p></div>
+        <span class="count">2 apps</span>
+      </div>
+      <ul class="grid">
+      <li><a class="app laserready" href="laserready/index.html">
+        <div class="well"><span class="tag" aria-hidden="true">LASER<b>READY</b></span></div>
+        <div class="body"><h2 class="name">LaserReady</h2>
+          <p class="desc">Build cut, score and engrave SVGs that drop straight into Illustrator.</p>
+          <span class="machine">Laser cutter</span></div>
+      </a></li>
+      <li><a class="app foldready" href="foldready/index.html">
+        <div class="well"><div class="mk-fr" aria-hidden="true">
+          <svg viewBox="0 0 64 64"><path d="M22 8h20v14h14v20H42v14H22V42H8V22h14z" fill="var(--a-paper)" stroke="var(--a-cut)" stroke-width="2.2" stroke-linejoin="round"/><rect x="22" y="22" width="20" height="20" fill="none" stroke="var(--a-score)" stroke-width="2" stroke-dasharray="3.2 2.6"/></svg>
+          <span>Fold<b>Ready</b></span></div></div>
+        <div class="body"><h2 class="name">FoldReady</h2>
+          <p class="desc">Pick a box or product display, type the size, and get a laser file with cut and score layers for posterboard.</p>
+          <span class="machine">Laser cutter</span></div>
+      </a></li>
+      </ul>
+    </section>
+
+    <section class="band cat-print" id="print" aria-labelledby="print-h">
+      <div class="band-head">
+        <span class="band-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg></span>
+        <div><h2 id="print-h">Print, stitch & 3D</h2><p>Print-and-cut graphics, embroidery and 3D printing.</p></div>
+        <span class="count">3 apps</span>
+      </div>
+      <ul class="grid">
+      <li><a class="app kisscut" href="kisscut/index.html">
+        <div class="well"><div class="mk-kc" aria-hidden="true">
+          <svg viewBox="0 0 200 200"><g fill="#ff5a36" stroke="#e6007e" stroke-width="10"><circle cx="100" cy="54" r="30"/><circle cx="140" cy="77" r="30"/><circle cx="140" cy="123" r="30"/><circle cx="100" cy="146" r="30"/><circle cx="60" cy="123" r="30"/><circle cx="60" cy="77" r="30"/></g><circle cx="100" cy="100" r="46" fill="#ff5a36"/><circle cx="100" cy="100" r="26" fill="#ffd23f"/></svg>
+          <span>Kiss<span class="cut">Cut</span></span></div></div>
+        <div class="body"><h2 class="name">KissCut</h2>
+          <p class="desc">Add a contour cut line to artwork and export print-and-cut EPS for VersaWorks.</p>
+          <span class="machine">Roland BN-40</span></div>
+      </a></li>
+      <li><a class="app needlepath" href="needlepath/index.html">
+        <div class="well"><svg class="logo" viewBox="0 0 360 75.84" aria-hidden="true"><path class="lp" d="M239.79,56.23v13.38s-.38.41-.41.41h-9.66s-.41-.38-.41-.41V22.71s.38-.41.41-.41h24.01c.49,0,2.73.58,3.39.75,17.59,4.67,15.74,28.59-1.32,32.5-5.21,1.2-10.7.5-16.01.69ZM239.79,47.13h12.28c1.39,0,4.36-1.89,5.25-3.03,2.48-3.17,2.06-8.96-1.43-11.27-.4-.26-3-1.43-3.27-1.43h-12.83v15.73Z"/> <path class="lk" d="M165.43,70.03c-.73-.23-.31-2.63-.42-3.31-4.93,4.9-12.09,5.18-18.02,1.88-8.9-4.96-10.78-17.05-5.22-25.26,5.19-7.67,16.83-9.34,23.24-2.28v-21.11s.38-.41.41-.41h9.11s.41.38.41.41v49.67s-.38.41-.41.41h-9.11ZM165.25,53.68c0-4.65-3.77-8.41-8.41-8.41s-8.41,3.77-8.41,8.41,3.77,8.41,8.41,8.41,8.41-3.77,8.41-8.41Z"/> <path class="lp" d="M336.1,41.06l2.51-2.04c9.25-5.35,20.35-1.58,21.22,9.91.5,6.59-.25,13.93-.14,20.55-.06.13-.5.56-.55.56h-9.38s-.41-.38-.41-.41v-18.49c0-1.41-1.2-3.43-2.35-4.28-3.1-2.27-8.02-1.07-9.97,2.17-.18.3-.93,1.95-.93,2.11v18.49s-.38.41-.41.41h-9.38s-.41-.38-.41-.41V24.09s.43-.49.56-.55c.56-.26,8.54-.26,9.1,0,.13.06.56.5.56.55v16.97Z"/> <path class="lp" d="M290.43,70.31c-.68-.21-.34-2.13-.42-2.76-1.03.4-1.73,1.24-2.75,1.8-7.86,4.26-22.01,1.17-19.19-10.09,1.81-7.23,10.75-7.87,16.85-7.73.62.01,4.74.7,4.82.13.6-6.56-7.15-7-11.61-4.69-1.04.54-1.81,1.54-2.84,2.07-.36-.06-4.86-4.63-5.17-5.08-.4-.6-.11-.9.32-1.36,7.7-8.12,29.5-6.36,29.5,6.88v20.42s-.38.41-.41.41h-9.11ZM289.74,57.89c-3.14.02-9.87-1.39-11.65,2.02-1.04,2,.37,4.12,2.46,4.55,4.28.87,9.99-1.41,9.18-6.56Z"/> <path class="lp" d="M314.85,38.3h8.14s.41.38.41.41v7.17s-.38.41-.41.41h-8.14v13.66c0,.09.78,1.36.95,1.54.93.95,2.9.95,4.16.81.77-.08,2.33-.96,2.77-.29.24.36,1.08,6.79.91,7.28-.35,1-5.85,1.81-6.99,1.83-6.19.16-11.21-2.26-11.74-8.96-.39-4.97.34-10.4-.03-15.42-.33-1.01-3.42-.09-4.06-.49-.4-.25-.51-6.74-.18-7.41.49-1.01,3.26-.38,4.28-.55v-6.48s.43-.49.56-.55c.48-.22,7.6-.29,8.41-.13.3.06.97.48.97.68v6.48Z"/> <path class="lk" d="M66.16,23.74c.3.3.32,1.01.35,1.44-.36,13.58.57,27.33-.28,40.85-.06.97.13,2.13,0,3.04-.05.36.15.49-.41.41-1.47-.22-9.53-5.67-9.79-7.05l-.02-37.26c.09-1.09.07-1.59,1.27-1.76,1.72-.24,5.66-.19,7.45-.04.43.04,1.14.05,1.44.35Z"/> <path class="lk" d="M101.82,55.96c.77-.58.6-2,.56-2.91-.87-23.16-36.35-21.17-34.22,2.49,1.39,15.45,23.13,20.33,31.87,8.98.58-.75,1.04-1.08.12-1.79-.67-.52-5.83-4.02-6.2-4.01-.63.02-1.97,1.85-2.63,2.32-4.46,3.14-12.71.97-13.23-4.81,3.19-.51,22.32.78,23.73-.28ZM92.16,49.89h-13.8c.94-7.23,13.23-7.63,13.8,0Z"/> <path class="lk" d="M137.02,49.87c-3.36-17.81-30.26-17.62-33.47.5-2.69,15.21,12.92,24.77,26.14,18.41,1.18-.57,5.76-3.95,6.04-5.02.13-.48-.1-.62-.38-.92-.3-.32-5.72-4.11-6.09-4.15-.81-.08-2.12,1.7-2.96,2.29-4.54,3.15-12.63,1.07-13.17-4.75h22.78c.65.11.69-.29.95-.55,1.07-1.07.45-4.23.15-5.81ZM127.21,49.89h-13.8c1.04-7.28,12.92-7.54,13.8,0Z"/> <path class="lk" d="M226.28,51.95c-1.67-22.02-36.89-19.96-34.15,4.35,1.6,14.16,21.06,18.9,30.52,9.71.81-.78,2.42-2.23,1.55-3.15-.31-.33-5.72-4.11-6.09-4.15-.81-.08-2.12,1.7-2.96,2.29-4.53,3.15-12.6,1.13-13.17-4.75l23.73-.28c.84-.5.64-3,.56-4.01ZM216.34,49.89h-14.07c1.18-7.4,12.78-7.48,14.07,0Z"/> <polygon class="lk" points="189.31 69.2 189.29 19.81 189.29 19.24 183.78 19.24 180.19 19.25 179.05 19.25 179.07 70.32 189.31 70.32 189.31 69.2"/> <g> <path class="lp" d="M8.82,12.63c1.38,0,2.78.1,4.14.28,15.06,1.9,20.83,18.41,27.27,29.99,10.03,18.01,16.53,25.12,36.38,31.8.43.14.79-.24.65.58-7.63.33-15.2-.4-21.98-4.09-13.57-7.37-19.61-23.64-26.81-36.38-4.07-7.21-7.61-13.22-15.78-16.1-1.88-.66-1.95-.55-3.86-.83-.5-.07-2.52-.36-2.64-.53v-4.45c.31-.44,1.99-.26,2.64-.26Z"/> <path class="lk" d="M12.96,12.91c-1.36-.17-2.76-.28-4.14-.28-.33-1.85.81-6.27-.85-7.29-1.3-.8-2.56-.07-3.16,1.2,0,5.82-.42,11.74-.14,17.55.05,1.1.17,2.78.31,3.84.28,2.03,3.53,2.15,3.84-.53.34-2.94-.27-6.51,0-9.53,1.92.28,1.98.17,3.86.83-.31,6.65-.61,13.35-1.11,20-.61,8.25-1.29,16.88-2.24,25.08-.2,1.72-1.25,11.34-2.16,11.92-1.55.99-2.01-3.84-2.17-4.75-1.59-9.08-1.82-18.39-2.8-27.55C2.32,31.36-.26,18.38.02,6.46.15,1.33,5.67-1.39,10.12.72s3.09,8.27,2.85,12.19Z"/> </g></svg></div>
+        <div class="body"><h2 class="name">NeedlePath</h2>
+          <p class="desc">Auto-digitize clean vector art and text into PES and DST stitch files.</p>
+          <span class="machine">Embroidery</span></div>
+      </a></li>
+      <li><a class="app wrestl" href="wrestl/index.html">
+        <div class="well"><div class="mk-ws" aria-hidden="true">
+          <img src="wrestl/icon.svg" alt="">
+          <span>Wre<b>STL</b></span></div></div>
+        <div class="body"><h2 class="name">WreSTL</h2>
+          <p class="desc">Resize, crop and slice STL files, with auto-repair, and save a solid, print-ready model.</p>
+          <span class="machine">3D printer</span></div>
+      </a></li>
+      </ul>
+    </section>
+
+    <section class="band cat-sim" id="sim" aria-labelledby="sim-h">
+      <div class="band-head">
+        <span class="band-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 11v3M5.5 12.5h3"/><circle cx="16" cy="11.5" r="1"/><circle cx="18" cy="13.5" r="1"/></svg></span>
+        <div><h2 id="sim-h">Simulators & games</h2><p>Bring an Onshape design and test it in 3D.</p></div>
+        <span class="count">2 apps</span>
+      </div>
+      <ul class="grid">
+      <li><a class="app golfsim" href="golfsim/index.html">
+        <div class="well"><div class="mk-gs" aria-hidden="true">
+          <img src="golfsim/icon.webp" alt="">
+          <span>Mini Golf</span></div></div>
+        <div class="body"><h2 class="name">CAD Mini Golf</h2>
+          <p class="desc">Drop in an Onshape model of a mini golf hole and play it in 3D.</p>
+          <span class="machine">Onshape game</span></div>
+      </a></li>
+      <li><a class="app siegeready" href="siegeready/index.html">
+        <div class="well"><div class="mk-sr" aria-hidden="true">
+          <svg viewBox="0 0 64 64"><path d="M6 50C14 22 34 10 52 14" fill="none" stroke="var(--a-accent)" stroke-width="2.2" stroke-dasharray="3 4" stroke-linecap="round"/><path d="M34 58V30h4v4h4v-4h4v4h4v-4h4v28z" fill="var(--a-stone)"/><path d="M41 58v-9a3 3 0 0 1 6 0v9z" fill="var(--a-bg)"/><path d="M44 30V18" stroke="var(--a-ink)" stroke-width="1.6"/><path d="M44 18h8l-2 3 2 3h-8z" fill="var(--a-accent)"/><path d="M2 58h60" stroke="var(--a-ink)" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="40" r="7" fill="var(--a-flame)" opacity=".55"/><circle cx="10" cy="40" r="4.2" fill="var(--a-accent)"/><circle cx="9" cy="39" r="1.6" fill="#fff" opacity=".8"/></svg>
+          <span>Siege<b>Ready</b></span></div></div>
+        <div class="body"><h2 class="name">SiegeReady</h2>
+          <p class="desc">Rig your Onshape marble launcher, then launch a flaming marble for distance, accuracy, or to knock down a castle.</p>
+          <span class="machine">Onshape game</span></div>
+      </a></li>
+      </ul>
+    </section>
+
+    <p class="none" id="none" hidden>No apps match that search.</p>
 
     <nav class="more" aria-label="Other tools">
       <h2>Also</h2>
@@ -317,5 +392,19 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
     </nav>
   </main>
 </div>
+<script>
+(function(){
+  const box=document.getElementById('find'); if(!box) return;
+  const items=[...document.querySelectorAll('.band .grid > li')];
+  function run(){
+    const q=box.value.trim().toLowerCase(); let any=false;
+    items.forEach(li=>{ const hit=!q||li.textContent.toLowerCase().includes(q); li.hidden=!hit; });
+    document.querySelectorAll('.band').forEach(b=>{ const vis=[...b.querySelectorAll('.grid > li')].some(li=>!li.hidden); b.hidden=!vis; if(vis) any=true; });
+    document.getElementById('none').hidden=any;
+  }
+  box.addEventListener('input',run);
+  document.addEventListener('keydown',e=>{ if(e.key==='/'&&document.activeElement!==box){ e.preventDefault(); box.focus(); } if(e.key==='Escape'&&document.activeElement===box){ box.value=''; run(); } });
+})();
+</script>
 </body>
 </html>

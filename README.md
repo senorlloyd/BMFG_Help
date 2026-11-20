@@ -16,7 +16,7 @@ The landing page groups the apps by machine, with a colored band for each group,
 | [RouteReady](https://bmfg.help/routeready/) | CNC router | Design 2D router cuts and export ready-to-run files for the ShopBots. |
 | [InlayReady](https://bmfg.help/inlayready/) | CNC router | V-carve inlays: a pocket in one board and a plug that fits it, cut on the ShopBots. |
 | [CarveReady](https://bmfg.help/carveready/) | CNC router | Turn an STL or OBJ into 3D carving files for the ShopBots, including two-sided flip carves. |
-| [GlowLine](https://bmfg.help/glowline/) | CNC router | Easy neon sign maker: type your sign, pick a single-line font, and get ShopBot groove and hole files plus a wiring plan for LED neon flex. |
+| [GlowLine](https://bmfg.help/glowline/) | CNC router | Easy neon sign maker: type your sign or import SVG art, pick a single-line font, and get ShopBot groove, hole and cut-out files plus a wiring plan for LED neon flex. |
 | [TurnReady](https://bmfg.help/turnready/) | CNC lathe · HX710 | Draw or import a part profile, simulate the cuts, and get G-code for the desktop CNC lathe. Includes a touch-off helper and lathe basics. |
 | [ArcRight](https://bmfg.help/arcright/) | CNC plasma | Turn an SVG or a quick drawing into a clean DXF for the plasma table. |
 

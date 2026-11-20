@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GlowLine: Easy Neon Sign Maker</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<meta name="description" content="Type your sign, pick a single-line font, and get ShopBot groove and hole files plus a wiring plan for LED neon flex.">
+<meta name="description" content="Type your sign or import SVG art, pick a single-line font, and get ShopBot groove, hole and cut-out files plus a wiring plan for LED neon flex.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
@@ -67,6 +67,12 @@ label.chk{display:flex;gap:9px;align-items:flex-start;margin:12px 0 2px;font-siz
 label.chk input{margin-top:3px;width:16px;height:16px;flex:none;accent-color:var(--accent)}
 label.chk b{color:var(--ink)}
 select{appearance:auto}
+[hidden]{display:none!important}
+.seg4 button{font-size:.74rem;padding:7px 2px}
+.seg button:disabled{opacity:.4;cursor:not-allowed}
+.artbox{border:1px dashed var(--line);border-radius:9px;padding:10px;margin-top:4px}
+.artinfo{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font-size:.84rem;font-weight:600;word-break:break-all}
+.artinfo button{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:4px 9px;font:600 .75rem var(--f-body);cursor:pointer;flex:none}
 .plan-sum{margin-top:10px;background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:.84rem;line-height:1.5}
 .plan-sum b{font-weight:600}
 .plan-sum .k{display:block;font:500 .66rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:6px}
@@ -140,9 +146,29 @@ details.adv[open]{padding-bottom:12px}
       </div>
       <div class="row">
         <label class="f"><span>Line spacing</span><div class="unit"><input id="lsp" type="number" min="1" max="4" step="0.1" value="1.5"><em>&times;</em></div></label>
-        <label class="f"><span>Border</span><div class="unit"><input id="margin" type="number" min="0" max="24" step="0.25" value="1.5"><em>in</em></div></label>
+        <label class="f" id="marginWrap"><span>Border</span><div class="unit"><input id="margin" type="number" min="0" max="24" step="0.25" value="1.5"><em>in</em></div></label>
       </div>
       <label class="f"><span>Line alignment</span><div class="seg" id="align"><button data-v="left">Left</button><button data-v="center" aria-pressed="true">Center</button><button data-v="right">Right</button></div></label>
+      <label class="f"><span>Sign shape</span><div class="seg seg4" id="shapeSel"><button type="button" data-v="board">Board</button><button type="button" data-v="rect">Rectangle</button><button type="button" data-v="contour">Follow letters</button><button type="button" data-v="custom" id="shapeCustom">My outline</button></div></label>
+      <div id="contourOpts" hidden>
+        <div class="row">
+          <label class="f"><span>Edge distance</span><div class="unit"><input id="gap" type="number" min="0.25" max="12" step="0.125" value="1"><em>in</em></div></label>
+          <label class="f"><span>Fill gaps up to</span><div class="unit"><input id="bridge" type="number" min="0" max="24" step="0.25" value="4"><em>in</em></div></label>
+        </div>
+        <label class="chk"><input type="checkbox" id="keepHoles"> <span>Also cut out the holes inside letters (the middle of an O, A or P)</span></label>
+      </div>
+      <p class="note" id="shapeNote"></p>
+      <label class="f"><span>Artwork (optional SVG)</span></label>
+      <div class="artbox">
+        <input type="file" id="artFile" accept=".svg,image/svg+xml" hidden>
+        <button type="button" class="resetbtn" id="artBtn" style="margin-top:0">Add SVG artwork&hellip;</button>
+        <div id="artInfo" class="artinfo" hidden><span id="artName"></span><button type="button" id="artRemove" aria-label="Remove artwork">Remove</button></div>
+        <div class="row" id="artOpts" hidden>
+          <label class="f"><span>Artwork width</span><div class="unit"><input id="artw" type="number" min="1" max="120" step="0.5" value="12"><em>in</em></div></label>
+          <label class="f"><span>Place it</span><select id="artPos"><option value="above">Above the text</option><option value="below">Below the text</option><option value="left">Left of the text</option><option value="right">Right of the text</option><option value="behind">Centered on the text</option></select></label>
+        </div>
+        <p class="note">Draw <b>single lines with no fill</b> in Illustrator, Inkscape or a drawing app and save as SVG. Lines drawn in <b style="color:#e01e1e">red</b> become your cut-out outline.</p>
+      </div>
       <label class="f"><span>Glow color (preview only)</span><div class="swatches" id="colors"></div></label>
     </div>
     <div class="pane" data-pane="flex" hidden>
@@ -626,6 +652,273 @@ return { layout, plan, flattenSegs, boundsOf, grooveCode, grooveJobs, holeCode, 
 })();
 
 
+// ---------- sign outline (contour cut) ----------
+// Distance-field offset of the groove centerlines: dilate by gap + bridge, erode by bridge
+// (morphological closing) so neighbouring letters join into one piece, then trace the edge.
+const GLOutline = (() => {
+'use strict';
+const hyp = Math.hypot;
+function edt1(f, n, d, v, z) {           // Felzenszwalb 1-D squared distance transform
+  let k = 0; v[0] = 0; z[0] = -Infinity; z[1] = Infinity;
+  for (let q = 1; q < n; q++) {
+    let s = ((f[q] + q*q) - (f[v[k]] + v[k]*v[k])) / (2*q - 2*v[k]);
+    while (s <= z[k]) { k--; s = ((f[q] + q*q) - (f[v[k]] + v[k]*v[k])) / (2*q - 2*v[k]); }
+    k++; v[k] = q; z[k] = s; z[k+1] = Infinity;
+  }
+  k = 0;
+  for (let q = 0; q < n; q++) { while (z[k+1] < q) k++; d[q] = (q - v[k])*(q - v[k]) + f[v[k]]; }
+}
+function edt(seed, W, H) {                // seed[i]=1 -> distance 0 ; returns distance in cells
+  const INF = 1e20, g = new Float64Array(W*H);
+  for (let i = 0; i < W*H; i++) g[i] = seed[i] ? 0 : INF;
+  const n = Math.max(W, H), f = new Float64Array(n), d = new Float64Array(n), v = new Int32Array(n), z = new Float64Array(n + 1);
+  for (let x = 0; x < W; x++) { for (let y = 0; y < H; y++) f[y] = g[y*W + x]; edt1(f, H, d, v, z); for (let y = 0; y < H; y++) g[y*W + x] = d[y]; }
+  for (let y = 0; y < H; y++) { for (let x = 0; x < W; x++) f[x] = g[y*W + x]; edt1(f, W, d, v, z); for (let x = 0; x < W; x++) g[y*W + x] = Math.sqrt(d[x]); }
+  return g;
+}
+// marching squares: loops where field crosses level (inside = field >= level)
+function contourLoops(F, W, H, level) {
+  const id = (x, y, hor) => ((y * W + x) << 1) | hor;     // edge ids
+  const pts = new Map(), next = new Map();
+  const P = (x, y, hor) => {
+    const k = id(x, y, hor); if (pts.has(k)) return k;
+    const a = F[y*W + x], b = hor ? F[y*W + x + 1] : F[(y+1)*W + x];
+    const t = (level - a) / (b - a || 1e-12);
+    pts.set(k, hor ? [x + t, y] : [x, y + t]); return k;
+  };
+  for (let y = 0; y < H - 1; y++) for (let x = 0; x < W - 1; x++) {
+    const a = F[y*W+x] >= level, b = F[y*W+x+1] >= level, c = F[(y+1)*W+x+1] >= level, d = F[(y+1)*W+x] >= level;
+    const code = (a ? 1 : 0) | (b ? 2 : 0) | (c ? 4 : 0) | (d ? 8 : 0);
+    if (code === 0 || code === 15) continue;
+    const T = () => P(x, y, 1), R = () => P(x+1, y, 0), B = () => P(x, y+1, 1), L = () => P(x, y, 0);
+    const link = (p, q) => next.set(p, q);               // walk with inside on the left
+    switch (code) {
+      case 1: link(T(), L()); break;  case 2: link(R(), T()); break;  case 3: link(R(), L()); break;
+      case 4: link(B(), R()); break;  case 6: link(B(), T()); break;  case 7: link(B(), L()); break;
+      case 8: link(L(), B()); break;  case 9: link(T(), B()); break;  case 11: link(R(), B()); break;
+      case 12: link(L(), R()); break; case 13: link(T(), R()); break; case 14: link(L(), T()); break;
+      case 5: case 10: {
+        const ctr = (F[y*W+x] + F[y*W+x+1] + F[(y+1)*W+x+1] + F[(y+1)*W+x]) / 4 >= level;
+        if (code === 5) { if (ctr) { link(T(), R()); link(B(), L()); } else { link(T(), L()); link(B(), R()); } }
+        else { if (ctr) { link(R(), B()); link(L(), T()); } else { link(R(), T()); link(L(), B()); } }
+      }
+    }
+  }
+  const loops = [], seen = new Set();
+  for (const k0 of next.keys()) {
+    if (seen.has(k0)) continue;
+    const loop = []; let k = k0;
+    while (k !== undefined && !seen.has(k)) { seen.add(k); loop.push(pts.get(k)); k = next.get(k); }
+    if (loop.length > 3) loops.push(loop);
+  }
+  return loops;
+}
+function area(p) { let a = 0; for (let i = 0, j = p.length - 1; i < p.length; j = i++) a += (p[j][0] * p[i][1] - p[i][0] * p[j][1]); return a / 2; }
+function rdp(pts, tol) {
+  if (pts.length < 3) return pts;
+  const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1;
+  const st = [[0, pts.length - 1]];
+  while (st.length) {
+    const [i, j] = st.pop(); const A = pts[i], B = pts[j]; const dx = B[0]-A[0], dy = B[1]-A[1], L = hyp(dx, dy) || 1e-12;
+    let md = -1, mi = -1;
+    for (let k = i + 1; k < j; k++) { const d = Math.abs(dy*pts[k][0] - dx*pts[k][1] + B[0]*A[1] - B[1]*A[0]) / L; if (d > md) { md = d; mi = k; } }
+    if (md > tol) { keep[mi] = 1; st.push([i, mi], [mi, j]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+function smoothLoop(l, spacing) {   // resample, then Taubin smoothing (no shrink) to remove raster ripple
+  const n0 = l.length; let per = 0; for (let i = 0; i < n0; i++) per += hyp(l[(i+1)%n0][0]-l[i][0], l[(i+1)%n0][1]-l[i][1]);
+  const n = Math.max(12, Math.round(per / spacing)), step = per / n, out = []; let acc = 0, i = 0, a = l[0], b = l[1 % n0], segL = hyp(b[0]-a[0], b[1]-a[1]);
+  for (let k = 0; k < n; k++) {
+    const target = k * step;
+    while (acc + segL < target && i < n0) { acc += segL; i++; a = l[i % n0]; b = l[(i+1) % n0]; segL = hyp(b[0]-a[0], b[1]-a[1]); }
+    const u = segL ? (target - acc) / segL : 0; out.push([a[0] + (b[0]-a[0])*u, a[1] + (b[1]-a[1])*u]);
+  }
+  let p = out;
+  for (let it = 0; it < 8; it++) for (const f of [0.5, -0.53]) {
+    const q = p.map((v, j) => { const pr = p[(j - 1 + n) % n], nx = p[(j + 1) % n]; return [v[0] + f * ((pr[0] + nx[0]) / 2 - v[0]), v[1] + f * ((pr[1] + nx[1]) / 2 - v[1])]; });
+    p = q;
+  }
+  return p;
+}
+function closeLoop(l) {   // simplify a closed loop: split at the point farthest from the start, simplify both halves
+  let far = 0, fd = -1; for (let i = 1; i < l.length; i++) { const d = hyp(l[i][0]-l[0][0], l[i][1]-l[0][1]); if (d > fd) { fd = d; far = i; } }
+  const a = rdp(l.slice(0, far + 1), 0.004), b = rdp(l.slice(far).concat([l[0]]), 0.004);
+  return a.concat(b.slice(1, -1));
+}
+// polys: polylines in inches. opts: gap, bridge, keepHoles. returns {loops:[{pts, hole}], pieces}
+function build(polys, o) {
+  const gap = Math.max(0.05, o.gap), bridge = Math.max(0, o.bridge || 0);
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const pl of polys) for (const p of pl) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
+  if (!isFinite(x0)) return { loops: [], pieces: 0 };
+  const pad = gap + bridge + 0.5;
+  const span = Math.max(x1 - x0, y1 - y0) + 2 * pad;
+  const res = Math.max(0.02, span / 1600);
+  const W = Math.ceil((x1 - x0 + 2*pad) / res) + 3, H = Math.ceil((y1 - y0 + 2*pad) / res) + 3;
+  const ox = x0 - pad, oy = y0 - pad;
+  const seed = new Uint8Array(W * H);
+  for (const pl of polys) for (let i = 0; i < pl.length; i++) {
+    const a = pl[i], b = pl[Math.min(i + 1, pl.length - 1)];
+    const n = Math.max(1, Math.ceil(hyp(b[0]-a[0], b[1]-a[1]) / (res * 0.5)));
+    for (let k = 0; k <= n; k++) { const x = Math.round((a[0] + (b[0]-a[0])*k/n - ox) / res), y = Math.round((a[1] + (b[1]-a[1])*k/n - oy) / res); seed[y*W + x] = 1; }
+  }
+  const d1 = edt(seed, W, H), R = bridge / res, G = gap / res;
+  // grown region, then distance-to-outside of it
+  const outside = new Uint8Array(W * H); for (let i = 0; i < W*H; i++) outside[i] = d1[i] > G + R ? 1 : 0;
+  const d2 = edt(outside, W, H);
+  const F = new Float64Array(W * H); for (let i = 0; i < W*H; i++) F[i] = d2[i] - R - 0.5;  // >= 0 means inside the sign
+  if (!o.keepHoles) {  // fill enclosed holes: flood the outside from the border
+    const out = new Uint8Array(W * H), st = [];
+    for (let x = 0; x < W; x++) { st.push(x, (H-1)*W + x); } for (let y = 0; y < H; y++) { st.push(y*W, y*W + W - 1); }
+    while (st.length) { const i = st.pop(); if (out[i] || F[i] >= 0) continue; out[i] = 1; const x = i % W, y = (i / W) | 0;
+      if (x > 0) st.push(i-1); if (x < W-1) st.push(i+1); if (y > 0) st.push(i-W); if (y < H-1) st.push(i+W); }
+    for (let i = 0; i < W*H; i++) if (!out[i] && F[i] < 0) F[i] = 1;
+  }
+  const raw = contourLoops(F, W, H, 0);
+  const loops = raw.map(l => closeLoop(smoothLoop(l.map(p => [ox + p[0]*res, oy + p[1]*res]), res * 1.5))).filter(l => l.length > 3).map(pts => ({ pts, hole: area(pts) < 0 }));
+  const pieces = loops.filter(l => !l.hole).length;
+  return { loops, pieces, res };
+}
+function rectLoop(b, r) {   // rounded rectangle, CCW
+  const pts = [], n = 10, cs = [[b.x1 - r, b.y0 + r, -90], [b.x1 - r, b.y1 - r, 0], [b.x0 + r, b.y1 - r, 90], [b.x0 + r, b.y0 + r, 180]];
+  for (const [cx, cy, a0] of cs) for (let k = 0; k <= n; k++) { const a = (a0 + 90*k/n) * Math.PI / 180; pts.push([cx + r*Math.cos(a), cy + r*Math.sin(a)]); }
+  return pts;
+}
+function polyLen(p, closed) { let L = 0; for (let i = 1; i < p.length; i++) L += hyp(p[i][0]-p[i-1][0], p[i][1]-p[i-1][1]); if (closed) L += hyp(p[0][0]-p.at(-1)[0], p[0][1]-p.at(-1)[1]); return L; }
+const f4 = v => { let r = Math.round(v * 1e4) / 1e4; if (Object.is(r, -0)) r = 0; return r.toFixed(4); };
+// Profile G-code for loops (tool-centre paths). m: {total, doc, feed, plunge, safeZ, tabs, tabW, tabH, climb}
+function profileCode(loops, X, Y, m) {
+  const L = [], passes = Math.max(1, Math.ceil(m.total / Math.max(0.01, m.doc) - 1e-9));
+  for (const lp of loops) {
+    // direction: outside loops CCW = climb (CW spindle); holes the other way round
+    let pts = lp.pts.slice(); const ccw = area(pts) > 0;
+    const wantCCW = lp.hole ? !m.climb : m.climb;
+    if (ccw !== wantCCW) pts.reverse();
+    pts.push(pts[0]);
+    const len = polyLen(pts, false);
+    const nt = lp.hole ? 0 : Math.max(0, m.tabs | 0);
+    const tabs = []; for (let i = 0; i < nt; i++) { const c = len * (i + 0.5) / nt; tabs.push([c - m.tabW/2, c + m.tabW/2]); }
+    const tabZ = -(m.total - m.tabH - m.breakthrough);
+    L.push(`G0 X${X(pts[0][0])} Y${Y(pts[0][1])}`);
+    for (let k = 1; k <= passes; k++) {
+      const z = -Math.min(m.total, k * m.total / passes);
+      L.push(`G1 Z${f4(Math.max(z, nt && z < tabZ && inTab(0) ? tabZ : z))} F${m.plunge.toFixed(1)}`);
+      let s = 0, first = true;
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i-1], b = pts[i], seg = hyp(b[0]-a[0], b[1]-a[1]);
+        // split the segment at tab edges so the tool lifts exactly over each tab
+        const cuts = [];
+        if (nt && z < tabZ) for (const [t0, t1] of tabs) for (const t of [t0, t1]) if (t > s && t < s + seg) cuts.push((t - s) / seg);
+        cuts.sort((p, q) => p - q); cuts.push(1);
+        for (const u of cuts) {
+          const px = a[0] + (b[0]-a[0])*u, py = a[1] + (b[1]-a[1])*u, at = s + seg*u - 1e-6;
+          const zz = nt && z < tabZ && inTab(at) ? tabZ : z;
+          L.push(`G1 X${X(px)} Y${Y(py)} Z${f4(zz)}` + (first ? ` F${m.feed.toFixed(1)}` : '')); first = false;
+        }
+        s += seg;
+      }
+    }
+    L.push('G0 Z' + f4(m.safeZ));
+    function inTab(at) { return tabs.some(([t0, t1]) => at >= t0 && at <= t1); }
+  }
+  return L;
+}
+// Offset filled loops outward by d (inches): rasterise (even-odd), distance field, trace.
+function offsetLoops(loops, d) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const l of loops) for (const p of l.pts) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
+  if (!isFinite(x0)) return [];
+  const pad = d + 0.3, span = Math.max(x1 - x0, y1 - y0) + 2*pad, res = Math.max(0.008, span / 3200);
+  const W = Math.ceil((x1 - x0 + 2*pad) / res) + 3, H = Math.ceil((y1 - y0 + 2*pad) / res) + 3, ox = x0 - pad, oy = y0 - pad;
+  const mask = new Uint8Array(W * H), xs = [];
+  for (let y = 0; y < H; y++) {
+    const py = oy + (y + 0.5) * res; xs.length = 0;
+    for (const l of loops) { const p = l.pts; for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+      const a = p[j], b = p[i]; if ((a[1] > py) !== (b[1] > py)) xs.push(a[0] + (py - a[1]) * (b[0] - a[0]) / (b[1] - a[1])); } }
+    xs.sort((p, q) => p - q);
+    for (let k = 0; k + 1 < xs.length; k += 2) {
+      const a = Math.max(0, Math.ceil((xs[k] - ox) / res - 0.5)), b = Math.min(W - 1, Math.floor((xs[k+1] - ox) / res - 0.5));
+      for (let x = a; x <= b; x++) mask[y*W + x] = 1;
+    }
+  }
+  const dist = edt(mask, W, H), D = d / res;
+  const F = new Float64Array(W * H); for (let i = 0; i < W*H; i++) F[i] = D + 0.5 - dist[i];
+  return contourLoops(F, W, H, 0).map(l => closeLoop(smoothLoop(l.map(p => [ox + (p[0] + 0.5)*res, oy + (p[1] + 0.5)*res]), res * 1.5))).filter(l => l.length > 3).map(pts => ({ pts, hole: area(pts) < 0 }));
+}
+// classify plain closed loops into outer shapes / holes by nesting depth
+function nestLoops(loopPts) {
+  const inside = (p, poly) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[j], b = poly[i];
+    if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < a[0] + (p[1] - a[1]) * (b[0] - a[0]) / (b[1] - a[1])) c = !c; } return c; };
+  return loopPts.map((pts, i) => { let depth = 0; for (let j = 0; j < loopPts.length; j++) if (j !== i && inside(pts[0], loopPts[j])) depth++; return { pts, hole: depth % 2 === 1 }; });
+}
+function distToLoops(p, loops) { let best = Infinity;
+  for (const l of loops) { const q = l.pts; for (let i = 0, j = q.length - 1; i < q.length; j = i++) { const a = q[j], b = q[i], dx = b[0]-a[0], dy = b[1]-a[1], L2 = dx*dx + dy*dy;
+    const t = L2 ? Math.max(0, Math.min(1, ((p[0]-a[0])*dx + (p[1]-a[1])*dy) / L2)) : 0; best = Math.min(best, hyp(a[0] + dx*t - p[0], a[1] + dy*t - p[1])); } }
+  return best; }
+function insideShape(p, loops) { let c = false; for (const l of loops) { const q = l.pts; for (let i = 0, j = q.length - 1; i < q.length; j = i++) { const a = q[j], b = q[i];
+  if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < a[0] + (p[1] - a[1]) * (b[0] - a[0]) / (b[1] - a[1])) c = !c; } } return c; }
+return { build, rectLoop, profileCode, offsetLoops, nestLoops, distToLoops, insideShape, area, polyLen, rdp };
+})();
+
+// ---------- SVG artwork import ----------
+// Single-line paths become neon grooves; paths stroked (or filled) in red become the cut outline.
+const GLArt = (() => {
+'use strict';
+const hyp = Math.hypot;
+function isRed(c) {
+  if (!c || c === 'none') return false;
+  const m = c.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/);
+  if (!m) return false;
+  const r = +m[1], g = +m[2], b = +m[3];
+  return r >= 180 && g <= 90 && b <= 90;
+}
+function parse(text) {
+  const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+  if (doc.querySelector('parsererror') || !doc.documentElement || doc.documentElement.nodeName.toLowerCase() !== 'svg') throw new Error('That file is not a readable SVG.');
+  const holder = document.createElement('div');
+  holder.style.cssText = 'position:absolute;left:-100000px;top:0;width:10px;height:10px;overflow:hidden;opacity:0;pointer-events:none';
+  const svg = document.importNode(doc.documentElement, true);
+  svg.querySelectorAll('script,foreignObject').forEach(n => n.remove());
+  holder.appendChild(svg); document.body.appendChild(holder);
+  const neon = [], cut = []; let filledOnly = 0, skipped = 0;
+  try {
+    let bb; try { bb = svg.getBBox(); } catch (e) { bb = { width: 100, height: 100 }; }
+    const diag = hyp(bb.width || 100, bb.height || 100) || 100;
+    const els = [...svg.querySelectorAll('path,line,polyline,polygon,circle,ellipse,rect')]
+      .filter(el => !el.closest('defs,clipPath,mask,symbol,marker,pattern'));
+    for (const el of els) {
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden') { skipped++; continue; }
+      let L = 0; try { L = el.getTotalLength(); } catch (e) { L = 0; }
+      if (!(L > 0)) { skipped++; continue; }
+      const n = Math.max(8, Math.min(6000, Math.ceil(L / (diag / 1500))));
+      const step = L / n, M = el.getCTM() || svg.createSVGMatrix();
+      const T = p => [M.a * p.x + M.c * p.y + M.e, M.b * p.x + M.d * p.y + M.f];
+      const stroke = cs.stroke, fill = cs.fill;
+      const red = isRed(stroke) || ((stroke === 'none' || !stroke) && isRed(fill));
+      if (!red && (stroke === 'none' || !stroke) && fill && fill !== 'none') filledOnly++;
+      // sample, splitting where the path jumps (a new subpath)
+      let cur = [], prev = null; const parts = [];
+      for (let i = 0; i <= n; i++) {
+        const q = T(el.getPointAtLength(Math.min(L, i * step)));
+        if (prev && hyp(q[0] - prev[0], q[1] - prev[1]) > step * 4 * Math.max(1, Math.abs(M.a) + Math.abs(M.b))) { if (cur.length > 1) parts.push(cur); cur = []; }
+        cur.push(q); prev = q;
+      }
+      if (cur.length > 1) parts.push(cur);
+      (red ? cut : neon).push(...parts);
+    }
+  } finally { holder.remove(); }
+  const all = neon.concat(cut);
+  if (!all.length) throw new Error('No paths found in that SVG. Draw lines (strokes) and save as SVG.');
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const pl of all) for (const p of pl) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
+  const flip = pl => pl.map(p => [p[0] - x0, y1 - p[1]]);   // SVG y runs down; ours runs up
+  return { neon: neon.map(flip), cut: cut.map(flip), w: Math.max(1e-6, x1 - x0), h: Math.max(1e-6, y1 - y0), filledOnly, skipped };
+}
+return { parse };
+})();
+
 </script>
 <script>
 (function () {
@@ -634,13 +927,14 @@ const $ = s => document.querySelector(s);
 const STORE = 'glowline.v3';
 const COLORS = ['#ff4fbf', '#ff3b3b', '#ff9a2e', '#ffe14d', '#5dff8a', '#3fd8ff', '#6b7bff', '#c46bff', '#fff4e6'];
 const DEFAULT_HEADER = "SO,1,1\t\t\t\t\t' Turn on router\nM3 S{rpm}\t\t\t\t' Set spindle speed\nPAUSE 2\t\t\t\t' Give router time to reach cutting rpm";
-const NUMS = ['cap', 'track', 'lsp', 'margin', 'chan', 'bend', 'hole', 'board', 'depth', 'feed', 'plunge', 'rpm', 'safez', 'hbit', 'hdoc', 'hfeed', 'brk'];
+const NUMS = ['gap', 'bridge', 'artw', 'cap', 'track', 'lsp', 'margin', 'chan', 'bend', 'hole', 'board', 'depth', 'feed', 'plunge', 'rpm', 'safez', 'hbit', 'hdoc', 'hfeed', 'brk'];
 const BITS = { neon6: { chan: 6, depth: 0.165 } };   // 6-6D-4.2: 6 mm groove, 4.2 mm deep
 const CNC_DEFAULTS = { chan: 6, depth: 0.165, feed: 40, plunge: 10, rpm: 14000, safez: 0.25, hbit: 0.25, hdoc: 0.125, hfeed: 30, brk: 0.02 };
 // Conservative starting points for a 2-flute carbide neon bit, full-depth slot
 const MATERIALS = { acrylic: { name: 'acrylic', feed: 40, plunge: 10, rpm: 14000, hfeed: 30 },
                     wood: { name: 'wood / MDF', feed: 60, plunge: 15, rpm: 16000, hfeed: 50 } };
-let S = { font: 0, align: 'center', color: COLORS[0], view: 'plan', exitEntry: true, bit: 'neon6', mat: 'wood' };
+let S = { font: 0, align: 'center', color: COLORS[0], view: 'plan', exitEntry: true, bit: 'neon6', mat: 'wood', shape: 'board', keepHoles: false, artPos: 'above' };
+let ART = null, ART_TEXT = '', ART_NAME = '';
 let last = null;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -657,6 +951,7 @@ try {
 if (!(S.font >= 0 && S.font < GLOW_FONTS.length)) S.font = 0;
 function persist() {
   try { const n = {}; for (const k of NUMS) n[k] = $('#' + k).value; localStorage.setItem(STORE, JSON.stringify({ S, text: $('#txt').value, n, head: $('#head').value })); } catch (e) {}
+  try { if (ART_TEXT && ART_TEXT.length < 400000) localStorage.setItem(STORE + '.art', JSON.stringify({ name: ART_NAME, text: ART_TEXT })); else localStorage.removeItem(STORE + '.art'); } catch (e) {}
 }
 
 // ---------- tabs ----------
@@ -713,12 +1008,40 @@ function update() {
   const f = GLOW_FONTS[S.font], o = opts();
   const text = $('#txt').value;
   const lay = GL.layout(f, text, o);
+  const art = placeArt(lay, o);
+  for (const pl of art.neon) lay.strokes.push({ segs: pl.slice(1).map((q, i) => ({ t: 'L', p0: pl[i], p1: q })), line: 999, glyph: 0 });
+  syncShape();
   if (!lay.strokes.length) { last = null; $('#preview').innerHTML = '<svg viewBox="0 0 400 120"><text x="200" y="66" fill="#8a8f9c" font-family="sans-serif" font-size="16" text-anchor="middle">Type some letters to start</text></svg>'; $('#stats').innerHTML = ''; $('#alerts').innerHTML = ''; $('#dims').textContent = ''; return; }
   const pl = GL.plan(lay, o);
-  const pts = lay.strokes.map(s => GL.flattenSegs(s.segs, 0.05)).concat(pl.holes.map(h => [[h.p[0] - o.holeIn / 2, h.p[1] - o.holeIn / 2], [h.p[0] + o.holeIn / 2, h.p[1] + o.holeIn / 2]]));
-  const board = GL.boundsOf(pts, o.marginIn + o.chanIn / 2);
+  const grooves = lay.strokes.map(s => GL.flattenSegs(s.segs, 0.05));
+  const holePolys = pl.holes.map(h => circlePts(h.p, o.holeIn / 2));
+  const pts = grooves.concat(holePolys);
+  const bitR = Math.max(0.015, num('hbit', 0.25) / 2);
+  let board = GL.boundsOf(pts, o.marginIn + o.chanIn / 2), shape = null;
+  if (S.shape === 'rect') {
+    const rr = Math.min(0.5, (board.x1 - board.x0) / 4, (board.y1 - board.y0) / 4);
+    shape = { kind: 'rect', loops: [{ pts: GLOutline.rectLoop(board, rr), hole: false }], pieces: 1,
+      tool: [{ pts: GLOutline.rectLoop({ x0: board.x0 - bitR, y0: board.y0 - bitR, x1: board.x1 + bitR, y1: board.y1 + bitR }, rr + bitR), hole: false }] };
+  } else if (S.shape === 'contour') {
+    const r = GLOutline.build(pts, { gap: Math.max(0.25, num('gap', 1)) + o.chanIn / 2, bridge: Math.max(0, num('bridge', 4)) / 2, keepHoles: !!S.keepHoles });
+    if (r.loops.length) shape = { kind: 'contour', loops: r.loops, pieces: r.pieces };
+  } else if (S.shape === 'custom' && art.cut.length) {
+    const tol = Math.max(0.1, num('artw', 12) * 0.01), closed = [], open = [];
+    for (const pl of art.cut) (pl.length > 3 && Math.hypot(pl[0][0] - pl.at(-1)[0], pl[0][1] - pl.at(-1)[1]) <= tol ? closed : open).push(pl);
+    if (closed.length) { const loops = GLOutline.nestLoops(closed.map(pl => pl.slice(0, -1)));
+      shape = { kind: 'custom', loops, pieces: loops.filter(l => !l.hole).length, open: open.length }; }
+    else shape = { kind: 'custom', loops: [], pieces: 0, open: open.length, none: true };
+  }
+  if (shape && shape.loops.length && !shape.tool) shape.tool = GLOutline.offsetLoops(shape.loops, bitR);
+  if (shape && shape.loops.length) {   // stock = the cut path plus a little room, zero at its lower-left corner
+    const tb = GL.boundsOf(shape.tool.map(l => l.pts).concat(pts), 0);
+    shape.sign = GL.boundsOf(shape.loops.map(l => l.pts), 0);
+    board = { x0: tb.x0 - 0.5, y0: tb.y0 - 0.5, x1: tb.x1 + 0.5, y1: tb.y1 + 0.5 };
+    shape.edgeHoles = pl.holes.filter(h => GLOutline.distToLoops(h.p, shape.loops) < o.holeIn / 2 + 0.2).length;
+    if (shape.kind === 'custom') { let out = 0, tot = 0; for (const g of grooves) for (let i = 0; i < g.length; i += 4) { tot++; if (!GLOutline.insideShape(g[i], shape.loops)) out++; } shape.outside = out / Math.max(1, tot); }
+  }
   const jobs = GL.grooveJobs(lay, pl, { exitAtEntry: !!S.exitEntry, holeIn: o.holeIn, chanIn: o.chanIn });
-  last = { f, o, lay, pl, board, jobs };
+  last = { f, o, lay, pl, board, jobs, shape: shape && shape.loops.length ? shape : null, shapeInfo: shape, art };
   cncSummary();
   render(); stats();
 }
@@ -730,7 +1053,13 @@ function render() {
   const cw = o.chanIn, col = S.color, plan = S.view === 'plan';
   let s = `<svg viewBox="${-W * 0.03} ${-H * 0.03} ${W * 1.06} ${H * 1.06}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sign preview">`;
   s += `<defs><filter id="gl" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="${cw * 1.6}" result="b1"/><feGaussianBlur in="SourceGraphic" stdDeviation="${cw * 0.5}" result="b2"/><feMerge><feMergeNode in="b1"/><feMergeNode in="b2"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
-  s += `<rect x="0" y="0" width="${W}" height="${H}" rx="${Math.min(W, H) * 0.03}" fill="#15161d" stroke="#2a2d3a" stroke-width="${Math.max(0.03, W / 600)}"/>`;
+  const sh = last.shape, lwb = Math.max(0.03, W / 600);
+  const loopD = ls => ls.map(l => 'M' + l.pts.map(P).join(' L') + ' Z').join(' ');
+  if (sh) {
+    s += `<rect x="0" y="0" width="${W}" height="${H}" fill="#0c0d12" stroke="#2a2d3a" stroke-width="${lwb}" stroke-dasharray="${lwb * 6} ${lwb * 4}"/>`;
+    s += `<path d="${loopD(sh.loops)}" fill="#17181f" fill-rule="evenodd" stroke="#9aa0b4" stroke-width="${lwb * 1.4}" stroke-linejoin="round"/>`;
+    if (plan && sh.tool) s += `<path d="${loopD(sh.tool)}" fill="none" stroke="#4fd39a" stroke-width="${lwb}" stroke-dasharray="${lwb * 4} ${lwb * 3}" opacity=".8"/>`;
+  } else s += `<rect x="0" y="0" width="${W}" height="${H}" rx="${Math.min(W, H) * 0.03}" fill="#15161d" stroke="#2a2d3a" stroke-width="${lwb}"/>`;
   // grooves
   s += `<g fill="none" stroke="#050508" stroke-width="${cw * 1.15}" stroke-linecap="round" stroke-linejoin="round">` + lay.strokes.map(st => `<path d="${GL.pathD(st.segs, X, Y)}"/>`).join('') + '</g>';
   // lit flex
@@ -752,7 +1081,7 @@ function render() {
     }).join('') + '</g>';
   }
   $('#preview').innerHTML = s + '</svg>';
-  $('#dims').textContent = `Board ${fmtIn(W)} × ${fmtIn(H)}`;
+  $('#dims').textContent = sh ? `Sign ${fmtIn(sh.sign.x1 - sh.sign.x0)} × ${fmtIn(sh.sign.y1 - sh.sign.y0)} · stock ${fmtIn(W)} × ${fmtIn(H)}` : `Board ${fmtIn(W)} × ${fmtIn(H)}`;
 }
 const fmtIn = v => (Math.round(v * 8) / 8).toString().replace(/\.0+$/, '') + '"';
 const ft = v => v >= 24 ? (v / 12).toFixed(1) + ' ft' : v.toFixed(1) + ' in';
@@ -765,6 +1094,13 @@ function stats() {
   if (pl.tight.length) a.push(['#ff9a2e', `<b>${pl.tight.length} spot${pl.tight.length > 1 ? 's' : ''} bend tighter than ${o.minBendIn}"</b> (orange circles). Flex may kink there. Make the letters taller, try a print font, or check your flex's real limit.`]);
   if (pl.overlaps.length) a.push(['#ff3b3b', `<b>${pl.overlaps.length} place${pl.overlaps.length > 1 ? 's' : ''} where two strokes run side by side</b> (red dashed circles), usually where a script letter goes back up its own stem. Two pieces of flex won't fit in one groove: make the sign bigger, or leave one of them dark.`]);
   if (o.holeIn < o.chanIn) a.push(['#ffd84f', 'The holes are narrower than the groove, so the flex may not fit through them.']);
+  const si = last.shapeInfo;
+  if (si && si.pieces > 1) a.push(['#ff3b3b', si.kind === 'contour' ? `<b>The cut-out comes out in ${si.pieces} separate pieces.</b> Raise <b>Fill gaps up to</b> (Sign tab) until the outline wraps everything as one piece.` : `<b>Your red outline makes ${si.pieces} separate pieces.</b> That's fine if you want separate parts; otherwise join them in your drawing.`]);
+  if (si && si.kind === 'custom' && si.none) a.push(['#ff3b3b', '<b>Your red lines don\'t make a closed shape</b>, so there is nothing to cut out. Close the outline in your drawing, or pick another sign shape.']);
+  else if (si && si.open) a.push(['#ffd84f', `${si.open} red line${si.open > 1 ? 's are' : ' is'} not closed and ${si.open > 1 ? 'were' : 'was'} left out of the cut-out.`]);
+  if (last.shape && last.shape.outside > 0.01) a.push(['#ff3b3b', `<b>Some of the sign sits outside your red outline</b> (about ${Math.round(last.shape.outside * 100)}% of the grooves). Draw the red outline around the text too, move the artwork with <b>Place it</b>, or pick <b>Follow letters</b>.`]);
+  if (last.shape && last.shape.edgeHoles) a.push(['#ffd84f', `${last.shape.edgeHoles} flex hole${last.shape.edgeHoles > 1 ? 's sit' : ' sits'} close to the cut-out edge. Give the outline more room so the edge doesn't break into ${last.shape.edgeHoles > 1 ? 'them' : 'it'}.`]);
+  if (last.art && last.art.filledOnly) a.push(['#ffd84f', `${last.art.filledOnly} shape${last.art.filledOnly > 1 ? 's' : ''} in your SVG ${last.art.filledOnly > 1 ? 'are' : 'is'} filled, not a line, so GlowLine traced the edge. For neon, draw strokes with no fill.`]);
   if (!a.length) a.push(['#4fd39a', 'Every bend is gentler than your flex limit and no strokes crowd each other. Good to cut.']);
   $('#alerts').innerHTML = a.map(([c, t]) => `<div class="alert"><i style="background:${c}"></i><div>${t}</div></div>`).join('');
 }
@@ -802,14 +1138,98 @@ function machine() {
     chanIn: last ? last.o.chanIn : 0.236, exitAtEntry: !!S.exitEntry };
 }
 $('#xGroove').onclick = () => { if (!last) return; saveFile(baseName() + '_grooves.sbp', GL.grooveCode(last.lay, last.pl, last.board, machine())); };
-$('#xHoles').onclick = () => { if (!last) return; const m = machine(); if (m.holeBit > m.holeIn) { toast('The hole bit is bigger than the hole.'); return; } saveFile(baseName() + '_holes.sbp', GL.holeCode(last.pl, last.board, m)); };
-$('#xSvg').onclick = () => { if (!last) return; saveFile(baseName() + '_cut.svg', GL.cncSvg(last.lay, last.pl, last.board, last.o), 'image/svg+xml'); };
+$('#xHoles').onclick = () => {
+  if (!last) return; const m = machine(); if (m.holeBit > m.holeIn) { toast('The hole bit is bigger than the hole.'); return; }
+  let code = GL.holeCode(last.pl, last.board, m);
+  if (last.shape) {
+    const X = x => GL.f5(x - last.board.x0), Y = y => GL.f5(y - last.board.y0), tabH = Math.max(0.04, Math.min(0.125, m.board * 0.35));
+    const lines = ["' Cut-out: profile around the sign with the same bit, leaving tabs to hold it"];
+    const tool = last.shape.tool.slice().sort((a, b) => (b.hole ? 1 : 0) - (a.hole ? 1 : 0));   // inside cuts first
+    for (const lp of tool) {
+      const tabs = lp.hole ? 0 : Math.max(3, Math.min(12, Math.round(GLOutline.polyLen(lp.pts, true) / 16)));
+      lines.push(...GLOutline.profileCode([lp], X, Y, { total: m.board + m.breakthrough, doc: m.holeDoc, feed: m.holeFeed, plunge: m.plunge, safeZ: m.safeZ,
+        tabs, tabW: 0.375, tabH, breakthrough: m.breakthrough, climb: S.mat === 'acrylic' }));
+    }
+    code = code.replace('G0 X0.0000 Y0.0000\nG4 P0.1', lines.join('\n') + '\nG0 X0.0000 Y0.0000\nG4 P0.1');
+  }
+  saveFile(baseName() + (last.shape ? '_holes_cutout.sbp' : '_holes.sbp'), code);
+};
+$('#xSvg').onclick = () => {
+  if (!last) return; let svg = GL.cncSvg(last.lay, last.pl, last.board, last.o);
+  if (last.shape) { const X = x => GL.f5(x - last.board.x0), Y = y => GL.f5(last.board.y1 - y);
+    svg = svg.replace('</svg>', `<g id="cut-outline" fill="none" stroke="#00a000" stroke-width="0.01">\n` + last.shape.loops.map(l => `<path d="M${l.pts.map(p => X(p[0]) + ' ' + Y(p[1])).join(' L')} Z"/>`).join('\n') + `\n</g>\n</svg>`); }
+  saveFile(baseName() + '_cut.svg', svg, 'image/svg+xml');
+};
 $('#xMap').onclick = () => {
   if (!last) return; const keep = S.view; S.view = 'plan'; render();
   let svg = $('#preview svg').outerHTML; const W = last.board.x1 - last.board.x0, H = last.board.y1 - last.board.y0;
   svg = svg.replace('<svg ', `<svg width="${GL.f5(W * 1.06)}in" height="${GL.f5(H * 1.06)}in" `);
   S.view = keep; render(); saveFile(baseName() + '_wiring.svg', '<?xml version="1.0" encoding="UTF-8"?>\n' + svg, 'image/svg+xml');
 };
+
+// ---------- shape + artwork ----------
+function circlePts(c, r) { const out = []; for (let k = 0; k <= 16; k++) { const a = k / 16 * Math.PI * 2; out.push([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]); } return out; }
+function simplifyLine(pl, tol) {
+  if (pl.length < 3) return pl;
+  if (Math.hypot(pl[0][0] - pl.at(-1)[0], pl[0][1] - pl.at(-1)[1]) < 1e-6) {   // closed: split at the far point
+    let far = 0, fd = -1; pl.forEach((p, i) => { const d = Math.hypot(p[0] - pl[0][0], p[1] - pl[0][1]); if (d > fd) { fd = d; far = i; } });
+    return GLOutline.rdp(pl.slice(0, far + 1), tol).concat(GLOutline.rdp(pl.slice(far), tol).slice(1));
+  }
+  return GLOutline.rdp(pl, tol);
+}
+function placeArt(lay, o) {
+  if (!ART) return { neon: [], cut: [], filledOnly: 0 };
+  const s = Math.max(0.5, num('artw', 12)) / ART.w, aw = ART.w * s, ah = ART.h * s, gap = Math.max(0.5, o.capIn * 0.35);
+  let ox = 0, oy = 0;
+  const tp = lay.strokes.map(st => GL.flattenSegs(st.segs, 0.1));
+  if (tp.length) {
+    const b = GL.boundsOf(tp, 0), cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
+    ({ above: () => { ox = cx - aw / 2; oy = b.y1 + gap; }, below: () => { ox = cx - aw / 2; oy = b.y0 - gap - ah; },
+       left: () => { ox = b.x0 - gap - aw; oy = cy - ah / 2; }, right: () => { ox = b.x1 + gap; oy = cy - ah / 2; },
+       behind: () => { ox = cx - aw / 2; oy = cy - ah / 2; } }[S.artPos] || (() => {}))();
+  }
+  const T = pl => pl.map(p => [ox + p[0] * s, oy + p[1] * s]);
+  return { neon: ART.neon.map(pl => simplifyLine(T(pl), 0.004)).filter(pl => pl.length > 1), cut: ART.cut.map(T), filledOnly: ART.filledOnly };
+}
+function syncShape() {
+  const hasCut = !!(ART && ART.cut.length);
+  $('#shapeCustom').disabled = !hasCut;
+  if (S.shape === 'custom' && !hasCut) S.shape = 'contour';
+  [...$('#shapeSel').children].forEach(b => b.setAttribute('aria-pressed', b.dataset.v === S.shape));
+  $('#contourOpts').hidden = S.shape !== 'contour';
+  $('#marginWrap').style.visibility = (S.shape === 'board' || S.shape === 'rect') ? 'visible' : 'hidden';
+  $('#keepHoles').checked = !!S.keepHoles;
+  $('#shapeNote').innerHTML = { board: 'A plain board around the sign. GlowLine only cuts the grooves and holes.',
+    rect: 'GlowLine also cuts the sign out as a rounded rectangle, with tabs holding it in place.',
+    contour: 'The cut-out follows the letters. Raise <b>Fill gaps</b> if it splits into pieces.',
+    custom: 'The cut-out follows the red lines in your SVG.' }[S.shape] || '';
+  $('#artInfo').hidden = !ART; $('#artOpts').hidden = !ART; $('#artBtn').textContent = ART ? 'Replace SVG artwork…' : 'Add SVG artwork…';
+  $('#artName').textContent = ART ? `${ART_NAME} · ${ART.neon.length} neon line${ART.neon.length === 1 ? '' : 's'}${ART.cut.length ? `, ${ART.cut.length} red outline${ART.cut.length === 1 ? '' : 's'}` : ''}` : '';
+  $('#artPos').value = S.artPos;
+  const hasShape = S.shape !== 'board';
+  $('#xHoles b').textContent = hasShape ? 'ShopBot holes + cut-out (.sbp)' : 'ShopBot holes (.sbp)';
+  $('#xHoles span').textContent = hasShape ? 'Flex holes, then the sign outline with tabs' : 'Through-holes for the flex';
+}
+function loadArt(text, name, quiet) {
+  try { ART = GLArt.parse(text); ART_TEXT = text; ART_NAME = name || 'artwork.svg'; }
+  catch (e) { if (!quiet) toast(e.message || 'Could not read that SVG.'); return false; }
+  return true;
+}
+$('#shapeSel').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; S.shape = b.dataset.v; update(); });
+$('#keepHoles').addEventListener('change', () => { S.keepHoles = $('#keepHoles').checked; update(); });
+$('#artBtn').addEventListener('click', () => $('#artFile').click());
+$('#artFile').addEventListener('change', async () => {
+  const f = $('#artFile').files[0]; $('#artFile').value = ''; if (!f) return;
+  const text = await f.text();
+  if (loadArt(text, f.name)) {
+    if (ART.cut.length) { S.shape = 'custom'; toast('Found a red outline: the sign will be cut to that shape.'); }
+    else toast(`Added ${ART.neon.length} line${ART.neon.length === 1 ? '' : 's'} from ${f.name}`);
+    update();
+  }
+});
+$('#artRemove').addEventListener('click', () => { ART = null; ART_TEXT = ''; ART_NAME = ''; if (S.shape === 'custom') S.shape = 'contour'; update(); });
+$('#artPos').addEventListener('change', () => { S.artPos = $('#artPos').value; update(); });
+try { const sa = JSON.parse(localStorage.getItem(STORE + '.art') || 'null'); if (sa && sa.text) loadArt(sa.text, sa.name, true); } catch (e) {}
 
 // ---------- wire up ----------
 let pending = null;
@@ -822,7 +1242,8 @@ function cncSummary() {
   const m = machine(), mm = m.depth * 25.4, bitName = S.bit === 'neon6' ? '6 mm neon slotting bit' : 'your bit';
   $('#cncSum').innerHTML = `<span class="k">Grooves</span><b>${bitName}</b>: ${fmtNum(num('chan', 6), 1)} mm wide, ${fmtNum(m.depth, 3)}" (${fmtNum(mm, 1)} mm) deep in <b>one full-depth pass</b> in ${(MATERIALS[S.mat] || MATERIALS.wood).name} at ${fmtNum(m.feed, 0)} ipm, plunging at ${fmtNum(m.plunge, 0)} ipm, ${m.rpm.toLocaleString()} rpm.` +
     (m.exitAtEntry ? ' Each groove lifts out where it went in.' : '') +
-    `<span class="k">Holes</span>${fmtNum(m.holeBit, 3)}" straight bit, through the ${fmtNum(m.board, 3)}" board in ${fmtNum(m.holeDoc, 3)}" passes at ${fmtNum(m.holeFeed, 0)} ipm.`;
+    `<span class="k">Holes</span>${fmtNum(m.holeBit, 3)}" straight bit, through the ${fmtNum(m.board, 3)}" board in ${fmtNum(m.holeDoc, 3)}" passes at ${fmtNum(m.holeFeed, 0)} ipm.` +
+    (last && last.shape ? `<span class="k">Cut-out</span>Same bit, around the ${last.shape.kind === 'rect' ? 'rectangle' : 'sign outline'} after the holes, with small tabs holding it in place (${S.mat === 'acrylic' ? 'climb cut for a clean acrylic edge' : 'conventional cut'}).` : '');
 }
 function applyBit() { const b = BITS[S.bit]; if (b) { $('#chan').value = b.chan; $('#depth').value = b.depth; } $('#bitSel').value = S.bit; }
 $('#bitSel').addEventListener('change', () => { S.bit = $('#bitSel').value; if (S.bit === 'custom') $('#adv').open = true; applyBit(); update(); });

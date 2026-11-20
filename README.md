@@ -6,7 +6,7 @@ Every app runs in the browser with nothing to install, so it works on school com
 
 ## Apps
 
-The landing page groups the apps by machine, with a colored band for each group and a search box.
+The landing page groups the apps by machine, with a colored band for each group, a search box that also matches everyday words ("sticker", "hat", "box", "dxf"), and a light/dark toggle. Every app has a "← BMFG Help" link back to the landing page and its own tab icon.
 
 ### CNC machining
 
@@ -44,16 +44,19 @@ The landing page groups the apps by machine, with a colored band for each group 
 
 ### Also
 
-- [CutContour Checker](https://bmfg.help/CutContourChecker.html): checks Illustrator EPS files for the Roland BN-40 print-and-cut workflow.
+- [CutContour Checker](https://bmfg.help/cutcontour/): checks Illustrator EPS files for the Roland BN-40 print-and-cut workflow.
 - [GlowLine fonts](glowline/fonts/): 11 single-line fonts (TTF + JSON) for CNC and neon signs.
 
 ## Repo layout
 
 ```
 index.html          landing page with a card for every app
-Style.css           shared styles
-js/                 shared scripts
+404.html            "page not found" page; redirects old or mistyped app links
+favicon.svg         landing page tab icon
+og-image.png        preview image shown when bmfg.help is shared (Classroom, email)
 <app>/index.html    one folder per app
+<app>/favicon.svg   that app's tab icon
+cutcontour/         CutContour Checker
 glowline/fonts/     GlowLine's single-line fonts
 CNAME               custom domain (bmfg.help)
 ```
@@ -61,8 +64,12 @@ CNAME               custom domain (bmfg.help)
 ## Adding an app
 
 1. Make a new folder named after the app (lowercase) and save the app inside it as `index.html`.
-2. Add a card for it to the right group (`<section class="band">`) in the top-level `index.html`, and bump that group's app count.
-3. Add a row to the table above.
+2. In the app, add a `favicon.svg` to its folder and link it in the `<head>`:
+   `<link rel="icon" type="image/svg+xml" href="favicon.svg">`
+3. Add the back link to the app's header (copy the `bmfg-home` link and its `<style id="bmfg-home-css">` block from any other app).
+4. Add a card for it to the right group (`<section class="band">`) in the top-level `index.html`. Give the card's `<a>` a `data-keywords="..."` list of words students might search for. The group counts update on their own.
+5. Add the folder name to the `apps` list in `404.html` so mistyped links (like `/NewApp`) still find it.
+6. Add a row to the table above.
 
 ## License
 

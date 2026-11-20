@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page not found · BMFG Help</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="robots" content="noindex">
+<script>try{var t=localStorage.getItem("bmfg-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>
+/* Old or mistyped links: send them to the right app before the page draws.
+   Add a line here if you ever rename or move an app. */
+(function(){
+  var moved={
+    "cutcontourchecker.html":"/cutcontour/",
+    "cutcontourchecker":"/cutcontour/",
+    "minigolf":"/golfsim/",
+    "cadminigolf":"/golfsim/",
+    "cad-mini-golf":"/golfsim/",
+    "mini-golf":"/golfsim/"
+  };
+  var apps=["penbot","routeready","inlayready","carveready","glowline","turnready","arcright",
+            "laserready","foldready","kisscut","needlepath","wrestl","golfsim","siegeready","cutcontour"];
+  var parts=location.pathname.split("/").filter(Boolean);
+  if(!parts.length) return;
+  var first=decodeURIComponent(parts[0]).toLowerCase();
+  if(moved[first]){ location.replace(moved[first]+location.search+location.hash); return; }
+  if(apps.indexOf(first)>-1){
+    var rest=parts.slice(1).join("/");
+    // /RouteReady or /RouteReady/ -> /routeready/ ; keep other files (e.g. /GolfSim/builder.html)
+    var target="/"+first+"/"+(rest && rest.toLowerCase()!=="index.html" ? rest : "");
+    if(target!==location.pathname){ location.replace(target+location.search+location.hash); }
+  }
+})();
+</script>
+<style>
+:root{--bg:#eef0f2;--panel:#fff;--ink:#16191e;--muted:#5b636e;--line:#d6dbe1;--focus:#2a5fc4;color-scheme:light}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--bg:#111418;--panel:#191d23;--ink:#e7eaee;--muted:#9aa3ae;--line:#2b3139;--focus:#6d9af0;color-scheme:dark} }
+:root[data-theme="dark"]{--bg:#111418;--panel:#191d23;--ink:#e7eaee;--muted:#9aa3ae;--line:#2b3139;--focus:#6d9af0;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+.wrap{max-width:760px;margin:0 auto;padding:56px 18px}
+.code{font:600 .8rem ui-monospace,Consolas,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0}
+h1{font:700 clamp(2rem,6vw,2.8rem)/1.05 "Arial Narrow",system-ui,sans-serif;text-transform:uppercase;letter-spacing:.01em;margin:6px 0 10px}
+p{margin:0 0 14px}
+.path{font-family:ui-monospace,Consolas,monospace;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:1px 6px;word-break:break-all}
+.home{display:inline-flex;align-items:center;gap:8px;margin:8px 0 34px;padding:10px 18px;border-radius:999px;background:var(--ink);color:var(--bg);
+  text-decoration:none;font-weight:600}
+.home:focus-visible,.list a:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+h2{font:600 .78rem ui-monospace,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.list a{display:flex;flex-direction:column;gap:2px;padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;color:inherit;text-decoration:none}
+.list a:hover{border-color:var(--ink)}
+.list b{font-weight:600}
+.list small{color:var(--muted);font:500 .7rem ui-monospace,Consolas,monospace;letter-spacing:.06em;text-transform:uppercase}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <p class="code">404 &middot; page not found</p>
+  <h1>That page isn't here</h1>
+  <p>Nothing lives at <span class="path" id="path"></span>. The link may be old or have a typo.</p>
+  <a class="home" href="/">&larr; All BMFG apps</a>
+
+  <h2>Jump straight to an app</h2>
+  <ul class="list" id="list"></ul>
+</main>
+<script>
+document.getElementById("path").textContent=location.pathname;
+// Build the app list from the landing page so it never goes out of date
+fetch("/").then(function(r){return r.text()}).then(function(html){
+  var doc=new DOMParser().parseFromString(html,"text/html");
+  var ul=document.getElementById("list");
+  doc.querySelectorAll(".band .app").forEach(function(a){
+    var name=a.querySelector(".name"), mach=a.querySelector(".machine");
+    var li=document.createElement("li"), link=document.createElement("a");
+    link.href="/"+a.getAttribute("href").replace(/index\.html$/,"");
+    var b=document.createElement("b"); b.textContent=name?name.textContent:"";
+    var s=document.createElement("small"); s.textContent=mach?mach.textContent:"";
+    link.appendChild(b); link.appendChild(s); li.appendChild(link); ul.appendChild(li);
+  });
+}).catch(function(){});
+</script>
+</body>
+</html>

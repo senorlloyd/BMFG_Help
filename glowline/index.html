@@ -68,6 +68,11 @@ label.chk input{margin-top:3px;width:16px;height:16px;flex:none;accent-color:var
 label.chk b{color:var(--ink)}
 select{appearance:auto}
 [hidden]{display:none!important}
+.setup{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:4px 18px;padding:12px 14px}
+.setup h3{grid-column:1/-1;margin:0 0 2px;font:600 .95rem var(--f-head);text-transform:uppercase;letter-spacing:.04em}
+.setup div span{display:block;font:500 .66rem var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.setup div b{font:600 1.05rem var(--f-body)}
+.setup div em{display:block;font-style:normal;font-size:.8rem;color:var(--muted)}
 .seg4 button{font-size:.74rem;padding:7px 2px}
 .seg button:disabled{opacity:.4;cursor:not-allowed}
 .artbox{border:1px dashed var(--line);border-radius:9px;padding:10px;margin-top:4px}
@@ -188,6 +193,8 @@ details.adv[open]{padding-bottom:12px}
         </select></label>
       <label class="f"><span>Material</span>
         <div class="seg" id="matSel"><button type="button" data-v="wood">Wood / MDF</button><button type="button" data-v="acrylic">Acrylic</button></div></label>
+      <label class="f"><span>Job origin (where you zero X and Y)</span>
+        <div class="seg" id="originSel"><button type="button" data-v="corner">Lower-left corner</button><button type="button" data-v="center">Center of material</button></div></label>
       <div class="plan-sum" id="cncSum"></div>
       <details class="adv" id="adv">
         <summary>Advanced settings</summary>
@@ -216,7 +223,7 @@ details.adv[open]{padding-bottom:12px}
         <label class="f"><span>Start code ({rpm} becomes the spindle speed)</span><textarea id="head" spellcheck="false" style="font:12px var(--f-mono);min-height:64px"></textarea></label>
         <button type="button" class="resetbtn" id="cncReset">Reset ShopBot settings to defaults</button>
       </details>
-      <p class="note">Zero X and Y at the <b>lower-left corner of the board</b> and Z at the <b>top of the material</b>. Files are inch G-code saved as .sbp, the same as RouteReady. Always air-cut or preview in ShopBot before cutting.</p>
+      <p class="note">Zero X and Y where you picked above (the preview marks it <b>X0 Y0</b>), and Z on the <b>top of the material</b>. <b>Center of material</b> is also the center of your text. Each file lists the material size and how far the bits reach in its first lines. Files are inch G-code saved as .sbp, the same as RouteReady. Always air-cut or preview in ShopBot before cutting.</p>
       <p class="note">GlowLine starts each groove at a flex through-hole when one sits on it, so cutting the holes drills away the plunge mark. Any other plunge spots show as a small <b>&times;</b> in the flex plan.</p>
     </div>
   </aside>
@@ -230,6 +237,7 @@ details.adv[open]{padding-bottom:12px}
       </div>
       <div class="dims" id="dims"></div>
     </div>
+    <div class="setup panel" id="setup"></div>
     <div class="stats" id="stats"></div>
     <div class="alerts" id="alerts"></div>
     <div class="exports panel">
@@ -579,7 +587,7 @@ function grooveJobs(lay, plan, o) {
 function header(m) { return (m.header || '').split(/\r?\n/).filter(l => l.trim()).map(l => l.replace(/\{rpm\}/g, String(m.rpm))); }
 function grooveCode(lay, plan, board, m) {
   const L = header(m);
-  L.push('G20', 'G90', `' GlowLine neon grooves - zero X/Y at the board's lower-left corner, Z at the top of the material`);
+  L.push('G20', 'G90', `' GlowLine neon grooves - X0 Y0 = ${m.originNote || "lower-left corner of the board"}, Z0 = top of the material`, ...(m.sizeNotes || []));
   if (m.exitAtEntry) L.push(`' Each groove plunges once and lifts out of the same hole (full-depth return pass)`);
   const X = x => f5(x - board.x0), Y = y => f5(y - board.y0);
   const passes = Math.max(1, Math.ceil(m.depth / Math.max(0.01, m.doc) - 1e-9));
@@ -612,7 +620,7 @@ function grooveCode(lay, plan, board, m) {
   return L.join('\n') + '\n';
 }
 function holeCode(plan, board, m) {
-  const L = header({ header: m.header, rpm: m.rpm }); L.push('G20', 'G90', `' GlowLine through-holes - ${m.holeBit}" bit, cutting ${f5(m.board + m.breakthrough)}" deep. Use a spoilboard.`);
+  const L = header({ header: m.header, rpm: m.rpm }); L.push('G20', 'G90', `' GlowLine through-holes - ${m.holeBit}" bit, cutting ${f5(m.board + m.breakthrough)}" deep. Use a spoilboard.`, `' X0 Y0 = ${m.originNote || "lower-left corner of the board"}, Z0 = top of the material`, ...(m.sizeNotes || []));
   const X = x => f5(x - board.x0), Y = y => f5(y - board.y0);
   const total = m.board + m.breakthrough, passes = Math.max(1, Math.ceil(total / Math.max(0.01, m.holeDoc) - 1e-9));
   const R = m.holeIn / 2 - m.holeBit / 2;
@@ -933,7 +941,7 @@ const CNC_DEFAULTS = { chan: 6, depth: 0.165, feed: 40, plunge: 10, rpm: 14000, 
 // Conservative starting points for a 2-flute carbide neon bit, full-depth slot
 const MATERIALS = { acrylic: { name: 'acrylic', feed: 40, plunge: 10, rpm: 14000, hfeed: 30 },
                     wood: { name: 'wood / MDF', feed: 60, plunge: 15, rpm: 16000, hfeed: 50 } };
-let S = { font: 0, align: 'center', color: COLORS[0], view: 'plan', exitEntry: true, bit: 'neon6', mat: 'wood', shape: 'board', keepHoles: false, artPos: 'above' };
+let S = { font: 0, align: 'center', color: COLORS[0], view: 'plan', exitEntry: true, bit: 'neon6', mat: 'wood', origin: 'center', shape: 'board', keepHoles: false, artPos: 'above' };
 let ART = null, ART_TEXT = '', ART_NAME = '';
 let last = null;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -1040,10 +1048,14 @@ function update() {
     shape.edgeHoles = pl.holes.filter(h => GLOutline.distToLoops(h.p, shape.loops) < o.holeIn / 2 + 0.2).length;
     if (shape.kind === 'custom') { let out = 0, tot = 0; for (const g of grooves) for (let i = 0; i < g.length; i += 4) { tot++; if (!GLOutline.insideShape(g[i], shape.loops)) out++; } shape.outside = out / Math.max(1, tot); }
   }
+  // everything the bits touch, edge to edge
+  const ext = GL.boundsOf(grooves, o.chanIn / 2);
+  for (const h of pl.holes) { ext.x0 = Math.min(ext.x0, h.p[0] - o.holeIn / 2); ext.x1 = Math.max(ext.x1, h.p[0] + o.holeIn / 2); ext.y0 = Math.min(ext.y0, h.p[1] - o.holeIn / 2); ext.y1 = Math.max(ext.y1, h.p[1] + o.holeIn / 2); }
+  if (shape && shape.tool) for (const l of shape.tool) for (const q of l.pts) { ext.x0 = Math.min(ext.x0, q[0] - bitR); ext.x1 = Math.max(ext.x1, q[0] + bitR); ext.y0 = Math.min(ext.y0, q[1] - bitR); ext.y1 = Math.max(ext.y1, q[1] + bitR); }
   const jobs = GL.grooveJobs(lay, pl, { exitAtEntry: !!S.exitEntry, holeIn: o.holeIn, chanIn: o.chanIn });
-  last = { f, o, lay, pl, board, jobs, shape: shape && shape.loops.length ? shape : null, shapeInfo: shape, art };
+  last = { ext, f, o, lay, pl, board, jobs, shape: shape && shape.loops.length ? shape : null, shapeInfo: shape, art };
   cncSummary();
-  render(); stats();
+  render(); stats(); setupPanel();
 }
 function render() {
   if (!last) return;
@@ -1051,7 +1063,8 @@ function render() {
   const W = board.x1 - board.x0, H = board.y1 - board.y0, X = x => x - board.x0, Y = y => board.y1 - y;
   const P = p => GL.f5(X(p[0])) + ' ' + GL.f5(Y(p[1]));
   const cw = o.chanIn, col = S.color, plan = S.view === 'plan';
-  let s = `<svg viewBox="${-W * 0.03} ${-H * 0.03} ${W * 1.06} ${H * 1.06}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sign preview">`;
+  const pad = Math.max(W, H) * 0.06;
+  let s = `<svg viewBox="${-pad * 0.5} ${-pad * 1.25} ${W + pad * 1.9} ${H + pad * 1.85}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sign preview">`;
   s += `<defs><filter id="gl" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="${cw * 1.6}" result="b1"/><feGaussianBlur in="SourceGraphic" stdDeviation="${cw * 0.5}" result="b2"/><feMerge><feMergeNode in="b1"/><feMergeNode in="b2"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
   const sh = last.shape, lwb = Math.max(0.03, W / 600);
   const loopD = ls => ls.map(l => 'M' + l.pts.map(P).join(' L') + ' Z').join(' ');
@@ -1080,6 +1093,16 @@ function render() {
       const p = r.pts[0]; return `<circle cx="${GL.f5(X(p[0]))}" cy="${GL.f5(Y(p[1]))}" r="${fs * 0.72}" fill="#fff"/><text x="${GL.f5(X(p[0]))}" y="${GL.f5(Y(p[1]) + fs * 0.35)}" fill="#111">${i + 1}</text>`;
     }).join('') + '</g>';
   }
+  // overall size + job origin
+  { const t = pad * 0.42, lw2 = Math.max(0.02, pad * 0.025), c = '#a7adbd', y = -pad * 0.55, x = W + pad * 0.55;
+    s += `<g stroke="${c}" stroke-width="${lw2}" fill="none"><path d="M0 ${y} H${W} M0 ${y - t * 0.4} V${y + t * 0.4} M${W} ${y - t * 0.4} V${y + t * 0.4}"/><path d="M${x} 0 V${H} M${x - t * 0.4} 0 H${x + t * 0.4} M${x - t * 0.4} ${H} H${x + t * 0.4}"/></g>`;
+    s += `<g fill="${c}" font-family="IBM Plex Mono,monospace" font-size="${t}" font-weight="600"><text x="${W / 2}" y="${y - t * 0.35}" text-anchor="middle">${fmtIn(W)}</text>` +
+         `<text x="${x + t * 0.35}" y="${H / 2}" transform="rotate(90 ${x + t * 0.35} ${H / 2})" text-anchor="middle">${fmtIn(H)}</text></g>`;
+    const O = originPt(), ox = O.x0 - board.x0, oy = board.y1 - O.y0, L = pad * 0.9, aw = lw2 * 2.2;
+    s += `<g stroke-width="${aw}" stroke-linecap="round"><path d="M${ox} ${oy} H${ox + L}" stroke="#ff5a5a"/><path d="M${ox + L} ${oy} l${-t * 0.35} ${-t * 0.25} M${ox + L} ${oy} l${-t * 0.35} ${t * 0.25}" stroke="#ff5a5a"/>` +
+         `<path d="M${ox} ${oy} V${oy - L}" stroke="#4fd39a"/><path d="M${ox} ${oy - L} l${-t * 0.25} ${t * 0.35} M${ox} ${oy - L} l${t * 0.25} ${t * 0.35}" stroke="#4fd39a"/></g>` +
+         `<circle cx="${ox}" cy="${oy}" r="${t * 0.32}" fill="#fff" stroke="#111" stroke-width="${aw * 0.6}"/>` +
+         `<text x="${ox + t * 0.5}" y="${oy + t * 1.05}" fill="#fff" font-family="IBM Plex Mono,monospace" font-size="${t * 0.85}" font-weight="700">X0 Y0</text>`; }
   $('#preview').innerHTML = s + '</svg>';
   $('#dims').textContent = sh ? `Sign ${fmtIn(sh.sign.x1 - sh.sign.x0)} × ${fmtIn(sh.sign.y1 - sh.sign.y0)} · stock ${fmtIn(W)} × ${fmtIn(H)}` : `Board ${fmtIn(W)} × ${fmtIn(H)}`;
 }
@@ -1135,14 +1158,17 @@ function machine() {
   return { header: $('#head').value, rpm: Math.round(num('rpm', 14000)), depth: Math.max(0.01, num('depth', 0.165)), doc: Math.max(0.01, num('depth', 0.165)), feed: Math.max(1, num('feed', 40)),
     plunge: Math.max(1, num('plunge', 10)), safeZ: Math.max(0.05, num('safez', 0.25)), holeBit: Math.max(0.03, num('hbit', 0.25)), holeDoc: Math.max(0.01, num('hdoc', 0.125)),
     holeFeed: Math.max(1, num('hfeed', 30)), board: Math.max(0.01, num('board', 0.75)), breakthrough: Math.max(0, num('brk', 0.02)), holeIn: last ? last.o.holeIn : 0.5,
-    chanIn: last ? last.o.chanIn : 0.236, exitAtEntry: !!S.exitEntry };
+    chanIn: last ? last.o.chanIn : 0.236, exitAtEntry: !!S.exitEntry,
+    originNote: S.origin === 'center' ? 'center of the material' : 'lower-left corner of the material',
+    sizeNotes: last ? (() => { const b = last.board, e = last.ext, O = originPt();
+      return [`' Material: ${GL.f5(b.x1 - b.x0)} x ${GL.f5(b.y1 - b.y0)} in`, `' Bits reach X ${GL.f5(e.x0 - O.x0)} to ${GL.f5(e.x1 - O.x0)}, Y ${GL.f5(e.y0 - O.y0)} to ${GL.f5(e.y1 - O.y0)}`]; })() : [] };
 }
-$('#xGroove').onclick = () => { if (!last) return; saveFile(baseName() + '_grooves.sbp', GL.grooveCode(last.lay, last.pl, last.board, machine())); };
+$('#xGroove').onclick = () => { if (!last) return; saveFile(baseName() + '_grooves.sbp', GL.grooveCode(last.lay, last.pl, originPt(), machine())); };
 $('#xHoles').onclick = () => {
   if (!last) return; const m = machine(); if (m.holeBit > m.holeIn) { toast('The hole bit is bigger than the hole.'); return; }
-  let code = GL.holeCode(last.pl, last.board, m);
+  let code = GL.holeCode(last.pl, originPt(), m);
   if (last.shape) {
-    const X = x => GL.f5(x - last.board.x0), Y = y => GL.f5(y - last.board.y0), tabH = Math.max(0.04, Math.min(0.125, m.board * 0.35));
+    const O = originPt(), X = x => GL.f5(x - O.x0), Y = y => GL.f5(y - O.y0), tabH = Math.max(0.04, Math.min(0.125, m.board * 0.35));
     const lines = ["' Cut-out: profile around the sign with the same bit, leaving tabs to hold it"];
     const tool = last.shape.tool.slice().sort((a, b) => (b.hole ? 1 : 0) - (a.hole ? 1 : 0));   // inside cuts first
     for (const lp of tool) {
@@ -1166,6 +1192,21 @@ $('#xMap').onclick = () => {
   svg = svg.replace('<svg ', `<svg width="${GL.f5(W * 1.06)}in" height="${GL.f5(H * 1.06)}in" `);
   S.view = keep; render(); saveFile(baseName() + '_wiring.svg', '<?xml version="1.0" encoding="UTF-8"?>\n' + svg, 'image/svg+xml');
 };
+
+// ---------- job origin + setup ----------
+function originPt() { const b = last.board; return S.origin === 'center' ? { x0: (b.x0 + b.x1) / 2, y0: (b.y0 + b.y1) / 2 } : { x0: b.x0, y0: b.y0 }; }
+const sgn = v => (v < 0 ? '−' : '') + fmtIn(Math.abs(v));
+function setupPanel() {
+  if (!last) { $('#setup').innerHTML = ''; return; }
+  const b = last.board, e = last.ext, O = originPt(), W = b.x1 - b.x0, H = b.y1 - b.y0, T = num('board', 0.75);
+  $('#setup').innerHTML = `<h3>Machine setup</h3>
+    <div><span>Material needed</span><b>${fmtIn(W)} wide × ${fmtIn(H)} tall</b><em>${fmtIn(T)} thick${last.shape ? ' (includes room around the cut-out)' : ''}</em></div>
+    <div><span>Zero X and Y at</span><b>${S.origin === 'center' ? 'Center of the material' : 'Lower-left corner'}</b><em>Z zero on the top of the material</em></div>
+    <div><span>Bits reach</span><b>X ${sgn(e.x0 - O.x0)} to ${sgn(e.x1 - O.x0)}</b><em>Y ${sgn(e.y0 - O.y0)} to ${sgn(e.y1 - O.y0)} from zero</em></div>`;
+}
+function syncOrigin() { [...$('#originSel').children].forEach(b => b.setAttribute('aria-pressed', b.dataset.v === S.origin)); }
+$('#originSel').addEventListener('click', ev => { const b = ev.target.closest('button'); if (!b) return; S.origin = b.dataset.v; syncOrigin(); persist(); render(); setupPanel(); });
+syncOrigin();
 
 // ---------- shape + artwork ----------
 function circlePts(c, r) { const out = []; for (let k = 0; k <= 16; k++) { const a = k / 16 * Math.PI * 2; out.push([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]); } return out; }

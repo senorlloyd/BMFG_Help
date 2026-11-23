@@ -41,6 +41,7 @@ The landing page groups the apps by machine, with a colored band for each group,
 |---|---|---|
 | [CAD Mini Golf](https://bmfg.help/golfsim/) | Onshape game | Drop in an Onshape model of a mini golf hole and play it in 3D. |
 | [SiegeReady](https://bmfg.help/siegeready/) | Onshape game | Rig your Onshape marble launcher, then launch a flaming marble for distance, accuracy, or to knock down a castle. |
+| [RigReady](https://bmfg.help/rigready/) | Game characters | Drop in a 3D character (GLB, FBX, OBJ or STL), auto-rig it with Mixamo-style markers, try walk, run, jump and other animations or make your own, then export a game-ready GLB. Demo humans by lzyassoul (CC BY). |
 
 ### Also
 

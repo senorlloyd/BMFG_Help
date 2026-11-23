@@ -9,7 +9,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="BMFG Help">
 <meta property="og:title" content="BMFG Help: Beaverton MFG shop apps">
-<meta property="og:description" content="Free browser apps for the Beaverton MFG shop at Westview High School: CNC router, lathe, plasma, laser, print-and-cut, embroidery, 3D printing and Onshape games.">
+<meta property="og:description" content="Free browser apps for the Beaverton MFG shop at Westview High School: CNC router, lathe, plasma, laser, print-and-cut, embroidery, 3D printing, Onshape games and character rigging.">
 <meta property="og:url" content="https://bmfg.help/">
 <meta property="og:image" content="https://bmfg.help/og-image.png">
 <meta property="og:image:width" content="1200">
@@ -72,6 +72,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
 .wrestl    {--a-bg:#eef0f2;--a-ink:#1d2228;--a-accent:#cf2a27;--a-gold:#e8a100;--a-turq:#0e9d97}
 .turnready {--a-bg:#f3ece3;--a-ink:#1d1a17;--a-accent:#e2761b;--a-wood:#b0834f;--a-steel:#6b737c}
 .siegeready{--a-bg:#f4ebe1;--a-ink:#1e140e;--a-accent:#d9530b;--a-stone:#8a7f74;--a-flame:#ffb347}
+.rigready  {--a-bg:#e8ecf3;--a-ink:#151c28;--a-accent:#e8920f;--a-bone:#2f7fd6}
 .glowline  {--a-bg:#14121a;--a-ink:#f3eef7;--a-accent:#c4126f;--a-neon:#ff4fbf;--a-plate:#0d0b12}
 @media (prefers-color-scheme: dark){
 :root:not([data-theme="light"]) .routeready{--a-bg:#161b23;--a-ink:#e5eaf1;--a-accent:#6d9af0;--a-accent-ink:#0c1320;--a-zero:#f0623f}
@@ -86,6 +87,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
 :root:not([data-theme="light"]) .wrestl    {--a-bg:#15181c;--a-ink:#e8ebee;--a-accent:#f04e43;--a-gold:#ffbe2e;--a-turq:#2fc4bc}
 :root:not([data-theme="light"]) .turnready {--a-bg:#1a1612;--a-ink:#efe7dd;--a-accent:#ff9a3d;--a-wood:#c4955c;--a-steel:#8f979f}
 :root:not([data-theme="light"]) .siegeready{--a-bg:#1b1410;--a-ink:#f4e9dc;--a-accent:#ff7a1a;--a-stone:#a99c8e;--a-flame:#ffd36b}
+:root:not([data-theme="light"]) .rigready  {--a-bg:#121925;--a-ink:#e6eef9;--a-accent:#ffb547;--a-bone:#5fb4ff}
 :root:not([data-theme="light"]) .glowline  {--a-bg:#14121a;--a-ink:#f3eef7;--a-accent:#ff4fbf;--a-neon:#ff4fbf;--a-plate:#0a090e}
 }
 :root[data-theme="dark"] .routeready{--a-bg:#161b23;--a-ink:#e5eaf1;--a-accent:#6d9af0;--a-accent-ink:#0c1320;--a-zero:#f0623f}
@@ -100,6 +102,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
 :root[data-theme="dark"] .wrestl    {--a-bg:#15181c;--a-ink:#e8ebee;--a-accent:#f04e43;--a-gold:#ffbe2e;--a-turq:#2fc4bc}
 :root[data-theme="dark"] .turnready {--a-bg:#1a1612;--a-ink:#efe7dd;--a-accent:#ff9a3d;--a-wood:#c4955c;--a-steel:#8f979f}
 :root[data-theme="dark"] .siegeready{--a-bg:#1b1410;--a-ink:#f4e9dc;--a-accent:#ff7a1a;--a-stone:#a99c8e;--a-flame:#ffd36b}
+:root[data-theme="dark"] .rigready  {--a-bg:#121925;--a-ink:#e6eef9;--a-accent:#ffb547;--a-bone:#5fb4ff}
 :root[data-theme="dark"] .glowline  {--a-bg:#14121a;--a-ink:#f3eef7;--a-accent:#ff4fbf;--a-neon:#ff4fbf;--a-plate:#0a090e}
 
 /* ---------- ShopBot family: shared blue well + corner badge ---------- */
@@ -170,6 +173,9 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
 .mk-sr{display:flex;align-items:center;gap:12px;font:900 28px/1 "Cinzel",Georgia,serif;letter-spacing:.04em;text-transform:uppercase;color:var(--a-ink)}
 .mk-sr svg{width:64px;height:64px;flex:none}
 .mk-sr span b{color:var(--a-accent);font-weight:900}
+.mk-rg{display:flex;align-items:center;gap:12px;font:800 30px/1 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:-.01em;color:var(--a-ink)}
+.mk-rg svg{width:64px;height:64px;flex:none}
+.mk-rg span b{color:var(--a-accent)}
 
 /* GlowLine sign plate */
 .mk-gl{display:flex;align-items:center;gap:12px;background:var(--a-plate);border-radius:12px;padding:12px 20px 12px 14px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
@@ -243,7 +249,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
   .wrap{padding-top:28px}
   .grid{grid-template-columns:1fr}
   .well{height:130px}
-  .plate{font-size:32px}.tag{font-size:27px}.mk-kc{font-size:31px}.mk-rr,.mk-gs{font-size:26px}.mk-ws{font-size:27px}.mk-pb{font-size:28px}.mk-tr{font-size:28px}.mk-sr{font-size:23px}.mk-gl span{font-size:27px}.mk-fr{font-size:27px}
+  .plate{font-size:32px}.tag{font-size:27px}.mk-kc{font-size:31px}.mk-rr,.mk-gs{font-size:26px}.mk-ws{font-size:27px}.mk-pb{font-size:28px}.mk-tr{font-size:28px}.mk-sr{font-size:23px}.mk-rg{font-size:26px}.mk-gl span{font-size:27px}.mk-fr{font-size:27px}
 }
 @media (prefers-reduced-motion:reduce){ .app,.machine::after{transition:none} .app:hover{transform:none} }
 </style>
@@ -390,7 +396,7 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
     <section class="band cat-sim" id="sim" aria-labelledby="sim-h">
       <div class="band-head">
         <span class="band-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 11v3M5.5 12.5h3"/><circle cx="16" cy="11.5" r="1"/><circle cx="18" cy="13.5" r="1"/></svg></span>
-        <div><h2 id="sim-h">Simulators & games</h2><p>Bring an Onshape design and test it in 3D.</p></div>
+        <div><h2 id="sim-h">Simulators & games</h2><p>Bring an Onshape design and test it in 3D, or rig characters for your games.</p></div>
         <span class="count"></span>
       </div>
       <ul class="grid">
@@ -409,6 +415,14 @@ h1{font:700 clamp(2.2rem,6vw,3.4rem)/.95 var(--f-head);letter-spacing:.01em;marg
         <div class="body"><h2 class="name">SiegeReady</h2>
           <p class="desc">Rig your Onshape marble launcher, then launch a flaming marble for distance, accuracy, or to knock down a castle.</p>
           <span class="machine">Onshape game</span></div>
+      </a></li>
+      <li><a data-keywords="rig rigging character animate animation skeleton bones mixamo game club glb fbx 3d model walk run" class="app rigready" href="rigready/index.html">
+        <div class="well"><div class="mk-rg" aria-hidden="true">
+          <svg viewBox="0 0 64 64"><g fill="none" stroke="var(--a-ink)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".18"><path d="M32 20v18M32 24l-12 7-4 10M32 24l11 6 6-8M32 38l-7 10-2 12M32 38l8 9 7 10"/></g><g fill="none" stroke="var(--a-bone)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M32 20v18M32 24l-12 7-4 10M32 24l11 6 6-8M32 38l-7 10-2 12M32 38l8 9 7 10"/></g><circle cx="32" cy="12" r="6" fill="var(--a-bone)"/><g fill="var(--a-accent)" stroke="var(--a-bg)" stroke-width="1.2"><circle cx="20" cy="31" r="3"/><circle cx="16" cy="41" r="3"/><circle cx="43" cy="30" r="3"/><circle cx="49" cy="22" r="3"/><circle cx="32" cy="38" r="3"/><circle cx="25" cy="48" r="3"/><circle cx="40" cy="47" r="3"/></g><path d="M6 60h52" stroke="var(--a-ink)" stroke-width="2" stroke-linecap="round"/></svg>
+          <span>Rig<b>Ready</b></span></div></div>
+        <div class="body"><h2 class="name">RigReady</h2>
+          <p class="desc">Drop in a 3D character, auto-rig it, try walk, run and jump animations, then export a game-ready GLB.</p>
+          <span class="machine">Game characters</span></div>
       </a></li>
       </ul>
     </section>
